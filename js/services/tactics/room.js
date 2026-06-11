@@ -10,6 +10,7 @@
     const POLL_WS_MS = 2000;
     const PRESENCE_POLL_MS = 2500;
     const SAVE_MS = 1000;
+    const PASSWORD_MASK = '••••••••';
 
     let roomState = null;
     let accessToken = null;
@@ -26,6 +27,9 @@
     let slidesCtrl = null;
     let addMapPicker = null;
     let canvasCtrl = null;
+    let workspaceInitPromise = null;
+    let editorAssetsPromise = null;
+    let lastJoinError = '';
     let dirty = false;
     let wsConnected = false;
     let canManage = false;
@@ -36,17 +40,82 @@
     let nicknameLockedByUser = false;
     let nicknameEditing = false;
     let wsAuthRefreshing = false;
+    let wsAuthFailures = 0;
+    const WS_AUTH_MAX_RETRIES = 3;
     let sinceEventId = 0;
     let lastCursorPostKey = '';
 
-    const GUEST_NICKS = ['Guest', 'Гость'];
-
     function isGuestNickname(nick) {
-        return GUEST_NICKS.includes(String(nick || '').trim());
+        return /^(?:Guest|Гость)(?:\s+\d+)?$/u.test(String(nick || '').trim());
     }
 
     function roomPublicId() {
         return String(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID || '');
+    }
+
+    const DEFAULT_SLIDE_VIEW_PREFS = {
+        show_remote_cursors: true,
+        share_my_cursor: true,
+    };
+
+    function slideViewStorageKey(slideId) {
+        return `abs_tactics_map_view_${roomPublicId()}_${slideId}`;
+    }
+
+    function loadSlideCursorPrefs(slideId) {
+        try {
+            const raw = localStorage.getItem(slideViewStorageKey(slideId));
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return {
+                    show_remote_cursors: parsed.show_remote_cursors !== false,
+                    share_my_cursor: parsed.share_my_cursor !== false,
+                };
+            }
+        } catch (e) { /* ignore */ }
+        return { ...DEFAULT_SLIDE_VIEW_PREFS };
+    }
+
+    function saveSlideCursorPrefs(slideId) {
+        if (!slideId || !canvasCtrl) return;
+        try {
+            localStorage.setItem(slideViewStorageKey(slideId), JSON.stringify({
+                show_remote_cursors: !!canvasCtrl.showRemoteCursors,
+                share_my_cursor: !!canvasCtrl.shareMyCursor,
+            }));
+        } catch (e) { /* ignore */ }
+    }
+
+    function ensureSlideView(slide) {
+        if (!slide) return;
+        if (!slide.view || typeof slide.view !== 'object') {
+            slide.view = {};
+        }
+        if (typeof slide.view.show_grid !== 'boolean') {
+            slide.view.show_grid = getDrawSettings().show_grid !== false;
+        }
+    }
+
+    function getSlideShowGrid(slide) {
+        ensureSlideView(slide);
+        return slide.view.show_grid !== false;
+    }
+
+    function setSlideShowGrid(slide, visible) {
+        if (!slide) return;
+        ensureSlideView(slide);
+        slide.view.show_grid = !!visible;
+    }
+
+    function applySlideViewPrefs(slide) {
+        if (!slide || !canvasCtrl) return;
+        ensureSlideView(slide);
+        const cursorPrefs = loadSlideCursorPrefs(slide.id);
+        canvasCtrl.setShowRemoteCursors(cursorPrefs.show_remote_cursors);
+        if (computeCanShareCursor()) {
+            canvasCtrl.setShareMyCursor(cursorPrefs.share_my_cursor);
+        }
+        canvasCtrl.setShowGrid(getSlideShowGrid(slide));
     }
 
     const CUSTOM_MAP_CODES = {
@@ -120,27 +189,32 @@
     }
 
     function syncMapModalCustomUploadUi() {
-        const panel = document.getElementById('tacticsCustomMapUpload');
-        const btn = document.getElementById('tacticsCustomMapUploadBtn');
+        const customPanel = document.getElementById('tacticsCustomMapPanel');
+        const uploadBtn = document.getElementById('tacticsCustomMapUpload');
         const modal = document.getElementById('tacticsMapPickerModal');
-        if (!panel) return;
+        if (!uploadBtn && !customPanel) return;
 
         const modalOpen = !!(modal && !modal.hidden);
         const mode = modal?.querySelector('[data-tactics-map-modal-mode]')?.value || '';
         const pick = addMapPicker?.getValue?.() || {};
         const game = String(pick.game || getRoomGame() || '').toLowerCase();
         const supportsCustom = game === 'cs2' || game === 'dota2';
-        const visible = modalOpen
+        const showCustomPanel = modalOpen
             && mode === 'custom'
-            && supportsCustom
+            && supportsCustom;
+        const showUpload = showCustomPanel
             && !!customMapModalSlideId
             && (canManage || canDraw);
 
-        panel.hidden = !visible;
-        if (btn) {
-            btn.disabled = customUploadBusy || !visible;
-            btn.classList.toggle('is-busy', customUploadBusy);
+        if (customPanel) {
+            customPanel.hidden = !showCustomPanel;
         }
+        if (uploadBtn) {
+            uploadBtn.hidden = !showUpload;
+            uploadBtn.disabled = customUploadBusy || !showUpload;
+            uploadBtn.classList.toggle('is-busy', customUploadBusy);
+        }
+        addMapPicker?.updateCustomPanelVisibility?.();
     }
 
     async function uploadCustomMapFile(file) {
@@ -175,6 +249,9 @@
         const formData = new FormData();
         formData.append('public_id', roomPublicId());
         formData.append('slide_id', slide.id);
+        formData.append('game', slide.game || '');
+        formData.append('battle_mode', slide.battle_mode || '');
+        formData.append('map_code', slide.map_code || '');
         formData.append('access_token', accessToken || '');
         formData.append('csrf_token', window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '');
         formData.append('image', file);
@@ -220,9 +297,66 @@
         window.alert(message);
     }
 
+    async function duplicateCustomMapFile(sourceSlideId, targetSlideId) {
+        const apiUrl = window.ABS_TACTICS_DUPLICATE_CUSTOM_MAP_API;
+        if (!apiUrl || !sourceSlideId || !targetSlideId) return;
+
+        if (!accessToken) {
+            const payload = await refreshSession('');
+            if (payload?.access_token) {
+                accessToken = payload.access_token;
+            }
+        }
+
+        const formData = new FormData();
+        formData.append('public_id', roomPublicId());
+        formData.append('source_slide_id', sourceSlideId);
+        formData.append('target_slide_id', targetSlideId);
+        formData.append('access_token', accessToken || '');
+        formData.append('csrf_token', window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '');
+
+        let res = await store().postFormData(apiUrl, formData, accessToken);
+
+        if (!res.ok && res.status === 403) {
+            const payload = await refreshSession('');
+            if (payload?.access_token) {
+                accessToken = payload.access_token;
+                formData.set('access_token', accessToken);
+                res = await store().postFormData(apiUrl, formData, accessToken);
+            }
+        }
+
+        if (isRoomGoneResponse(res)) {
+            redirectRoomNotFound();
+            return;
+        }
+
+        if (res.ok && res.data?.success && res.data?.data?.url) {
+            const url = res.data.data.url;
+            if (slidesCtrl) {
+                slidesCtrl.mapUrls[targetSlideId] = url;
+                slidesCtrl.render();
+            }
+            if (!window.ABS_TACTICS_MAP_URLS) {
+                window.ABS_TACTICS_MAP_URLS = {};
+            }
+            window.ABS_TACTICS_MAP_URLS[targetSlideId] = url;
+            if (canvasCtrl && slidesCtrl?.getActiveSlideId() === targetSlideId) {
+                const slide = slidesCtrl.getSlides().find((s) => s.id === targetSlideId);
+                if (slide) {
+                    await canvasCtrl.loadSlide(slide, url);
+                }
+            }
+            return;
+        }
+
+        const message = res.data?.error || i18n().t('uploadCustomMapError');
+        window.alert(message);
+    }
+
     function bindCustomMapUpload() {
         const input = document.getElementById('tacticsCustomMapFile');
-        const btn = document.getElementById('tacticsCustomMapUploadBtn');
+        const btn = document.getElementById('tacticsCustomMapUpload');
         if (!input || input.dataset.bound) return;
         input.dataset.bound = '1';
 
@@ -548,6 +682,8 @@
     }
 
     function pushGridChange(visible) {
+        const slide = slidesCtrl?.getActiveSlide();
+        setSlideShowGrid(slide, visible);
         const settings = getDrawSettings();
         settings.show_grid = !!visible;
         broadcastDrawSettings();
@@ -556,10 +692,12 @@
 
     function applyRemoteGridSetting(showGrid) {
         if (!roomState?.room_data) return;
-        const settings = getDrawSettings();
+        const slide = slidesCtrl?.getActiveSlide();
         const next = showGrid !== false;
-        if (settings.show_grid === next) return;
+        const settings = getDrawSettings();
+        if (settings.show_grid === next && (!slide || getSlideShowGrid(slide) === next)) return;
         settings.show_grid = next;
+        if (slide) setSlideShowGrid(slide, next);
         canvasCtrl?.setShowGrid(next);
     }
 
@@ -591,6 +729,7 @@
             gridBtn.classList.toggle('is-disabled', viewerLocked);
         }
         const canEditSlides = (canManage || canDraw) && !viewerLocked;
+        slidesCtrl?.setCanManage(canManage);
         slidesCtrl?.setCanAddSlides(canEditSlides);
         slidesCtrl?.setSlidesLocked(viewerLocked);
         const mapsPanel = document.getElementById('tacticsMapsPanel');
@@ -733,72 +872,102 @@
     function openRoomTitleEditor() {
         if (!canManage) return;
         const titleEl = document.getElementById('tacticsRoomTitle');
-        if (!titleEl || titleEl.tagName !== 'H1') return;
+        if (!titleEl || titleEl.tagName !== 'H1' || titleEl.dataset.editing === '1') return;
 
-        const titleStyle = getComputedStyle(titleEl);
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'tactics-slide-rename-input tactics-slide-rename-input--topbar';
-        input.id = 'tacticsRoomTitle';
-        input.maxLength = 120;
-        const current = String(roomState?.title || '').trim();
-        input.value = current;
-        input.placeholder = i18n().t('roomTitlePlaceholder');
-        input.setAttribute('aria-label', i18n().t('renameRoomTitleHint'));
-        input.style.fontSize = titleStyle.fontSize;
-        input.style.fontWeight = titleStyle.fontWeight;
-        input.style.lineHeight = titleStyle.lineHeight;
-        input.style.letterSpacing = titleStyle.letterSpacing;
-        input.style.fontFamily = titleStyle.fontFamily;
+        const row = titleEl.closest('.tactics-editor-topbar__title-row');
+        const groupEl = titleEl.closest('.tactics-editor-topbar__group--center');
+        const originalText = String(roomState?.title || '').trim() || getRoomDisplayTitle();
+        let finishing = false;
 
-        let cancelled = false;
+        titleEl.dataset.editing = '1';
+        titleEl.dataset.originalTitle = originalText;
+        titleEl.contentEditable = 'true';
+        titleEl.classList.add('is-editing');
+        titleEl.textContent = originalText;
+
+        if (row && groupEl) {
+            groupEl.classList.add('is-title-editing');
+            row.classList.add('is-editing');
+            const rowRect = row.getBoundingClientRect();
+            const groupRect = groupEl.getBoundingClientRect();
+            row.style.left = `${rowRect.left - groupRect.left}px`;
+        }
 
         const finish = async (cancel) => {
-            if (cancel) {
-                cancelled = true;
-            } else if (!cancelled) {
-                await saveRoomTitle(input.value);
+            if (finishing || titleEl.dataset.editing !== '1') return;
+            finishing = true;
+            titleEl.contentEditable = 'false';
+            titleEl.classList.remove('is-editing');
+            delete titleEl.dataset.editing;
+            delete titleEl.dataset.originalTitle;
+
+            if (row) {
+                row.classList.remove('is-editing');
+                row.style.left = '';
             }
-            const h1 = document.createElement('h1');
-            h1.className = 'tactics-editor-topbar__title';
-            h1.id = 'tacticsRoomTitle';
-            input.replaceWith(h1);
+            groupEl?.classList.remove('is-title-editing');
+
+            if (cancel) {
+                titleEl.textContent = originalText;
+                syncRoomDocumentTitle(originalText);
+            } else {
+                const nextTitle = String(titleEl.textContent || '').replace(/\s+/g, ' ').trim();
+                titleEl.textContent = nextTitle || i18n().t('roomTitlePlaceholder');
+                await saveRoomTitle(nextTitle);
+            }
             updateRoomTitle();
         };
 
-        input.addEventListener('input', () => syncRoomDocumentTitle(input.value));
-        input.addEventListener('blur', () => finish(false));
-        input.addEventListener('keydown', (ev) => {
+        const onBlur = () => {
+            void finish(false);
+        };
+
+        titleEl.addEventListener('input', () => {
+            syncRoomDocumentTitle(titleEl.textContent || '');
+        });
+        titleEl.addEventListener('blur', onBlur);
+        titleEl.addEventListener('keydown', (ev) => {
             if (ev.key === 'Enter') {
                 ev.preventDefault();
-                input.blur();
+                titleEl.blur();
             }
             if (ev.key === 'Escape') {
                 ev.preventDefault();
-                finish(true);
+                titleEl.removeEventListener('blur', onBlur);
+                void finish(true);
             }
         });
+        titleEl.addEventListener('paste', (ev) => {
+            ev.preventDefault();
+            const text = ev.clipboardData?.getData('text/plain') || '';
+            document.execCommand('insertText', false, text.replace(/\s+/g, ' '));
+        });
 
-        titleEl.replaceWith(input);
-        input.focus();
-        input.select();
+        titleEl.focus();
+        const selection = window.getSelection();
+        if (selection) {
+            const range = document.createRange();
+            range.selectNodeContents(titleEl);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
     }
 
     function bindRoomTitleEdit() {
-        const center = document.querySelector('.tactics-editor-topbar__group--center');
-        if (!center || center.dataset.titleEditBound) return;
-        center.dataset.titleEditBound = '1';
+        const cluster = document.querySelector('.tactics-editor-topbar__title-cluster');
+        if (!cluster || cluster.dataset.titleEditBound) return;
+        cluster.dataset.titleEditBound = '1';
 
-        center.addEventListener('click', (ev) => {
+        cluster.addEventListener('click', (ev) => {
             const titleEl = ev.target.closest('#tacticsRoomTitle');
-            if (!titleEl || titleEl.tagName !== 'H1') return;
+            if (!titleEl || titleEl.tagName !== 'H1' || titleEl.dataset.editing === '1') return;
             ev.preventDefault();
             openRoomTitleEditor();
         });
 
-        center.addEventListener('keydown', (ev) => {
+        cluster.addEventListener('keydown', (ev) => {
             const titleEl = ev.target.closest('#tacticsRoomTitle');
-            if (!titleEl || titleEl.tagName !== 'H1') return;
+            if (!titleEl || titleEl.tagName !== 'H1' || titleEl.dataset.editing === '1') return;
             if (ev.key !== 'Enter' && ev.key !== ' ') return;
             ev.preventDefault();
             openRoomTitleEditor();
@@ -810,25 +979,56 @@
         if (!btn) return;
 
         const active = isPresentationMode();
-        btn.hidden = !canManage;
-        btn.classList.toggle('is-active', active);
+        const viewerStatus = active && !canManage;
+        btn.hidden = !canManage && !viewerStatus;
+        btn.classList.toggle('is-active', active && canManage);
+        btn.classList.toggle('is-viewer-status', viewerStatus);
+        btn.disabled = false;
+        btn.setAttribute('aria-disabled', viewerStatus ? 'true' : 'false');
+
         const icon = btn.querySelector('i');
         if (icon) {
-            icon.className = active ? 'fas fa-stop' : 'fas fa-play';
+            if (viewerStatus) {
+                icon.className = 'fas fa-chalkboard-teacher';
+            } else {
+                icon.className = active ? 'fas fa-stop' : 'fas fa-play';
+            }
         }
-        btn.title = i18n().t(active ? 'presentStop' : 'present');
+
+        const titleKey = viewerStatus
+            ? 'presentActive'
+            : (active ? 'presentStop' : 'present');
+        btn.title = i18n().t(titleKey);
         btn.setAttribute('aria-label', btn.title);
+
         const labelEl = document.getElementById('tacticsPresentBtnLabel');
         if (labelEl) {
-            labelEl.textContent = i18n().t(active ? 'presentStopBtn' : 'presentBtn');
+            labelEl.textContent = i18n().t(viewerStatus
+                ? 'presentActive'
+                : (active ? 'presentStopBtn' : 'presentBtn'));
         }
+
         document.getElementById('tacticsRoomWorkspace')?.classList.toggle('is-presenting', active);
     }
 
     function togglePresentationMode() {
         if (!canManage) return;
         const settings = getDrawSettings();
-        settings.presentation_mode = !isPresentationMode();
+        const enabling = !isPresentationMode();
+
+        if (enabling && slidesCtrl && roomState?.room_data) {
+            const slideId = slidesCtrl.getActiveSlideId();
+            if (slideId) {
+                roomState.room_data.active_slide_id = slideId;
+                wsClient?.sendSlide('switch', {
+                    action: 'switch',
+                    slideId,
+                    activeSlideId: slideId,
+                });
+            }
+        }
+
+        settings.presentation_mode = enabling;
         pushDrawSettingsChange();
     }
 
@@ -976,10 +1176,18 @@
     }
 
     const SIDEBAR_AUTO_COLLAPSE_LEFT = 1340;
-    const SIDEBAR_AUTO_COLLAPSE_RIGHT = 1120;
     let sidebarPreferLeft = null;
     let sidebarPreferRight = null;
     let sidebarResponsiveBound = false;
+
+    function syncEditorBodyLayoutClasses() {
+        const editorBody = document.querySelector('.page-tactics-room .tactics-editor-body');
+        const leftCol = document.getElementById('tacticsToolsColumn');
+        const rightCol = document.getElementById('tacticsRightColumn');
+        if (!editorBody) return;
+        editorBody.classList.toggle('is-left-collapsed', !!leftCol?.classList.contains('is-collapsed'));
+        editorBody.classList.toggle('is-right-collapsed', !!rightCol?.classList.contains('is-collapsed'));
+    }
 
     function setSidebarCollapsed(side, collapsed) {
         const col = side === 'left'
@@ -991,6 +1199,7 @@
         if (!col) return;
         col.classList.toggle('is-collapsed', collapsed);
         btn?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        syncEditorBodyLayoutClasses();
     }
 
     function shouldAutoCollapseLeft(width) {
@@ -1000,22 +1209,10 @@
         return width < SIDEBAR_AUTO_COLLAPSE_LEFT;
     }
 
-    function shouldAutoCollapseRight(width, leftCollapsed) {
-        if (sidebarPreferRight !== null) {
-            return !sidebarPreferRight;
-        }
-        if (width < SIDEBAR_AUTO_COLLAPSE_RIGHT) {
-            return true;
-        }
-        return leftCollapsed && width < SIDEBAR_AUTO_COLLAPSE_LEFT;
-    }
-
     function applyResponsiveSidebars() {
         const width = window.innerWidth;
         const leftCollapsed = shouldAutoCollapseLeft(width);
-        const rightCollapsed = shouldAutoCollapseRight(width, leftCollapsed);
         setSidebarCollapsed('left', leftCollapsed);
-        setSidebarCollapsed('right', rightCollapsed);
         canvasCtrl?.scheduleResize?.();
         scheduleRightSidebarLayoutSync();
     }
@@ -1029,9 +1226,6 @@
             const width = window.innerWidth;
             if (width >= SIDEBAR_AUTO_COLLAPSE_LEFT && lastWidth < SIDEBAR_AUTO_COLLAPSE_LEFT) {
                 sidebarPreferLeft = null;
-            }
-            if (width >= SIDEBAR_AUTO_COLLAPSE_RIGHT && lastWidth < SIDEBAR_AUTO_COLLAPSE_RIGHT) {
-                sidebarPreferRight = null;
             }
             lastWidth = width;
             applyResponsiveSidebars();
@@ -1057,7 +1251,9 @@
             const collapsed = !!rightCol?.classList.toggle('is-collapsed');
             sidebarPreferRight = !collapsed;
             rightBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-            applyResponsiveSidebars();
+            syncEditorBodyLayoutClasses();
+            canvasCtrl?.scheduleResize?.();
+            scheduleRightSidebarLayoutSync();
         });
 
         bindResponsiveSidebars();
@@ -1082,6 +1278,7 @@
         if (!settings || !roomState?.room_data) return;
 
         const local = getDrawSettings();
+        const wasPresentation = isPresentationMode();
 
         if (typeof settings.draw_mode === 'string') {
             local.draw_mode = settings.draw_mode === 'open' ? 'open' : 'restricted';
@@ -1105,6 +1302,10 @@
         }
 
         applyDrawPermissions();
+
+        if (local.presentation_mode && !wasPresentation && !canManage && slidesCtrl) {
+            slidesCtrl.syncToPresentationSlide(roomState.room_data.active_slide_id);
+        }
     }
 
     function normalizeParticipants(list) {
@@ -1331,6 +1532,63 @@
         });
     }
 
+    function syncStoredSlideCanvas(slideId) {
+        if (!slideId || !slidesCtrl || !canvasCtrl) return;
+        if (String(slidesCtrl.getActiveSlideId() || '') !== String(slideId)) return;
+        slidesCtrl.updateSlideCanvas(slideId, canvasCtrl.getCanvasState());
+    }
+
+    function preserveRealtimeCanvasRoomData(previousRoomData, incomingRoomData, activeSlideId) {
+        if (!wsConnected || !previousRoomData?.slides || !incomingRoomData?.slides) {
+            return incomingRoomData;
+        }
+
+        const localSlides = previousRoomData.slides;
+        const mergedSlides = incomingRoomData.slides.map((nextSlide) => {
+            const localSlide = localSlides.find((s) => s.id === nextSlide.id);
+            if (!localSlide?.canvas) {
+                return nextSlide;
+            }
+            if (activeSlideId && nextSlide.id === activeSlideId && canvasCtrl) {
+                return { ...nextSlide, canvas: canvasCtrl.getCanvasState() };
+            }
+            return { ...nextSlide, canvas: localSlide.canvas };
+        });
+
+        return {
+            ...incomingRoomData,
+            slides: mergedSlides,
+        };
+    }
+
+    async function applyRemoteCanvasOp(msg) {
+        if (!canvasCtrl || !msg) return;
+
+        const activeId = slidesCtrl?.getActiveSlideId();
+        const msgSlideId = msg.slideId != null ? String(msg.slideId) : '';
+        const activeIdStr = activeId != null ? String(activeId) : '';
+        const canvasMutatingOps = ['full', 'clear', 'add', 'remove', 'modify'];
+
+        if (msg.op === 'full' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
+            slidesCtrl?.updateSlideCanvas(msgSlideId, msg.payload);
+            return;
+        }
+
+        if (msg.op === 'clear' && msgSlideId && msgSlideId !== activeIdStr) {
+            slidesCtrl?.updateSlideCanvas(msgSlideId, {
+                version: canvasCtrl.fabric?.version || '5.3.0',
+                objects: [],
+            });
+            return;
+        }
+
+        await canvasCtrl.applyRemoteOp(msg);
+
+        if (canvasMutatingOps.includes(msg.op) && msgSlideId === activeIdStr) {
+            syncStoredSlideCanvas(activeId);
+        }
+    }
+
     function applyRealtimePayload(realtime) {
         if (!realtime) return;
 
@@ -1428,7 +1686,7 @@
         const room = window.ABS_TACTICS_INITIAL_ROOM;
         if (!room) return null;
 
-        const isOwner = stored?.is_owner === true;
+        const isOwner = stored?.is_owner === true || window.ABS_TACTICS_IS_OWNER === true;
         const roomData = room.room_data || {};
 
         return {
@@ -1528,9 +1786,14 @@
 
         const activeId = slidesCtrl?.getActiveSlideId();
         const prevSlide = roomState.room_data?.slides?.find((s) => s.id === activeId);
-        const nextSlide = newData.room_data?.slides?.find((s) => s.id === activeId);
+        const mergedRoomData = preserveRealtimeCanvasRoomData(
+            roomState.room_data,
+            newData.room_data,
+            activeId,
+        );
+        const nextSlide = mergedRoomData?.slides?.find((s) => s.id === activeId);
 
-        roomState.room_data = newData.room_data;
+        roomState.room_data = mergedRoomData;
         roomState.revision = newRevision;
         if (newData.title) {
             roomState.title = newData.title;
@@ -1540,21 +1803,83 @@
             roomState.visibility = newData.visibility;
             syncVisibilityUi(roomState.visibility);
         }
+        if (newData.has_password !== undefined) {
+            roomState.has_password = !!newData.has_password;
+            syncPasswordUi();
+        }
         revision = newRevision;
         slidesCtrl?.setRoomData(roomState.room_data);
         applyDrawPermissions();
 
         if (nextSlide && canvasCtrl && !dirty) {
-            const prevJson = JSON.stringify(prevSlide?.canvas || null);
-            const nextJson = JSON.stringify(nextSlide?.canvas || null);
-            if (prevJson !== nextJson) {
-                if (nextSlide.canvas) {
-                    await canvasCtrl.applyCanvasState(nextSlide.canvas);
-                } else {
-                    await canvasCtrl.applyRemoteOp({ op: 'clear', slideId: activeId });
+            if (wsConnected) {
+                syncStoredSlideCanvas(activeId);
+            } else {
+                const prevJson = JSON.stringify(prevSlide?.canvas || null);
+                const nextJson = JSON.stringify(nextSlide?.canvas || null);
+                if (prevJson !== nextJson) {
+                    if (nextSlide.canvas) {
+                        await canvasCtrl.applyCanvasState(nextSlide.canvas);
+                    } else {
+                        await canvasCtrl.applyRemoteOp({ op: 'clear', slideId: activeId });
+                    }
                 }
             }
         }
+    }
+
+    function getAssetVersion() {
+        const script = document.querySelector('script[src*="/js/services/tactics/room.js"]');
+        if (!script?.src) return '';
+        const match = script.src.match(/[?&]v=([^&]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function loadStylesheet(href) {
+        if (document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = () => resolve();
+            link.onerror = () => reject(new Error(`stylesheet load failed: ${href}`));
+            document.head.appendChild(link);
+        });
+    }
+
+    function loadScript(src) {
+        if (document.querySelector('script[src*="/js/vendor/fabric.min.js"]')) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`script load failed: ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function ensureEditorAssets() {
+        if (window.fabric) return;
+        if (editorAssetsPromise) {
+            await editorAssetsPromise;
+            return;
+        }
+
+        editorAssetsPromise = (async () => {
+            const version = getAssetVersion();
+            const qs = version ? `?v=${encodeURIComponent(version)}` : '';
+            await loadStylesheet('https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css');
+            await loadScript(`/js/vendor/fabric.min.js${qs}`);
+            if (!window.fabric) {
+                throw new Error('fabric.js failed to load');
+            }
+        })();
+
+        await editorAssetsPromise;
     }
 
     function enterRoomShell() {
@@ -1613,6 +1938,45 @@
         return toggle?.checked ? 'closed' : 'open';
     }
 
+    function isPasswordInputMasked(input) {
+        return input?.dataset.passwordMasked === '1';
+    }
+
+    function setPasswordInputMasked(input, masked) {
+        if (!input) return;
+        if (masked) {
+            input.dataset.passwordMasked = '1';
+            input.value = PASSWORD_MASK;
+            input.readOnly = true;
+            input.classList.add('is-masked');
+        } else {
+            delete input.dataset.passwordMasked;
+            input.readOnly = false;
+            input.classList.remove('is-masked');
+            if (input.value === PASSWORD_MASK) {
+                input.value = '';
+            }
+        }
+    }
+
+    function syncPasswordUi() {
+        const isClosed = getVisibilityFromUi() === 'closed';
+        const hasPassword = !!roomState?.has_password;
+        const saveBtn = document.getElementById('tacticsRoomPasswordSaveBtn');
+        const passwordInput = document.getElementById('tacticsRoomSettingPassword');
+
+        if (saveBtn) {
+            saveBtn.hidden = !isClosed;
+            saveBtn.tabIndex = isClosed ? 0 : -1;
+            saveBtn.classList.toggle('is-saved', isClosed && hasPassword && isPasswordInputMasked(passwordInput));
+        }
+        if (passwordInput) {
+            if (isClosed && hasPassword && !passwordInput.matches(':focus')) {
+                setPasswordInputMasked(passwordInput, true);
+            }
+        }
+    }
+
     function syncVisibilityUi(visibility) {
         const vis = visibility === 'closed' ? 'closed' : 'open';
         const isClosed = vis === 'closed';
@@ -1642,6 +2006,11 @@
         if (passwordInput) {
             passwordInput.tabIndex = isClosed ? 0 : -1;
         }
+        const saveBtn = document.getElementById('tacticsRoomPasswordSaveBtn');
+        if (saveBtn) {
+            saveBtn.tabIndex = isClosed ? 0 : -1;
+        }
+        syncPasswordUi();
     }
 
     function setVisibilityFromUi(visibility) {
@@ -1661,12 +2030,46 @@
         lockBtn.dataset.bound = '1';
 
         const passwordInput = document.getElementById('tacticsRoomSettingPassword');
+        const saveBtn = document.getElementById('tacticsRoomPasswordSaveBtn');
 
         lockBtn.addEventListener('click', () => {
             setVisibilityFromUi(toggle.checked ? 'open' : 'closed');
         });
 
-        passwordInput?.addEventListener('input', () => scheduleSettingsSave());
+        saveBtn?.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+        });
+
+        saveBtn?.addEventListener('click', () => {
+            void saveRoomPassword();
+        });
+
+        passwordInput?.addEventListener('focus', () => {
+            if (isPasswordInputMasked(passwordInput)) {
+                setPasswordInputMasked(passwordInput, false);
+                saveBtn?.classList.remove('is-saved');
+            }
+        });
+
+        passwordInput?.addEventListener('input', () => {
+            saveBtn?.classList.remove('is-saved');
+        });
+
+        passwordInput?.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                void saveRoomPassword();
+            }
+        });
+
+        passwordInput?.addEventListener('blur', () => {
+            if (!roomState?.has_password || !passwordInput) return;
+            window.setTimeout(() => {
+                if (document.activeElement === passwordInput) return;
+                setPasswordInputMasked(passwordInput, true);
+                saveBtn?.classList.add('is-saved');
+            }, 0);
+        });
     }
 
     function bindDeleteRoomBtn() {
@@ -1711,13 +2114,75 @@
         settingsTimer = setTimeout(saveRoomSettings, 800);
     }
 
+    async function saveRoomPassword() {
+        if (!canManage || !roomState || !accessToken || settingsSaving) return;
+        if (getVisibilityFromUi() !== 'closed') return;
+
+        const passwordInput = document.getElementById('tacticsRoomSettingPassword');
+        const saveBtn = document.getElementById('tacticsRoomPasswordSaveBtn');
+        if (isPasswordInputMasked(passwordInput)) return;
+
+        const password = passwordInput?.value.trim() || '';
+        const clearPassword = !password && !!roomState.has_password;
+        if (!password && !roomState.has_password) return;
+
+        settingsSaving = true;
+        setSaveStatus('saving');
+
+        const body = {
+            public_id: roomState.public_id,
+            revision,
+            visibility: 'closed',
+            access_token: accessToken,
+        };
+        if (password) {
+            body.password = password;
+        }
+        if (clearPassword) {
+            body.clear_password = true;
+        }
+
+        const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, body, accessToken);
+        settingsSaving = false;
+
+        if (isRoomGoneResponse(res)) {
+            redirectRoomNotFound();
+            return;
+        }
+
+        if (res.ok && res.data.success) {
+            revision = res.data.data.revision || revision + 1;
+            roomState.revision = revision;
+            if (res.data.data.has_password !== undefined) {
+                roomState.has_password = !!res.data.data.has_password;
+            } else if (clearPassword) {
+                roomState.has_password = false;
+            } else if (password) {
+                roomState.has_password = true;
+            }
+            if (roomState.has_password) {
+                setPasswordInputMasked(passwordInput, true);
+                saveBtn?.classList.add('is-saved');
+            } else {
+                setPasswordInputMasked(passwordInput, false);
+                saveBtn?.classList.remove('is-saved');
+            }
+            setSaveStatus('settingsSaved');
+            setTimeout(() => setSaveStatus(wsConnected ? 'connected' : ''), 2000);
+        } else {
+            setSaveStatus('settingsError');
+            if (res.status === 409) {
+                await resyncRoom(true);
+            }
+        }
+    }
+
     async function saveRoomSettings() {
         if (!canManage || !roomState || !accessToken || settingsSaving) return;
 
         const visibility = getVisibilityFromUi();
-        const password = document.getElementById('tacticsRoomSettingPassword')?.value || '';
         const prevVisibility = roomState.visibility || 'open';
-        if (visibility === prevVisibility && !password) {
+        if (visibility === prevVisibility) {
             return;
         }
 
@@ -1736,9 +2201,6 @@
             visibility,
             access_token: accessToken,
         };
-        if (password) {
-            body.password = password;
-        }
 
         const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, body, accessToken);
         settingsSaving = false;
@@ -1752,9 +2214,12 @@
             revision = res.data.data.revision || revision + 1;
             roomState.revision = revision;
             roomState.visibility = res.data.data.visibility || visibility;
+            if (res.data.data.has_password !== undefined) {
+                roomState.has_password = !!res.data.data.has_password;
+            } else if (visibility === 'open') {
+                roomState.has_password = false;
+            }
             syncVisibilityUi(roomState.visibility);
-            const passwordInput = document.getElementById('tacticsRoomSettingPassword');
-            if (passwordInput) passwordInput.value = '';
             setSaveStatus('settingsSaved');
             setTimeout(() => setSaveStatus(wsConnected ? 'connected' : ''), 2000);
         } else {
@@ -1766,34 +2231,61 @@
         }
     }
 
-    async function refreshSession(password) {
+    async function refreshSession(password, options = {}) {
         const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
+        const explicitPassword = typeof password === 'string' ? password.trim() : '';
 
         const body = {
             public_id: window.ABS_TACTICS_PUBLIC_ID,
             nickname,
             client_id: clientId,
+            lang: i18n().getLang(),
         };
-        if (password) body.password = password;
-        if (stored?.access_token) body.access_token = stored.access_token;
+        if (explicitPassword) {
+            body.password = explicitPassword;
+        } else {
+            const token = stored?.access_token || accessToken || '';
+            if (token) {
+                body.access_token = token;
+            }
+        }
 
-        const res = await store().postJson(window.ABS_TACTICS_JOIN_API, body, stored?.access_token || null);
+        const res = await store().postJson(window.ABS_TACTICS_JOIN_API, body, null);
         if (isRoomGoneResponse(res)) {
             const fallback = buildBootstrapPayload(stored);
             if (fallback) return fallback;
             redirectRoomNotFound();
             return null;
         }
-        if (!res.ok || !res.data.success) {
-            const fallback = buildBootstrapPayload(stored);
-            if (fallback) return fallback;
+        if (!res.ok || !res.data?.success) {
+            if (res.status === 403 && (explicitPassword || window.ABS_TACTICS_NEEDS_PASSWORD)) {
+                accessToken = null;
+                wsToken = null;
+                store().saveRoomSession(window.ABS_TACTICS_PUBLIC_ID, {
+                    access_token: '',
+                    ws_token: '',
+                    nickname,
+                    client_id: clientId,
+                    is_owner: false,
+                });
+            }
+            if (res.status === 404) {
+                const fallback = buildBootstrapPayload(stored);
+                if (fallback) return fallback;
+            }
+            lastJoinError = typeof res.data?.error === 'string' ? res.data.error : '';
             return null;
         }
+
+        lastJoinError = '';
 
         const payload = res.data.data;
         accessToken = payload.access_token;
         wsToken = payload.ws_token;
         wsUrl = payload.ws_url;
+        if (payload.nickname) {
+            nickname = payload.nickname;
+        }
         canManage = !!payload.can_manage;
         if (payload.room) {
             roomState = payload.room;
@@ -1813,18 +2305,8 @@
     }
 
     async function applySession(payload) {
-        accessToken = payload.access_token;
-        wsToken = payload.ws_token;
-        wsUrl = payload.ws_url;
-        roomState = payload.room || roomState;
-        revision = roomState.revision || 1;
-        canManage = !!payload.can_manage;
-        canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
-        window.ABS_TACTICS_MAP_URLS = buildMapUrls(
-            roomState.room_data,
-            payload.room?.map_urls || payload.map_urls,
-        );
-        maps().preloadMapUrls(Object.values(window.ABS_TACTICS_MAP_URLS));
+        applySessionTokens(payload);
+        await ensureEditorAssets();
         revealWorkspace();
         updateSettingsPanel();
         syncVisibilityUi(roomState.visibility);
@@ -1835,8 +2317,64 @@
             client_id: clientId,
             is_owner: canManage,
         });
-        await initWorkspace();
+        if (!workspaceInitPromise) {
+            workspaceInitPromise = initWorkspace();
+        }
+        await workspaceInitPromise;
         applyDrawPermissions();
+    }
+
+    function applySessionTokens(payload) {
+        if (!payload) return;
+        if (payload.access_token) {
+            accessToken = payload.access_token;
+        }
+        if (payload.ws_token) {
+            wsToken = payload.ws_token;
+        }
+        if (payload.ws_url) {
+            wsUrl = payload.ws_url;
+        }
+        if (payload.nickname) {
+            nickname = payload.nickname;
+        }
+        if (payload.room) {
+            roomState = payload.room;
+            revision = roomState.revision || revision;
+        }
+        canManage = !!payload.can_manage;
+        canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
+        window.ABS_TACTICS_MAP_URLS = buildMapUrls(
+            roomState.room_data,
+            payload.room?.map_urls || payload.map_urls,
+        );
+        maps().preloadMapUrls(Object.values(window.ABS_TACTICS_MAP_URLS));
+    }
+
+    function mergeSessionUpdate(payload) {
+        if (!payload) return;
+        applySessionTokens(payload);
+        if (payload.room?.room_data && slidesCtrl) {
+            slidesCtrl.setRoomData(payload.room.room_data);
+        }
+        updateSettingsPanel();
+        syncVisibilityUi(roomState?.visibility);
+        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
+            access_token: accessToken,
+            ws_token: wsToken,
+            nickname,
+            client_id: clientId,
+            is_owner: canManage,
+        });
+        applyDrawPermissions();
+        if (!wsToken) return;
+        if (wsClient) {
+            wsClient.reconnectWithToken(wsToken);
+            return;
+        }
+        if (slidesCtrl) {
+            connectWebSocket();
+        }
     }
 
     async function refreshWsSession() {
@@ -1892,6 +2430,7 @@
             },
             onConnection: (state) => {
                 if (state === 'connected') {
+                    wsAuthFailures = 0;
                     wsConnected = true;
                     stopPresencePolling();
                     wsClient?.updateNickname(nickname);
@@ -1899,7 +2438,14 @@
                     setSaveStatus('connected');
                 } else if (state === 'auth_failed') {
                     wsConnected = false;
-                    refreshWsSession();
+                    wsAuthFailures += 1;
+                    if (wsAuthFailures <= WS_AUTH_MAX_RETRIES) {
+                        refreshWsSession();
+                    } else {
+                        restartPolling();
+                        restartPresencePolling();
+                        setSaveStatus('offline');
+                    }
                 } else {
                     wsConnected = false;
                     restartPolling();
@@ -1916,7 +2462,7 @@
                     slidesCtrl.applyRemote(msg.action, msg);
                     return;
                 }
-                await canvasCtrl.applyRemoteOp(msg);
+                await applyRemoteCanvasOp(msg);
             },
             onSettings: (msg) => {
                 applyRemoteDrawSettings(msg.settings);
@@ -1928,18 +2474,38 @@
         wsClient.connect();
     }
 
+    async function finishDeferredModules() {
+        const roomGame = getRoomGame();
+        if (window.TacticsMapPicker && !addMapPicker) {
+            addMapPicker = new window.TacticsMapPicker({
+                modalId: 'tacticsMapPickerModal',
+                selectEl: document.getElementById('tacticsAddSlideMap'),
+                lockGame: roomGame,
+                onModalUpdate: () => syncMapModalCustomUploadUi(),
+            });
+            slidesCtrl?.setMapPicker?.(addMapPicker);
+        }
+        if (!chatCtrl && window.TacticsChat) {
+            chatCtrl = new window.TacticsChat({
+                publicId: roomPublicId(),
+                clientId,
+                getNickname: () => nickname,
+                getWsToken: () => wsToken,
+                onSendWs: (message) => wsClient?.sendChat(message),
+            });
+        }
+    }
+
     async function initWorkspace() {
         try {
         const mapUrls = window.ABS_TACTICS_MAP_URLS || {};
         maps().preloadMapUrls(Object.values(mapUrls));
-        const mapsLoadPromise = maps().loadMaps();
+        void maps().loadMaps();
 
-        addMapPicker = null;
         const roomGame = getRoomGame();
         if (window.TacticsMapPicker) {
             addMapPicker = new window.TacticsMapPicker({
                 modalId: 'tacticsMapPickerModal',
-                root: document.getElementById('tacticsAddMapPicker'),
                 selectEl: document.getElementById('tacticsAddSlideMap'),
                 lockGame: roomGame,
                 onModalUpdate: () => syncMapModalCustomUploadUi(),
@@ -1960,12 +2526,14 @@
             canAddSlides: canManage || canDraw,
             onSwitch: async (slideId, prevSlideId) => {
                 if (prevSlideId && canvasCtrl) {
+                    saveSlideCursorPrefs(prevSlideId);
                     slidesCtrl.updateSlideCanvas(prevSlideId, canvasCtrl.getCanvasState());
                 }
                 const slide = slidesCtrl.getActiveSlide();
                 if (slide) {
                     syncDotaPickUi(slide);
                     await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
+                    applySlideViewPrefs(slide);
                     await applyGameNicknameForSlide(slide);
                 }
             },
@@ -1990,10 +2558,31 @@
             onBroadcast: (data) => {
                 wsClient?.sendSlide(data.action, data);
             },
+            shouldBroadcastSlideSwitch: () => isPresentationMode() && canManage,
+            shouldFollowRemoteSlideSwitch: () => isPresentationMode() && !canManage,
             onDelete: () => markDirty(),
+            onDuplicate: async (sourceSlide, copySlide) => {
+                if (!sourceSlide || !copySlide) return;
+                maps().normalizeCustomRoomSlide?.(copySlide);
+                if (!maps().needsCustomMapFileCopy?.(
+                    sourceSlide,
+                    copySlide,
+                    roomPublicId(),
+                    slidesCtrl?.mapUrls || window.ABS_TACTICS_MAP_URLS || {}
+                )) {
+                    return;
+                }
+                await duplicateCustomMapFile(sourceSlide.id, copySlide.id);
+            },
         });
 
-        const showGrid = roomState.room_data?.settings?.show_grid !== false;
+        const activeSlideForView = slidesCtrl?.getActiveSlide()
+            || roomState.room_data?.slides?.find((s) => s.id === roomState.room_data?.active_slide_id)
+            || roomState.room_data?.slides?.[0];
+        const initialCursorPrefs = activeSlideForView
+            ? loadSlideCursorPrefs(activeSlideForView.id)
+            : DEFAULT_SLIDE_VIEW_PREFS;
+        const showGrid = activeSlideForView ? getSlideShowGrid(activeSlideForView) : true;
 
         canvasCtrl = new window.TacticsCanvas({
             canvasEl: document.getElementById('tacticsCanvas'),
@@ -2002,6 +2591,15 @@
             strokeWidthEl: document.getElementById('tacticsStrokeWidth'),
             drawEnabled: canDraw,
             showGrid,
+            cursorPrefsStorageKey: null,
+            initialCursorPrefs: {
+                showRemoteCursors: initialCursorPrefs.show_remote_cursors,
+                shareMyCursor: initialCursorPrefs.share_my_cursor,
+            },
+            onCursorPrefsChange: () => {
+                const id = slidesCtrl?.getActiveSlideId();
+                if (id) saveSlideCursorPrefs(id);
+            },
             clientId,
             onGridChange: (visible) => {
                 if (!canDraw) return;
@@ -2009,6 +2607,9 @@
             },
             onChange: () => {
                 if (canDraw) markDirty();
+                if (wsConnected) {
+                    syncStoredSlideCanvas(slidesCtrl?.getActiveSlideId());
+                }
             },
             onOp: (msg) => {
                 if (msg.op === 'ping' || msg.op === 'cell') {
@@ -2051,25 +2652,7 @@
             getNickname: () => nickname,
         });
 
-        await mapsLoadPromise;
-
-        const slide = slidesCtrl.getActiveSlide();
-        syncMapModalCustomUploadUi();
-        syncDotaPickUi(slide);
-        if (slide) {
-            await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
-            updateRoomTitle();
-        }
-
-        if (window.TacticsChat) {
-            chatCtrl = new window.TacticsChat({
-                publicId: roomPublicId(),
-                clientId,
-                getNickname: () => nickname,
-                getWsToken: () => wsToken,
-                onSendWs: (message) => wsClient?.sendChat(message),
-            });
-        }
+        canvasCtrl.initFabric();
 
         bindRoomSettings();
         bindDeleteRoomBtn();
@@ -2087,9 +2670,32 @@
         syncVisibilityUi(roomState?.visibility);
         renderParticipants([{ clientId: String(clientId || ''), nickname: String(nickname || '') }]);
 
+        const slideLoadPromise = (async () => {
+            const slide = slidesCtrl.getActiveSlide();
+            syncMapModalCustomUploadUi();
+            syncDotaPickUi(slide);
+            if (slide) {
+                await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
+                applySlideViewPrefs(slide);
+                updateRoomTitle();
+            }
+        })();
+
         connectWebSocket();
         startPollingFallback();
         restartPresencePolling();
+
+        if (window.TacticsChat) {
+            chatCtrl = new window.TacticsChat({
+                publicId: roomPublicId(),
+                clientId,
+                getNickname: () => nickname,
+                getWsToken: () => wsToken,
+                onSendWs: (message) => wsClient?.sendChat(message),
+            });
+        }
+
+        void slideLoadPromise;
         } finally {
             markEditorReady();
         }
@@ -2098,6 +2704,11 @@
     async function handlePasswordJoin(ev) {
         ev.preventDefault();
         showJoinError('');
+
+        const form = ev.currentTarget;
+        const submitBtn = form?.querySelector('.tactics-password-panel__enter');
+        if (submitBtn?.disabled) return;
+
         const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
         nickname = window.ABS_TACTICS_DEFAULT_NICK || 'Guest';
         if (stored?.nickname) {
@@ -2107,18 +2718,45 @@
                 nickname = stored.nickname;
             }
         }
-        const password = document.getElementById('tacticsRoomPassword')?.value || '';
 
-        const payload = await refreshSession(password);
-        if (!payload) {
-            showJoinError(i18n().t('joinError'));
+        const passwordInput = document.getElementById('tacticsRoomPassword');
+        const password = passwordInput?.value?.trim() || '';
+        if (!password) {
+            showJoinError(i18n().t('passwordRequired'));
+            passwordInput?.focus();
             return;
         }
 
-        await applySession(payload);
+        if (submitBtn) submitBtn.disabled = true;
+
+        accessToken = null;
+        wsToken = null;
+        store().saveRoomSession(window.ABS_TACTICS_PUBLIC_ID, {
+            access_token: '',
+            ws_token: '',
+            nickname,
+            client_id: clientId,
+            is_owner: false,
+        });
+
+        try {
+            const payload = await refreshSession(password);
+            if (!payload) {
+                const serverError = lastJoinError || '';
+                showJoinError(serverError || i18n().t('wrongPassword'));
+                return;
+            }
+            await applySession(payload);
+        } catch (err) {
+            console.error('[tactics] password join failed', err);
+            showJoinError(i18n().t('wrongPassword'));
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
     }
 
     async function init() {
+        try {
         clientId = store().getClientId();
         nickname = window.ABS_TACTICS_DEFAULT_NICK || 'Guest';
         const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
@@ -2133,8 +2771,10 @@
         document.getElementById('tacticsRoomJoinForm')?.addEventListener('submit', handlePasswordJoin);
 
         if (window.ABS_TACTICS_NEEDS_PASSWORD) {
-            const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
-            if (stored?.access_token) {
+            accessToken = null;
+            wsToken = null;
+            const gateStored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
+            if (gateStored?.access_token) {
                 const payload = await refreshSession('');
                 if (payload) {
                     await applySession(payload);
@@ -2153,9 +2793,29 @@
             maps().preloadMapUrls(Object.values(window.ABS_TACTICS_MAP_URLS));
         }
 
-        let payload = await refreshSession('');
+        const sessionPromise = refreshSession('');
+
+        if (hasEmbeddedRoom()) {
+            const bootstrap = buildBootstrapPayload(stored);
+            if (bootstrap) {
+                await applySession(bootstrap);
+                sessionPromise.then((payload) => {
+                    mergeSessionUpdate(payload);
+                });
+                window.addEventListener('tactics:catalog-updated', () => {
+                    addMapPicker?.relocalize();
+                    const activeSlide = slidesCtrl?.getActiveSlide();
+                    if (activeSlide && canvasCtrl) {
+                        canvasCtrl.refreshMapScaleInfo(activeSlide);
+                    }
+                });
+                return;
+            }
+        }
+
+        let payload = await sessionPromise;
         if (!payload && hasEmbeddedRoom()) {
-            payload = buildBootstrapPayload(store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID));
+            payload = buildBootstrapPayload(stored);
         }
         if (payload) {
             await applySession(payload);
@@ -2170,6 +2830,9 @@
                 canvasCtrl.refreshMapScaleInfo(activeSlide);
             }
         });
+        } catch (e) {
+            markEditorReady();
+        }
     }
 
     async function relocalizeView() {
@@ -2196,7 +2859,7 @@
         renderParticipants(participantsList);
     }
 
-    window.AbsTacticsRoom = { relocalizeView };
+    window.AbsTacticsRoom = { relocalizeView, ensureDeferredModules: finishDeferredModules };
 
     window.addEventListener('beforeunload', () => {
         if (dirty) saveRoom();
@@ -2205,12 +2868,19 @@
     });
 
     function waitForFabric(cb) {
-        if (window.fabric) {
+        if (window.fabric || window.ABS_TACTICS_NEEDS_PASSWORD) {
             cb();
             return;
         }
+        let attempts = 0;
         const iv = setInterval(() => {
+            attempts += 1;
             if (window.fabric) {
+                clearInterval(iv);
+                cb();
+                return;
+            }
+            if (attempts >= 200) {
                 clearInterval(iv);
                 cb();
             }

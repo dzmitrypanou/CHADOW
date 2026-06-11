@@ -29,16 +29,19 @@ try {
     }
 
     $userId = user_current_id();
-    $access = tactics_assert_can_access_room($row, $password, $userId);
+    $accessToken = tactics_resolve_access_token($input);
+    $access = tactics_assert_can_access_room($row, $password, $userId, $accessToken, $userDb);
     if (!$access['ok']) {
         if (!empty($access['needs_password'])) {
+            if (($access['error'] ?? '') === 'wrong_password') {
+                tactics_json_error($lang === 'en' ? 'Incorrect password' : 'Неверный пароль', 403);
+            }
             tactics_json_error($lang === 'en' ? 'Password required' : 'Требуется пароль', 403);
         }
         tactics_json_error($lang === 'en' ? 'Access denied' : 'Нет доступа', 403);
     }
 
     tactics_touch_room($userDb, $publicId);
-    $row = tactics_fetch_row($userDb, $publicId, true);
 
     if ($userId !== null) {
         $roomData = json_decode((string) ($row['room_data'] ?? ''), true);
@@ -54,13 +57,15 @@ try {
             (string) ($input['nickname'] ?? ''),
             true
         );
+    } elseif (tactics_is_generic_guest_nickname($nickname)) {
+        $nickname = tactics_allocate_guest_nickname($userDb, $publicId, $clientId, $lang);
     }
 
     $isOwner = $userId !== null && isset($row['user_id']) && (int) $row['user_id'] === $userId;
     if (!$isOwner) {
         $existingToken = tactics_resolve_access_token($input);
         if ($existingToken !== null && $existingToken !== '') {
-            $tokenPayload = tactics_verify_signed_token($userDb, $existingToken, $publicId);
+            $tokenPayload = tactics_verify_room_token($userDb, $existingToken, $row);
             if ($tokenPayload !== null && ($tokenPayload['role'] ?? '') === 'owner') {
                 $isOwner = true;
             }

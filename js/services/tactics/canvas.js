@@ -3,6 +3,81 @@
 
     const maps = () => window.AbsTacticsMaps;
 
+    function createTacticsPencilBrush(canvas, canvasCtrl) {
+        if (!window.fabric?.PencilBrush) {
+            return null;
+        }
+        return new (fabric.util.createClass(fabric.PencilBrush, {
+            _reset() {
+                this.callSuper('_reset');
+                this._smoothPoint = null;
+                this._lastAddedPoint = null;
+            },
+
+            _prepareForDrawing(pointer) {
+                this._reset();
+                const smoothed = this._smoothPointer(pointer);
+                const p = new fabric.Point(smoothed.x, smoothed.y);
+                this._addPoint(p);
+                this._lastAddedPoint = p;
+                this.canvas.contextTop.moveTo(p.x, p.y);
+            },
+
+            _captureDrawingPath(pointer) {
+                const smoothed = this._smoothPointer(pointer);
+                const point = new fabric.Point(smoothed.x, smoothed.y);
+                const minDist = TacticsCanvas.PEN_MIN_POINT_DIST;
+                if (this._lastAddedPoint) {
+                    const dx = point.x - this._lastAddedPoint.x;
+                    const dy = point.y - this._lastAddedPoint.y;
+                    if (dx * dx + dy * dy < minDist * minDist) {
+                        return false;
+                    }
+                }
+                const added = this._addPoint(point);
+                if (added) {
+                    this._lastAddedPoint = point;
+                }
+                return added;
+            },
+
+            _smoothPointer(pointer) {
+                const factor = TacticsCanvas.PEN_SMOOTHING;
+                if (!this._smoothPoint) {
+                    this._smoothPoint = { x: pointer.x, y: pointer.y };
+                    return this._smoothPoint;
+                }
+                this._smoothPoint.x += (pointer.x - this._smoothPoint.x) * factor;
+                this._smoothPoint.y += (pointer.y - this._smoothPoint.y) * factor;
+                return this._smoothPoint;
+            },
+
+            needsFullRender() {
+                const endType = canvasCtrl?.getEndType?.() || 'none';
+                if (endType === 'arrow' || endType === 'bar') {
+                    return true;
+                }
+                return this.callSuper('needsFullRender');
+            },
+
+            _render(ctx) {
+                ctx = ctx || this.canvas.contextTop;
+                const endType = canvasCtrl?.getEndType?.() || 'none';
+                if ((endType === 'arrow' || endType === 'bar')
+                    && canvasCtrl?.renderPenBrushLivePreview?.(ctx, this, endType)) {
+                    return;
+                }
+                this._setBrushStyles(ctx);
+                if (canvasCtrl?.shouldForceButtCapForEnd?.(endType)) {
+                    ctx.lineCap = 'butt';
+                } else if (endType === 'arrow') {
+                    ctx.lineCap = 'butt';
+                }
+                this.callSuper('_render', ctx);
+            },
+        }))(canvas);
+    }
+
     class TacticsCanvas {
         constructor(options) {
             this.canvasEl = options.canvasEl;
@@ -16,19 +91,26 @@
             this.slideId = null;
             this.mapCode = 'cliff';
             this.mapSideLength = null;
+            this.mapScale = null;
             this.fabric = null;
             this.tool = 'select';
             this.isRemote = false;
             this.history = [];
             this.historyIndex = -1;
-            this.lineStart = null;
-            this.linePreview = null;
+            this.penLivePointer = null;
             this.bgImageEl = null;
             this.resizeObserver = null;
             this.showGrid = options.showGrid !== false;
             this.drawEnabled = options.drawEnabled !== false;
             this.onGridChange = options.onGridChange || (() => {});
-            const cursorPrefs = TacticsCanvas.loadCursorPrefs();
+            this.cursorPrefsStorageKey = options.cursorPrefsStorageKey !== undefined
+                ? options.cursorPrefsStorageKey
+                : TacticsCanvas.CURSOR_PREFS_KEY;
+            this.onCursorPrefsChange = options.onCursorPrefsChange || null;
+            const cursorPrefs = options.initialCursorPrefs
+                || (this.cursorPrefsStorageKey
+                    ? TacticsCanvas.loadCursorPrefs(this.cursorPrefsStorageKey)
+                    : { showRemoteCursors: true, shareMyCursor: true });
             this.showRemoteCursors = cursorPrefs.showRemoteCursors !== false;
             this.shareMyCursor = cursorPrefs.shareMyCursor !== false;
             this.shareMyCursorAllowed = true;
@@ -56,6 +138,8 @@
             this.shapePreview = null;
             this.polygonPoints = [];
             this.polygonPreview = null;
+            this.clipboardData = null;
+            this.clipboardPasteCount = 0;
             this.eyedropperActive = false;
             this.eyedropperPickInFlight = false;
             this.hueSliderEl = options.hueSliderEl || document.getElementById('tacticsHueSlider');
@@ -69,7 +153,10 @@
         static TOOL_PREFS_KEY = 'abs_tactics_tool_prefs';
         static DEFAULT_STROKE_WIDTH = 6;
         static DEFAULT_STROKE_COLOR = '#ff4444';
-        static ARROW_SPREAD = Math.PI / 7;
+        static ARROW_LOOKBACK = 4;
+        static ARROW_HEAD_SPREAD = Math.PI / 4;
+        static ARROW_HEAD_LENGTH_SCALE = 2.4;
+        static WT_TEND_SCALE2 = 1.5;
         static ICON_LABEL_FONT = 'Segoe UI, sans-serif';
         static ICON_LABEL_GAP = 4;
         static ICON_LABEL_MARKER_GAP_EXTRA = 3;
@@ -77,6 +164,11 @@
         static ICON_LABEL_EDGE_MARGIN = 6;
         static DEFAULT_ICON_SIZE = 16;
         static DEFAULT_ICON_LABEL_SIZE = 14;
+        /** Доля смещения к курсору за один sample (меньше — плавнее, больше — отзывчивее). */
+        static PEN_SMOOTHING = 0.3;
+        static PEN_MIN_POINT_DIST = 1.25;
+        static PEN_DECIMATE_FACTOR = 0.5;
+        static CLIPBOARD_PASTE_STEP = 18;
 
         static circlePathData(radius) {
             const r = Math.max(0.5, radius);
@@ -102,7 +194,6 @@
         static TOOL_I18N_KEYS = {
             select: 'toolSelect',
             pen: 'toolPen',
-            line: 'toolLine',
             circle: 'toolCircle',
             rect: 'toolRect',
             polygon: 'toolPolygon',
@@ -124,10 +215,13 @@
         }
 
         saveCursorPrefs() {
-            localStorage.setItem(TacticsCanvas.CURSOR_PREFS_KEY, JSON.stringify({
-                showRemoteCursors: this.showRemoteCursors,
-                shareMyCursor: this.shareMyCursor,
-            }));
+            if (this.cursorPrefsStorageKey) {
+                localStorage.setItem(this.cursorPrefsStorageKey, JSON.stringify({
+                    showRemoteCursors: this.showRemoteCursors,
+                    shareMyCursor: this.shareMyCursor,
+                }));
+            }
+            this.onCursorPrefsChange?.();
         }
 
         static loadToolPrefs() {
@@ -224,6 +318,37 @@
             );
         }
 
+        static getStrokeCursor(strokeWidth) {
+            const w = Math.max(1, Number(strokeWidth) || TacticsCanvas.DEFAULT_STROKE_WIDTH);
+            const size = Math.max(12, Math.min(96, Math.ceil(w) + 4));
+            const cx = size / 2;
+            const r = Math.max(1, w / 2);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+                + `<circle cx="${cx}" cy="${cx}" r="${r}" fill="rgba(255,255,255,0.35)" stroke="#ffffff" stroke-width="1"/>`
+                + `<circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="#111111" stroke-width="1" opacity="0.7"/>`
+                + '</svg>';
+            return TacticsCanvas.cursorFromSvg(svg, cx, cx, 'crosshair');
+        }
+
+        usesStrokeCursor() {
+            return ['pen', 'rect', 'circle', 'polygon'].includes(this.tool);
+        }
+
+        applyStrokeToolCursor() {
+            if (!this.fabric) return;
+            const cursor = TacticsCanvas.getStrokeCursor(this.getStrokeWidth());
+            if (this.fabric.upperCanvasEl) {
+                this.fabric.upperCanvasEl.style.cursor = cursor;
+            }
+            this.fabric.defaultCursor = cursor;
+            this.fabric.freeDrawingCursor = cursor;
+        }
+
+        updateDrawToolCursor() {
+            if (!this.fabric || !this.drawEnabled || !this.usesStrokeCursor()) return;
+            this.applyStrokeToolCursor();
+        }
+
         initFabric() {
             if (this.fabric || !window.fabric || !this.canvasEl) return;
             this.fabric = new fabric.Canvas(this.canvasEl, {
@@ -245,7 +370,13 @@
                 window.addEventListener('resize', () => this.resize());
             }
 
-            this.fabric.on('object:added', (e) => this.handleLocalChange('add', e));
+            this.fabric.on('object:added', (e) => {
+                const obj = e?.target;
+                if (obj?.type === 'path' && this.tool === 'pen') {
+                    return;
+                }
+                this.handleLocalChange('add', e);
+            });
             this.fabric.on('object:modified', (e) => this.handleLocalChange('modify', e));
             this.fabric.on('object:removed', (e) => this.handleLocalChange('remove', e));
 
@@ -258,9 +389,26 @@
             this.fabric.on('path:created', (e) => {
                 const path = e.path;
                 if (path && this.tool === 'pen') {
-                    this.applyStrokeStyle(path);
+                    const endType = this.getEndType();
                     path.set('tacticsType', 'pen');
+                    path.set('tacticsEndType', endType);
+                    path.set('tacticsLineType', this.getToolSettings().lineType || 'solid');
+                    this.applyStrokeStyle(path);
                     this.ensureTacticsId(path);
+                    if (endType === 'arrow' || endType === 'bar') {
+                        this.isRemote = true;
+                        this.setupPenEndCap(path, endType);
+                        this.isRemote = false;
+                    }
+                    this.penLivePointer = null;
+                    if (this.fabric) {
+                        this.fabric.discardActiveObject();
+                        this.syncInteractionState();
+                        this.fabric.requestRenderAll();
+                    }
+                    this.handleLocalChange('add', { target: path });
+                    this.finishLocalStrokeBroadcast();
+                    return;
                 }
                 if (this.tool === 'pen' && this.fabric) {
                     this.fabric.discardActiveObject();
@@ -281,11 +429,15 @@
             this.bindPingHoldRelease();
             this.bindDeleteKey();
             this.bindUndoRedoKeys();
+            this.bindCopyPasteKeys();
             this.fabric.on('mouse:move', (opt) => {
                 this.handleFabricPointerMove(opt);
-                if (this.localStrokeId && this.tool === 'pen' && this.fabric?.isDrawingMode) {
+                if (this.tool === 'pen' && this.fabric?.isDrawingMode) {
                     const pointer = this.fabric.getPointer(opt.e);
-                    this.queueStrokePointBroadcast(pointer);
+                    this.penLivePointer = pointer;
+                    if (this.localStrokeId) {
+                        this.queueStrokePointBroadcast(pointer);
+                    }
                 }
             });
             this.fabric.on('mouse:out', () => {
@@ -538,11 +690,19 @@
             if (!el) return;
             const wasHidden = el.hidden;
             const i18n = window.AbsTacticsI18n;
-            const len = this.mapSideLength;
-            if (len && len > 0) {
-                const size = String(len);
-                const template = i18n ? i18n.t('mapScale') : 'Масштаб карты: {size}×{size} м';
-                el.textContent = template.replace(/\{size\}/g, size);
+            const scale = this.mapScale;
+            if (scale?.width && scale?.height) {
+                const width = String(scale.width);
+                const height = String(scale.height);
+                if (scale.width === scale.height) {
+                    const template = i18n ? i18n.t('mapScale') : 'Масштаб карты: {size}×{size} м';
+                    el.textContent = template.replace(/\{size\}/g, width);
+                } else {
+                    const template = i18n ? i18n.t('mapScaleRect') : 'Масштаб карты: {width}×{height} м';
+                    el.textContent = template
+                        .replace(/\{width\}/g, width)
+                        .replace(/\{height\}/g, height);
+                }
                 el.hidden = false;
             } else {
                 el.textContent = '';
@@ -556,18 +716,27 @@
         async refreshMapScaleInfo(slide) {
             if (!slide) {
                 this.mapSideLength = null;
+                this.mapScale = null;
                 this.updateMapScaleInfo();
                 return;
             }
-            this.mapSideLength = await maps().slideSideLength(slide);
+            this.mapScale = await maps().slideMapScale(slide);
+            const scale = this.mapScale;
+            this.mapSideLength = scale
+                ? Math.max(scale.width || 0, scale.height || 0)
+                : null;
             this.updateMapScaleInfo();
         }
 
         computeRulerDistanceMeters(x1, y1, x2, y2) {
             const canvasSize = this.fabric?.getWidth() || 0;
-            if (canvasSize <= 0 || !this.mapSideLength) return null;
-            const pixelDist = Math.hypot(x2 - x1, y2 - y1);
-            return (pixelDist / canvasSize) * this.mapSideLength;
+            const scale = this.mapScale;
+            if (canvasSize <= 0 || !scale?.width || !scale?.height) return null;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const metersX = (Math.abs(dx) / canvasSize) * scale.width;
+            const metersY = (Math.abs(dy) / canvasSize) * scale.height;
+            return Math.hypot(metersX, metersY);
         }
 
         updateRulerDisplay(x1, y1, x2, y2) {
@@ -780,7 +949,7 @@
 
             this.isRemote = true;
             toRemove.forEach((target) => {
-                if (target.tacticsType === 'line') {
+                if (target.tacticsType === 'line' || target.tacticsType === 'pen') {
                     this.removeAttachedArrowHeads(target);
                 }
                 this.fabric.remove(target);
@@ -798,6 +967,118 @@
                     payload: this.exportDrawingsJson(),
                 });
             }
+        }
+
+        getSelectedObjectsForClipboard() {
+            return this.getSelectedDrawingTargets().filter((obj) => !obj.tacticsArrowHead && !obj.tacticsBarEnd);
+        }
+
+        copySelectedObjects() {
+            if (!this.fabric || !this.canMoveObjects()) return false;
+
+            const targets = this.getSelectedObjectsForClipboard();
+            if (!targets.length) return false;
+
+            this.clipboardData = targets.map((obj) => {
+                const data = obj.toObject(TacticsCanvas.EXPORT_PROPS);
+                delete data.tacticsParent;
+                return data;
+            });
+            this.clipboardPasteCount = 0;
+            return this.clipboardData.length > 0;
+        }
+
+        pasteClipboardObjects() {
+            if (!this.fabric || !this.canMoveObjects() || !this.clipboardData?.length) {
+                return Promise.resolve(false);
+            }
+
+            this.clipboardPasteCount += 1;
+            const offset = TacticsCanvas.CLIPBOARD_PASTE_STEP * this.clipboardPasteCount;
+            const payloads = this.clipboardData.map((data) => {
+                const copy = { ...data };
+                delete copy.tacticsId;
+                delete copy.tacticsParent;
+                const left = Number(copy.left);
+                const top = Number(copy.top);
+                if (Number.isFinite(left)) copy.left = left + offset;
+                if (Number.isFinite(top)) copy.top = top + offset;
+                return copy;
+            });
+
+            return new Promise((resolve) => {
+                fabric.util.enlivenObjects(payloads, (objs) => {
+                    if (!this.fabric || !objs.length) {
+                        resolve(false);
+                        return;
+                    }
+
+                    const pasted = [];
+                    this.isRemote = true;
+                    objs.forEach((obj) => {
+                        if (!obj) return;
+                        this.ensureTacticsId(obj);
+                        const isLine = obj.type === 'line'
+                            && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow');
+                        const isPen = obj.type === 'path' && obj.tacticsType === 'pen';
+                        if (isPen || isLine) {
+                            this.applyStrokeStyle(obj);
+                            const endType = obj.tacticsEndType;
+                            if (endType === 'bar' || endType === 'arrow') {
+                                this.rebuildParentEndCap(obj);
+                            }
+                        }
+                        this.fabric.add(obj);
+                        pasted.push(obj);
+                    });
+                    this.consolidateLayerOrder();
+                    this.isRemote = false;
+
+                    if (pasted.length === 1) {
+                        this.fabric.setActiveObject(pasted[0]);
+                    } else if (pasted.length > 1) {
+                        const selection = new fabric.ActiveSelection(pasted, { canvas: this.fabric });
+                        this.fabric.setActiveObject(selection);
+                    }
+
+                    this.syncInteractionState();
+                    this.fabric.requestRenderAll();
+                    this.pushHistory();
+                    this.onChange();
+                    if (this.slideId) {
+                        this.onOp({
+                            op: 'full',
+                            slideId: this.slideId,
+                            payload: this.exportDrawingsJson(),
+                        });
+                    }
+                    resolve(true);
+                });
+            });
+        }
+
+        bindCopyPasteKeys() {
+            if (this.copyPasteKeyBound) return;
+            this.copyPasteKeyBound = true;
+
+            window.addEventListener('keydown', (ev) => {
+                if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+                if (!this.fabric || !this.canMoveObjects()) return;
+                if (this.shouldIgnoreCanvasHotkey(ev)) return;
+
+                if (ev.code === 'KeyC') {
+                    if (!this.getSelectedObjectsForClipboard().length) return;
+                    if (!this.copySelectedObjects()) return;
+                    ev.preventDefault();
+                    return;
+                }
+
+                if (ev.code === 'KeyV') {
+                    if (!this.clipboardData?.length) return;
+                    ev.preventDefault();
+                    void this.pasteClipboardObjects();
+                }
+            }, true);
         }
 
         bindDeleteKey() {
@@ -1234,7 +1515,8 @@
             const maxW = measureWidth - labelsW;
             const maxH = measureHeight - labelsH - scaleExtra;
             const size = Math.floor(Math.min(maxW, maxH));
-            return Math.max(300, size);
+            if (size < 80) return null;
+            return size;
         }
 
         scheduleResize() {
@@ -1527,6 +1809,8 @@
                     this.fabric.upperCanvasEl.style.cursor = 'default';
                 } else if (canErase) {
                     this.updateEraserCursor(null);
+                } else if (this.drawEnabled && this.usesStrokeCursor()) {
+                    this.applyStrokeToolCursor();
                 } else {
                     this.fabric.upperCanvasEl.style.cursor = '';
                 }
@@ -1539,6 +1823,9 @@
                     this.fabric.defaultCursor = 'pointer';
                 } else if (canPing || canRuler) {
                     this.fabric.defaultCursor = 'crosshair';
+                } else if (this.drawEnabled && this.usesStrokeCursor()) {
+                    this.fabric.defaultCursor = TacticsCanvas.getStrokeCursor(this.getStrokeWidth());
+                    this.fabric.freeDrawingCursor = this.fabric.defaultCursor;
                 } else {
                     this.fabric.defaultCursor = 'default';
                 }
@@ -1565,13 +1852,11 @@
             this.strokeWidthEl?.addEventListener('input', () => {
                 this.syncFreeDrawingBrushStyles();
                 this.updateStrokeWidthLabel();
+                this.updateDrawToolCursor();
                 this.saveToolPrefs();
             });
             window.AbsTacticsToolSettings?.onChange(() => {
                 this.syncFreeDrawingBrushStyles();
-                if (this.linePreview?.line) {
-                    this.applyStrokeStyle(this.linePreview.line);
-                }
                 if (this.shapePreview) {
                     this.applyStrokeStyle(this.shapePreview);
                 }
@@ -1832,27 +2117,76 @@
             return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         }
 
+        getObjectLineType(obj) {
+            if (obj?.tacticsLineType) return obj.tacticsLineType;
+            const inferred = this.inferLineTypeFromStroke(obj);
+            if (inferred) return inferred;
+            return this.getToolSettings().lineType || 'solid';
+        }
+
+        inferLineTypeFromStroke(obj) {
+            const dash = obj?.strokeDashArray;
+            if (!dash?.length) return 'solid';
+            if (dash[0] <= 0.01) return 'dotted';
+            return 'dashed';
+        }
+
+        getStrokeLineCapForType(lineType) {
+            return window.AbsTacticsToolSettings?.getStrokeLineCap?.(lineType)
+                || (lineType === 'dotted' ? 'round' : 'round');
+        }
+
         getStrokeLineCap() {
-            const lineType = this.getToolSettings().lineType || 'solid';
-            return lineType === 'dotted' ? 'butt' : 'round';
+            return this.getStrokeLineCapForType(this.getToolSettings().lineType || 'solid');
+        }
+
+        shouldForceButtCapForEnd(endType) {
+            return endType === 'bar';
+        }
+
+        resolveStrokeLineCap(obj) {
+            const endType = obj?.tacticsEndType;
+            const lineType = this.getObjectLineType(obj);
+            if (endType === 'bar') {
+                return 'butt';
+            }
+            if (endType === 'arrow' && obj?.type === 'line') {
+                return 'butt';
+            }
+            if (this.shouldForceButtCapForEnd(endType)) {
+                return 'butt';
+            }
+            return this.getStrokeLineCapForType(lineType);
         }
 
         applyStrokeStyle(obj) {
             if (!obj) return;
-            const dash = this.getStrokeDashArray();
+            const lineType = this.getObjectLineType(obj);
+            const strokeWidth = obj.strokeWidth || this.getStrokeWidth();
+            const dash = window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, strokeWidth) || null;
             obj.set({
                 strokeDashArray: dash || null,
-                strokeLineCap: this.getStrokeLineCap(),
+                strokeLineCap: this.resolveStrokeLineCap(obj),
+                strokeLineJoin: window.AbsTacticsToolSettings?.getStrokeLineJoin?.(lineType) || 'round',
             });
         }
 
         syncFreeDrawingBrushStyles() {
             const brush = this.fabric?.freeDrawingBrush;
             if (!brush) return;
+            const lineType = this.getToolSettings().lineType || 'solid';
+            const endType = this.getEndType();
+            const useButtEndCap = this.tool === 'pen'
+                && (this.shouldForceButtCapForEnd(endType) || endType === 'arrow');
             brush.color = this.getStrokeColor();
             brush.width = this.getStrokeWidth();
             brush.strokeDashArray = this.getStrokeDashArray();
-            brush.strokeLineCap = this.getStrokeLineCap();
+            brush.strokeLineCap = useButtEndCap ? 'butt' : this.getStrokeLineCap();
+            brush.strokeLineJoin = window.AbsTacticsToolSettings?.getStrokeLineJoin?.(lineType) || 'round';
+            if (this.tool === 'pen' && brush.decimate != null) {
+                brush.decimate = Math.max(2, brush.width * TacticsCanvas.PEN_DECIMATE_FACTOR);
+            }
+            this.updateDrawToolCursor();
         }
 
         syncBrushFromColor() {
@@ -1900,6 +2234,9 @@
 
         startLocalStrokeBroadcast(pointer) {
             if (!this.slideId) return;
+            if (this.localStrokeId) {
+                this.finishLocalStrokeBroadcast();
+            }
             this.localStrokeId = 'ls' + Math.random().toString(16).slice(2, 10);
             this.localStrokePoints = [this.normalizePoint(pointer)];
             this.onOp({
@@ -1910,6 +2247,8 @@
                     tool: this.tool,
                     color: this.getStrokeColor(),
                     width: this.getStrokeWidth(),
+                    endType: this.getEndType(),
+                    lineType: this.getToolSettings().lineType || 'solid',
                     points: [this.localStrokePoints[0]],
                 },
             });
@@ -1923,12 +2262,13 @@
             this.strokeBroadcastTimer = setTimeout(() => {
                 this.strokeBroadcastTimer = null;
                 if (!this.localStrokeId) return;
+                let points = this.localStrokePoints.slice();
                 this.onOp({
                     op: 'stroke_point',
                     slideId: this.slideId,
                     payload: {
                         strokeId: this.localStrokeId,
-                        points: this.localStrokePoints.slice(-8),
+                        points,
                     },
                 });
             }, 32);
@@ -1953,16 +2293,135 @@
             return `${clientId || ''}:${strokeId || ''}`;
         }
 
+        getSvgStrokeDashAttr(lineType, strokeWidth) {
+            const dash = window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, strokeWidth);
+            if (!dash?.length) return '';
+            return ` stroke-dasharray="${dash.join(',')}"`;
+        }
+
+        resolveRemoteStrokeLineCap(endType, lineType, isLine) {
+            if (endType === 'bar') {
+                return 'butt';
+            }
+            return window.AbsTacticsToolSettings?.getStrokeLineCap?.(lineType)
+                || (isLine ? 'butt' : 'round');
+        }
+
         renderRemoteStrokePath(entry) {
             if (!entry?.el || !entry.points?.length) return;
             const { width: overlayW, height: overlayH } = this.getOverlaySize();
             if (overlayW <= 0 || overlayH <= 0) return;
-            const pts = entry.points.map((p) => {
-                const x = Math.round((p.x || 0) * overlayW);
-                const y = Math.round((p.y || 0) * overlayH);
-                return `${x},${y}`;
-            }).join(' ');
-            entry.el.innerHTML = `<svg width="${overlayW}" height="${overlayH}" style="position:absolute;left:0;top:0;overflow:visible"><polyline points="${pts}" fill="none" stroke="${entry.color || '#ff4444'}" stroke-width="${entry.width || 4}" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/></svg>`;
+
+            const toCanvas = (p) => ({
+                x: (p.x || 0) * overlayW,
+                y: (p.y || 0) * overlayH,
+            });
+
+            const color = entry.color || '#ff4444';
+            const strokeWidth = entry.width || 4;
+            const isLine = entry.tool === 'line';
+            const lineType = entry.lineType || 'solid';
+            const endType = entry.endType || 'none';
+            const lineCap = this.resolveRemoteStrokeLineCap(endType, lineType, isLine);
+            const lineJoin = window.AbsTacticsToolSettings?.getStrokeLineJoin?.(lineType) || 'round';
+            const dashAttr = this.getSvgStrokeDashAttr(lineType, strokeWidth);
+            const parts = [];
+
+            if (isLine && entry.points.length >= 2) {
+                const start = toCanvas(entry.points[0]);
+                let end = toCanvas(entry.points[entry.points.length - 1]);
+                if (endType === 'arrow' || endType === 'bar') {
+                    const geom = this.getLineEndGeometry(
+                        start.x,
+                        start.y,
+                        end.x,
+                        end.y,
+                        endType,
+                        strokeWidth,
+                    );
+                    end = { x: geom.bodyX2, y: geom.bodyY2 };
+                }
+                parts.push(`<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="${lineCap}" stroke-linejoin="${lineJoin}"${dashAttr} opacity="0.85"/>`);
+            } else if (entry.points.length) {
+                const canvasPts = entry.points.map((p) => toCanvas(p));
+                if ((endType === 'arrow' || endType === 'bar') && canvasPts.length >= 2) {
+                    const wt = this.resolveArrowEndpoints({
+                        points: canvasPts,
+                        mode: isLine ? 'line' : 'pen',
+                    });
+                    if (wt) {
+                        const geom = this.getLineEndGeometry(
+                            wt.a.x,
+                            wt.a.y,
+                            wt.b.x,
+                            wt.b.y,
+                            endType,
+                            strokeWidth,
+                            { pen: !isLine && endType === 'arrow' },
+                        );
+                        if (geom.dist >= 3) {
+                            canvasPts[canvasPts.length - 1] = { x: geom.bodyX2, y: geom.bodyY2 };
+                        }
+                    }
+                }
+                const pts = canvasPts.map((pt) => `${pt.x},${pt.y}`).join(' ');
+                parts.push(`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="${lineCap}" stroke-linejoin="${lineJoin}"${dashAttr} opacity="0.85"/>`);
+            }
+
+            if ((endType === 'arrow' || endType === 'bar') && entry.points.length >= 2) {
+                const canvasPoints = entry.points.map((p) => toCanvas(p));
+                if (endType === 'arrow') {
+                    const endpoints = this.resolveArrowEndpoints({
+                        points: canvasPoints,
+                        mode: isLine ? 'line' : 'pen',
+                    });
+                    if (endpoints) {
+                        let tip = endpoints.b;
+                        if (!isLine) {
+                            const forward = this.getPenArrowTipForward(strokeWidth);
+                            const offset = this.offsetPointAlong(
+                                tip.x - endpoints.a.x,
+                                tip.y - endpoints.a.y,
+                                forward,
+                            );
+                            if (offset) {
+                                tip = { x: tip.x + offset.x, y: tip.y + offset.y };
+                            }
+                        }
+                        const arrow = this.buildArrowFromEndpoints(
+                            endpoints.a,
+                            tip,
+                            strokeWidth,
+                        );
+                        const polyAttr = this.arrowChevronToPolylineAttr(arrow?.triangle);
+                        if (polyAttr) {
+                            parts.push(`<polyline points="${polyAttr}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>`);
+                        }
+                    }
+                } else {
+                    const geom = this.resolveEndGeometryFromPoints(canvasPoints, endType, strokeWidth);
+                    if (geom && geom.dist >= 3) {
+                        const half = this.getBarCapHalfLength(strokeWidth);
+                        const perp = geom.angle + Math.PI / 2;
+                        const x1 = geom.tipX - half * Math.cos(perp);
+                        const y1 = geom.tipY - half * Math.sin(perp);
+                        const x2 = geom.tipX + half * Math.cos(perp);
+                        const y2 = geom.tipY + half * Math.sin(perp);
+                        parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="butt" opacity="0.85"/>`);
+                    }
+                }
+            }
+
+            entry.el.innerHTML = `<svg width="${overlayW}" height="${overlayH}" style="position:absolute;left:0;top:0;overflow:visible">${parts.join('')}</svg>`;
+        }
+
+        removeRemoteStrokesFromClient(clientId) {
+            const prefix = `${clientId}:`;
+            for (const [key, entry] of this.remoteStrokes.entries()) {
+                if (!key.startsWith(prefix)) continue;
+                entry.el?.remove();
+                this.remoteStrokes.delete(key);
+            }
         }
 
         applyRemoteStrokeOp(msg) {
@@ -1976,14 +2435,22 @@
             let entry = this.remoteStrokes.get(key);
 
             if (msg.op === 'stroke_start') {
+                this.removeRemoteStrokesFromClient(from);
+                if (entry) {
+                    entry.el?.remove();
+                    this.remoteStrokes.delete(key);
+                }
                 const el = document.createElement('div');
                 el.className = 'tactics-remote-stroke';
                 this.remoteStrokesLayerEl.appendChild(el);
                 entry = {
                     el,
+                    tool: p.tool || 'pen',
                     points: Array.isArray(p.points) ? p.points.slice() : [],
                     color: p.color,
                     width: p.width,
+                    endType: p.endType || 'none',
+                    lineType: p.lineType || 'solid',
                 };
                 this.remoteStrokes.set(key, entry);
                 this.renderRemoteStrokePath(entry);
@@ -1993,14 +2460,22 @@
             if (!entry) return;
 
             if (msg.op === 'stroke_point' && Array.isArray(p.points)) {
-                entry.points.push(...p.points);
+                if (entry.tool === 'line') {
+                    const start = entry.points[0] || p.points[0];
+                    const latest = p.points[p.points.length - 1];
+                    entry.points = start && latest ? [start, latest] : p.points.slice(-2);
+                } else {
+                    entry.points = p.points.slice();
+                }
                 this.renderRemoteStrokePath(entry);
                 return;
             }
 
             if (msg.op === 'stroke_end') {
-                entry.el?.remove();
-                this.remoteStrokes.delete(key);
+                if (entry) {
+                    entry.pendingFinalize = true;
+                }
+                return;
             }
         }
 
@@ -2109,8 +2584,6 @@
 
             this.fabric.isDrawingMode = false;
             if (disabled) {
-                this.clearLinePreview();
-                this.lineStart = null;
                 this.fabric.discardActiveObject();
                 if (this.tool !== 'select' && this.tool !== 'cell' && this.tool !== 'ping' && this.tool !== 'ruler') {
                     this.setTool('select');
@@ -2122,17 +2595,19 @@
 
         setTool(tool) {
             if (this.interactionLocked) return;
+            if (tool === 'line') {
+                tool = 'select';
+            }
             if (!this.drawEnabled && tool !== 'select' && tool !== 'cell' && tool !== 'ping' && tool !== 'ruler') return;
             this.stopPingHold();
             if (tool !== 'ruler') {
                 this.clearRuler();
             }
-            this.clearLinePreview();
             this.clearShapePreview();
             this.clearPolygonPreview();
             this.shapeStart = null;
             this.polygonPoints = [];
-            this.lineStart = null;
+            this.penLivePointer = null;
             this.tool = tool || 'select';
             this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
                 btn.classList.toggle('is-active', btn.getAttribute('data-tool') === this.tool);
@@ -2144,9 +2619,296 @@
             this.syncInteractionState();
 
             if (this.fabric.isDrawingMode) {
-                this.fabric.freeDrawingBrush = new fabric.PencilBrush(this.fabric);
+                const brush = createTacticsPencilBrush(this.fabric, this);
+                if (brush) {
+                    this.fabric.freeDrawingBrush = brush;
+                } else {
+                    this.fabric.freeDrawingBrush = new fabric.PencilBrush(this.fabric);
+                }
                 this.syncFreeDrawingBrushStyles();
             }
+        }
+
+        getCapBaseSize(strokeWidth = this.getStrokeWidth()) {
+            const canvasH = this.fabric?.getHeight() || 1000;
+            const scale = canvasH / 1000;
+            return Math.max(strokeWidth * 2, 12) * scale;
+        }
+
+        getArrowHeadLength(strokeWidth = this.getStrokeWidth()) {
+            const base = this.getCapBaseSize(strokeWidth);
+            return Math.max(strokeWidth * 4.5, base * TacticsCanvas.ARROW_HEAD_LENGTH_SCALE);
+        }
+
+        getArrowInnerJoinInset(strokeWidth = this.getStrokeWidth(), headLen = null) {
+            const len = headLen ?? this.getArrowHeadLength(strokeWidth);
+            return len * Math.cos(TacticsCanvas.ARROW_HEAD_SPREAD);
+        }
+
+        getArrowBodyInset(strokeWidth = this.getStrokeWidth(), headLen = null) {
+            return this.getArrowInnerJoinInset(strokeWidth, headLen);
+        }
+
+        /** Сдвиг вершины стрелки вперёд по ходу штриха (карандаш), чтобы скрыть круглый конец path. */
+        getPenArrowTipForward(strokeWidth = this.getStrokeWidth()) {
+            return Math.max(strokeWidth * 0.15, 1);
+        }
+
+        getPenArrowBodyInset(strokeWidth = this.getStrokeWidth(), headLen = null) {
+            return this.getArrowBodyInset(strokeWidth, headLen) + strokeWidth * 0.2;
+        }
+
+        offsetPointAlong(dx, dy, distance) {
+            const len = Math.hypot(dx, dy);
+            if (len < 1e-6 || distance <= 0) return null;
+            return {
+                x: (dx / len) * distance,
+                y: (dy / len) * distance,
+            };
+        }
+
+        resolveWtArrowEndpoints(points, mode = 'pen') {
+            if (!points?.length) return null;
+            const b = points[points.length - 1];
+            if (points.length < 2) return null;
+
+            if (mode === 'line') {
+                return { a: points[0], b };
+            }
+
+            if (points.length < TacticsCanvas.ARROW_LOOKBACK) {
+                return null;
+            }
+            const i = Math.max(0, points.length - TacticsCanvas.ARROW_LOOKBACK);
+            return { a: points[i], b };
+        }
+
+        resolvePenPathArrowEndpoints(path) {
+            const ep = this.extractPathEndpoints(path);
+            if (!ep) return null;
+            const dist = Math.hypot(ep.end.x - ep.endPrev.x, ep.end.y - ep.endPrev.y);
+            if (dist < 1e-6) return null;
+            return { a: ep.endPrev, b: ep.end };
+        }
+
+        resolveArrowEndpoints({ points = null, mode = 'pen', path = null } = {}) {
+            if (path?.type === 'path' && path.path?.length) {
+                const wt = this.resolvePenPathArrowEndpoints(path);
+                return wt ? { ...wt, source: 'path' } : null;
+            }
+            if (!points?.length) return null;
+            const wt = this.resolveWtArrowEndpoints(points, mode);
+            return wt ? { ...wt, source: mode === 'line' ? 'line' : 'brush' } : null;
+        }
+
+        computeArrowTriangle(tipX, tipY, dirX, dirY, strokeWidth = this.getStrokeWidth()) {
+            const len = Math.hypot(dirX, dirY);
+            if (len < 1e-6) return null;
+
+            const angle = Math.atan2(dirY, dirX);
+            const headLen = this.getArrowHeadLength(strokeWidth);
+            const spread = TacticsCanvas.ARROW_HEAD_SPREAD;
+
+            return {
+                tipX,
+                tipY,
+                leftX: tipX - headLen * Math.cos(angle - spread),
+                leftY: tipY - headLen * Math.sin(angle - spread),
+                rightX: tipX - headLen * Math.cos(angle + spread),
+                rightY: tipY - headLen * Math.sin(angle + spread),
+            };
+        }
+
+        buildArrowFromEndpoints(a, b, strokeWidth = this.getStrokeWidth()) {
+            if (!a || !b) return null;
+            const dirX = b.x - a.x;
+            const dirY = b.y - a.y;
+            const triangle = this.computeArrowTriangle(b.x, b.y, dirX, dirY, strokeWidth);
+            if (!triangle) return null;
+            return { a, b, triangle };
+        }
+
+        drawArrowChevronOnCtx(ctx, chevron, strokeStyle, strokeWidth) {
+            if (!ctx || !chevron) return;
+            ctx.save();
+            ctx.strokeStyle = strokeStyle || this.getStrokeColor();
+            ctx.lineWidth = strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(chevron.leftX, chevron.leftY);
+            ctx.lineTo(chevron.tipX, chevron.tipY);
+            ctx.lineTo(chevron.rightX, chevron.rightY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        getLineArrowBodyInset(strokeWidth = this.getStrokeWidth()) {
+            const inner = this.getArrowInnerJoinInset(strokeWidth);
+            return Math.max(inner * 0.72, inner - strokeWidth * 0.18);
+        }
+
+        drawLineCapConnector(ctx, x1, y1, x2, y2, color, strokeWidth) {
+            if (!ctx || Math.hypot(x2 - x1, y2 - y1) < 0.5) return;
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = strokeWidth;
+            ctx.lineCap = 'butt';
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        arrowChevronToPolylineAttr(chevron) {
+            if (!chevron) return '';
+            return `${chevron.leftX},${chevron.leftY} ${chevron.tipX},${chevron.tipY} ${chevron.rightX},${chevron.rightY}`;
+        }
+
+        drawWtEndCapLocal(ctx, ax, ay, bx, by, endType, strokeWidth, color) {
+            const dx = bx - ax;
+            const dy = by - ay;
+            if (Math.hypot(dx, dy) < 1e-6) return;
+
+            if (endType === 'arrow') {
+                const arrow = this.buildArrowFromEndpoints({ x: ax, y: ay }, { x: bx, y: by }, strokeWidth);
+                if (arrow) this.drawArrowChevronOnCtx(ctx, arrow.triangle, color, strokeWidth);
+                return;
+            }
+
+            if (endType === 'bar') {
+                const len = Math.hypot(dx, dy);
+                const ux = dx / len;
+                const uy = dy / len;
+                const px = -uy;
+                const py = ux;
+                const size = this.getBarCapHalfLength(strokeWidth);
+                ctx.save();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = strokeWidth;
+                ctx.lineCap = 'butt';
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.moveTo(bx - size * px, by - size * py);
+                ctx.lineTo(bx + size * px, by + size * py);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        getPathEndCapLocalPoints(path) {
+            if (!path?.path?.length) return null;
+            if (!fabric.util?.getPathSegmentsInfo || !fabric.util?.getPointOnPath) return null;
+
+            const segments = fabric.util.getPathSegmentsInfo(path.path);
+            if (!segments.length) return null;
+
+            const totalLen = segments[segments.length - 1].length;
+            if (totalLen <= 0) return null;
+
+            const strokeWidth = path.strokeWidth || this.getStrokeWidth();
+            const lookback = Math.min(totalLen, this.getArrowLookbackDistance(strokeWidth));
+            const endPt = fabric.util.getPointOnPath(path.path, totalLen, segments);
+            const prevPt = fabric.util.getPointOnPath(
+                path.path,
+                Math.max(0, totalLen - lookback),
+                segments,
+            );
+            const ox = path.pathOffset?.x || 0;
+            const oy = path.pathOffset?.y || 0;
+            const toRender = (p) => ({ x: p.x - ox, y: p.y - oy });
+            return { a: toRender(prevPt), b: toRender(endPt) };
+        }
+
+        pathCapTipToRender(path, tipX, tipY) {
+            const ox = path.pathOffset?.x || 0;
+            const oy = path.pathOffset?.y || 0;
+            return { x: tipX - ox, y: tipY - oy };
+        }
+
+        installWtEndCapRenderer(obj) {
+            if (!obj || obj._wtEndCapRendererInstalled) return;
+
+            const self = this;
+            const originalRender = obj._render.bind(obj);
+            obj._render = function renderWithWtEndCap(ctx) {
+                originalRender(ctx);
+                const endType = this.tacticsEndType;
+                if (!endType || endType === 'none') return;
+
+                const strokeWidth = this.strokeWidth || TacticsCanvas.DEFAULT_STROKE_WIDTH;
+                const color = this.stroke || TacticsCanvas.DEFAULT_STROKE_COLOR;
+
+                if (this.type === 'line') {
+                    const ep = self.getLineEndCapRenderEndpoints(this, endType);
+                    const bodyToTip = Math.hypot(ep.bx - ep.bodyX, ep.by - ep.bodyY);
+                    const lineLen = Math.hypot(ep.bx - ep.ax, ep.by - ep.ay);
+                    if (lineLen < 1.5) return;
+
+                    if (bodyToTip > 0.5) {
+                        self.drawLineCapConnector(
+                            ctx,
+                            ep.bodyX,
+                            ep.bodyY,
+                            ep.bx,
+                            ep.by,
+                            color,
+                            strokeWidth,
+                        );
+                    }
+
+                    self.drawWtEndCapLocal(ctx, ep.ax, ep.ay, ep.bx, ep.by, endType, strokeWidth, color);
+                    return;
+                }
+
+                if (this.type === 'path' && this.tacticsType === 'pen') {
+                    const pts = self.getPathEndCapLocalPoints(this);
+                    if (!pts) return;
+                    let ax = pts.a.x;
+                    let ay = pts.a.y;
+                    let bx = pts.b.x;
+                    let by = pts.b.y;
+                    if ((endType === 'bar' || endType === 'arrow')
+                        && this.tacticsCapTipX != null && this.tacticsCapTipY != null) {
+                        const tip = self.pathCapTipToRender(this, this.tacticsCapTipX, this.tacticsCapTipY);
+                        bx = tip.x;
+                        by = tip.y;
+                    }
+                    if (endType === 'arrow') {
+                        const forward = self.getPenArrowTipForward(strokeWidth);
+                        const offset = self.offsetPointAlong(bx - ax, by - ay, forward);
+                        if (offset) {
+                            bx += offset.x;
+                            by += offset.y;
+                        }
+                    }
+                    self.drawWtEndCapLocal(ctx, ax, ay, bx, by, endType, strokeWidth, color);
+                }
+            };
+
+            obj._wtEndCapRendererInstalled = true;
+            obj.objectCaching = false;
+        }
+
+        drawWtArrowOnCtx(ctx, points, strokeWidth, fillStyle, mode = 'pen') {
+            const endpoints = this.resolveArrowEndpoints({ points, mode });
+            if (!endpoints || !ctx) return;
+            const arrow = this.buildArrowFromEndpoints(endpoints.a, endpoints.b, strokeWidth);
+            if (!arrow) return;
+            this.drawArrowChevronOnCtx(ctx, arrow.triangle, fillStyle, strokeWidth);
+        }
+
+        resolveEndGeometryFromPoints(points, endType, strokeWidth = this.getStrokeWidth()) {
+            const wt = this.resolveWtArrowEndpoints(points, 'pen');
+            if (!wt) return null;
+            return this.getLineEndGeometry(wt.a.x, wt.a.y, wt.b.x, wt.b.y, endType, strokeWidth);
+        }
+
+        getArrowLookbackDistance(strokeWidth = this.getStrokeWidth()) {
+            return Math.max(strokeWidth * 2.5, 12);
         }
 
         getStrokeColor() {
@@ -2178,24 +2940,11 @@
             return this.getToolSettings().endType || 'none';
         }
 
-        getArrowHeadLength() {
-            const w = this.getStrokeWidth();
-            return Math.max(10, w * 2.6);
+        getBarCapHalfLength(strokeWidth = this.getStrokeWidth()) {
+            return this.getCapBaseSize(strokeWidth) * TacticsCanvas.WT_TEND_SCALE2;
         }
 
-        getArrowSpread() {
-            const w = this.getStrokeWidth();
-            const headLen = this.getArrowHeadLength();
-            const fromWidth = Math.atan((w * 1.2) / headLen);
-            return Math.max(TacticsCanvas.ARROW_SPREAD, Math.min(Math.PI / 4.5, fromWidth));
-        }
-
-        getBarHalfLength() {
-            const w = this.getStrokeWidth();
-            return Math.max(5, w * 1.35);
-        }
-
-        getLineEndGeometry(x1, y1, tipX, tipY, endType) {
+        getLineEndGeometry(x1, y1, tipX, tipY, endType, strokeWidth = this.getStrokeWidth(), opts = {}) {
             const dx = tipX - x1;
             const dy = tipY - y1;
             const dist = Math.hypot(dx, dy);
@@ -2203,20 +2952,607 @@
             let bodyX2 = tipX;
             let bodyY2 = tipY;
 
-            const capPad = this.getStrokeWidth() / 2;
-            if (endType === 'arrow' && dist > 0) {
-                const headLen = this.getArrowHeadLength();
-                const inset = headLen * Math.cos(this.getArrowSpread()) + capPad;
+            const capPad = strokeWidth / 2;
+            if (endType === 'bar' && dist > capPad) {
+                bodyX2 = tipX - capPad * Math.cos(angle);
+                bodyY2 = tipY - capPad * Math.sin(angle);
+            } else if (endType === 'arrow') {
+                const inset = opts.pen
+                    ? this.getPenArrowBodyInset(strokeWidth)
+                    : this.getLineArrowBodyInset(strokeWidth);
                 if (dist > inset) {
                     bodyX2 = tipX - inset * Math.cos(angle);
                     bodyY2 = tipY - inset * Math.sin(angle);
                 }
-            } else if (endType === 'bar' && dist > capPad) {
-                bodyX2 = tipX - capPad * Math.cos(angle);
-                bodyY2 = tipY - capPad * Math.sin(angle);
             }
 
             return { bodyX2, bodyY2, tipX, tipY, angle, dist };
+        }
+
+        computeLineCapTipParam(x1, y1, x2, y2, tipX, tipY) {
+            const vx = x2 - x1;
+            const vy = y2 - y1;
+            const lenSq = vx * vx + vy * vy;
+            if (lenSq < 1e-12) return 1;
+            return ((tipX - x1) * vx + (tipY - y1) * vy) / lenSq;
+        }
+
+        lineStorageToRenderCoords(line, sx, sy) {
+            const p = this.getLineRenderPoints(line);
+            if (!p) return { x: sx, y: sy };
+            const t = this.computeLineCapTipParam(line.x1, line.y1, line.x2, line.y2, sx, sy);
+            return {
+                x: p.x1 + t * (p.x2 - p.x1),
+                y: p.y1 + t * (p.y2 - p.y1),
+            };
+        }
+
+        getLineCapTipRenderPoint(line) {
+            const p = this.getLineRenderPoints(line);
+            if (!p) return { x: line.x2, y: line.y2 };
+
+            const strokeWidth = line.strokeWidth || this.getStrokeWidth();
+            const inner = this.getArrowInnerJoinInset(strokeWidth);
+            const dx = p.x2 - p.x1;
+            const dy = p.y2 - p.y1;
+            const bodyLen = Math.hypot(dx, dy);
+            if (bodyLen < 1e-6) return { x: p.x2, y: p.y2 };
+
+            let t = line.tacticsCapTipT;
+            if (t == null && line.tacticsCapTipX != null && line.tacticsCapTipY != null) {
+                t = this.computeLineCapTipParam(
+                    line.x1,
+                    line.y1,
+                    line.x2,
+                    line.y2,
+                    line.tacticsCapTipX,
+                    line.tacticsCapTipY,
+                );
+            }
+
+            if (Number.isFinite(t) && t >= 1.02 && t <= 3.5) {
+                return {
+                    x: p.x1 + t * (p.x2 - p.x1),
+                    y: p.y1 + t * (p.y2 - p.y1),
+                };
+            }
+
+            const ux = dx / bodyLen;
+            const uy = dy / bodyLen;
+            return {
+                x: p.x2 + ux * inner,
+                y: p.y2 + uy * inner,
+            };
+        }
+
+        setLineCapTip(line, tipX, tipY) {
+            if (!line) return;
+            const t = this.computeLineCapTipParam(line.x1, line.y1, line.x2, line.y2, tipX, tipY);
+            line.set({
+                tacticsCapTipX: tipX,
+                tacticsCapTipY: tipY,
+                tacticsCapTipT: t,
+            });
+        }
+
+        ensureLineCapTipParam(line, endType, strokeWidth) {
+            if (line.type !== 'line' || (endType !== 'arrow' && endType !== 'bar')) return;
+
+            let tipX = line.tacticsCapTipX;
+            let tipY = line.tacticsCapTipY;
+            if (tipX == null || tipY == null) {
+                const tip = this.reconstructTipFromBody(
+                    { x: line.x1, y: line.y1 },
+                    { x: line.x2, y: line.y2 },
+                    endType,
+                    strokeWidth,
+                );
+                tipX = tip.tipX;
+                tipY = tip.tipY;
+            }
+
+            const t = this.computeLineCapTipParam(line.x1, line.y1, line.x2, line.y2, tipX, tipY);
+            if (!Number.isFinite(t) || t < 0.9 || t > 4) {
+                const tip = this.reconstructTipFromBody(
+                    { x: line.x1, y: line.y1 },
+                    { x: line.x2, y: line.y2 },
+                    endType,
+                    strokeWidth,
+                );
+                tipX = tip.tipX;
+                tipY = tip.tipY;
+            }
+
+            this.setLineCapTip(line, tipX, tipY);
+        }
+
+        linePointToCanvas(line, lx, ly) {
+            if (!line) return { x: lx, y: ly };
+            line.setCoords?.();
+            if (line.type === 'line' && line.calcLinePoints) {
+                const render = this.lineStorageToRenderCoords(line, lx, ly);
+                return fabric.util.transformPoint(
+                    new fabric.Point(render.x, render.y),
+                    line.calcTransformMatrix(),
+                );
+            }
+            return fabric.util.transformPoint(
+                new fabric.Point(lx, ly),
+                line.calcTransformMatrix(),
+            );
+        }
+
+        /** @deprecated Используйте setLineCapTip; для fabric.Line canvasPointToLine давал неверные координаты. */
+        canvasPointToLine(line, cx, cy) {
+            const inv = fabric.util.invertTransform(line.calcTransformMatrix());
+            return fabric.util.transformPoint(new fabric.Point(cx, cy), inv);
+        }
+
+        getLineRenderPoints(line) {
+            if (!line?.calcLinePoints) return null;
+            return line.calcLinePoints();
+        }
+
+        getLineEndCapRenderEndpoints(line, endType) {
+            const p = this.getLineRenderPoints(line);
+            if (!p) {
+                return {
+                    ax: line.x1,
+                    ay: line.y1,
+                    bx: line.x2,
+                    by: line.y2,
+                    bodyX: line.x2,
+                    bodyY: line.y2,
+                };
+            }
+
+            const tip = (endType === 'bar' || endType === 'arrow')
+                ? this.getLineCapTipRenderPoint(line)
+                : { x: p.x2, y: p.y2 };
+
+            return {
+                ax: p.x1,
+                ay: p.y1,
+                bx: tip.x,
+                by: tip.y,
+                bodyX: p.x2,
+                bodyY: p.y2,
+            };
+        }
+
+        getArrowHeadTipCanvas(arrow) {
+            const parent = arrow?.tacticsParent;
+            if (parent) {
+                if (parent.type === 'line') {
+                    if (parent.tacticsCapTipX != null && parent.tacticsCapTipY != null) {
+                        return this.linePointToCanvas(parent, parent.tacticsCapTipX, parent.tacticsCapTipY);
+                    }
+                    return this.linePointToCanvas(parent, parent.x2, parent.y2);
+                }
+                if (parent.type === 'path') {
+                    const ep = this.extractPathEndpoints(parent);
+                    if (ep?.end) return ep.end;
+                }
+            }
+            return null;
+        }
+
+        getBarEndTipCanvas(bar) {
+            if (!bar) return null;
+            bar.setCoords?.();
+            const p1 = this.linePointToCanvas(bar, bar.x1, bar.y1);
+            const p2 = this.linePointToCanvas(bar, bar.x2, bar.y2);
+            return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        }
+
+        reconstructTipFromBody(start, bodyEnd, endType, strokeWidth) {
+            const dx = bodyEnd.x - start.x;
+            const dy = bodyEnd.y - start.y;
+            const angle = Math.atan2(dy, dx);
+            const capPad = strokeWidth / 2;
+            if (endType === 'bar') {
+                return {
+                    tipX: bodyEnd.x + capPad * Math.cos(angle),
+                    tipY: bodyEnd.y + capPad * Math.sin(angle),
+                    angle,
+                };
+            }
+            if (endType === 'arrow') {
+                const inset = this.getArrowBodyInset(strokeWidth);
+                return {
+                    tipX: bodyEnd.x + inset * Math.cos(angle),
+                    tipY: bodyEnd.y + inset * Math.sin(angle),
+                    angle,
+                };
+            }
+            return {
+                tipX: bodyEnd.x,
+                tipY: bodyEnd.y,
+                angle,
+            };
+        }
+
+        findAttachedEndCap(parent) {
+            if (!this.fabric || !parent) return null;
+            const parentId = parent.tacticsId;
+            return this.fabric.getObjects().find((obj) => {
+                if (!obj.tacticsArrowHead && !obj.tacticsBarEnd) return false;
+                return obj.tacticsParent === parent || (parentId && obj.tacticsParentId === parentId);
+            }) || null;
+        }
+
+        parsePathCommandPoints(pathCommands) {
+            const points = [];
+            if (!Array.isArray(pathCommands)) return points;
+
+            let cx = 0;
+            let cy = 0;
+            pathCommands.forEach((cmd) => {
+                if (!Array.isArray(cmd) || !cmd.length) return;
+                const type = String(cmd[0]).toUpperCase();
+                if (type === 'M' || type === 'L') {
+                    cx = cmd[1];
+                    cy = cmd[2];
+                    points.push({ x: cx, y: cy });
+                } else if (type === 'Q') {
+                    cx = cmd[3];
+                    cy = cmd[4];
+                    points.push({ x: cx, y: cy });
+                } else if (type === 'C') {
+                    cx = cmd[5];
+                    cy = cmd[6];
+                    points.push({ x: cx, y: cy });
+                }
+            });
+            return points;
+        }
+
+        pathPointToCanvas(path, point) {
+            const offset = path.pathOffset || { x: 0, y: 0 };
+            const local = new fabric.Point(point.x - offset.x, point.y - offset.y);
+            return fabric.util.transformPoint(local, path.calcTransformMatrix());
+        }
+
+        canvasPointToPath(path, canvasX, canvasY) {
+            const inv = fabric.util.invertTransform(path.calcTransformMatrix());
+            const local = fabric.util.transformPoint(new fabric.Point(canvasX, canvasY), inv);
+            const offset = path.pathOffset || { x: 0, y: 0 };
+            return { x: local.x + offset.x, y: local.y + offset.y };
+        }
+
+        extractPathEndpoints(path) {
+            if (!path?.path?.length) return null;
+            path.setCoords();
+            const strokeWidth = path.strokeWidth || this.getStrokeWidth();
+
+            if (fabric.util?.getPathSegmentsInfo && fabric.util?.getPointOnPath) {
+                const segments = fabric.util.getPathSegmentsInfo(path.path);
+                if (!segments.length) return null;
+
+                const totalLen = segments[segments.length - 1].length;
+                if (totalLen <= 0) return null;
+
+                const lookbackDist = this.getArrowLookbackDistance(strokeWidth);
+                const lookback = Math.min(totalLen, lookbackDist);
+                const endPt = fabric.util.getPointOnPath(path.path, totalLen, segments);
+                const prevPt = fabric.util.getPointOnPath(
+                    path.path,
+                    Math.max(0, totalLen - lookback),
+                    segments,
+                );
+                const startPt = fabric.util.getPointOnPath(path.path, 0, segments);
+
+                const end = this.pathPointToCanvas(path, endPt);
+                const endPrev = this.pathPointToCanvas(path, prevPt);
+                const start = this.pathPointToCanvas(path, startPt);
+                const angle = Math.atan2(end.y - endPrev.y, end.x - endPrev.x);
+
+                return { start, end, endPrev, angle };
+            }
+
+            const points = this.parsePathCommandPoints(path.path);
+            if (points.length < 1) return null;
+
+            const end = this.pathPointToCanvas(path, points[points.length - 1]);
+            const start = this.pathPointToCanvas(path, points[0]);
+            const lookbackDist = this.getArrowLookbackDistance(strokeWidth);
+
+            let endPrevPoint = points[0];
+            for (let i = points.length - 2; i >= 0; i -= 1) {
+                const candidate = this.pathPointToCanvas(path, points[i]);
+                if (Math.hypot(end.x - candidate.x, end.y - candidate.y) >= lookbackDist) {
+                    endPrevPoint = points[i];
+                    break;
+                }
+            }
+
+            const endPrev = this.pathPointToCanvas(path, endPrevPoint);
+            return {
+                start,
+                end,
+                endPrev,
+                angle: Math.atan2(end.y - endPrev.y, end.x - endPrev.x),
+            };
+        }
+
+        trimPathEnd(path, canvasX, canvasY, opts = {}) {
+            if (!path?.path?.length) return;
+
+            const local = this.canvasPointToPath(path, canvasX, canvasY);
+            const pathCommands = path.path.slice();
+            const lastCmd = pathCommands[pathCommands.length - 1];
+            if (!Array.isArray(lastCmd) || !lastCmd.length) return;
+
+            const straighten = !!opts.straighten;
+            const type = String(lastCmd[0]).toUpperCase();
+            if (type === 'Q') {
+                pathCommands[pathCommands.length - 1] = straighten
+                    ? ['L', local.x, local.y]
+                    : ['Q', lastCmd[1], lastCmd[2], local.x, local.y];
+            } else if (type === 'C') {
+                pathCommands[pathCommands.length - 1] = straighten
+                    ? ['L', local.x, local.y]
+                    : [
+                        'C', lastCmd[1], lastCmd[2], lastCmd[3], lastCmd[4], local.x, local.y,
+                    ];
+            } else if (type === 'L') {
+                pathCommands[pathCommands.length - 1] = ['L', local.x, local.y];
+            } else if (type === 'M' && pathCommands.length > 1) {
+                const prevCmd = pathCommands[pathCommands.length - 2];
+                const prevType = String(prevCmd?.[0] || '').toUpperCase();
+                if (prevType === 'Q') {
+                    pathCommands[pathCommands.length - 1] = straighten
+                        ? ['L', local.x, local.y]
+                        : ['Q', prevCmd[1], prevCmd[2], local.x, local.y];
+                } else if (prevType === 'L') {
+                    pathCommands[pathCommands.length - 1] = ['L', local.x, local.y];
+                }
+            } else {
+                return;
+            }
+
+            path.set({ path: pathCommands });
+            if (typeof path._setPath === 'function') {
+                path._setPath(pathCommands);
+            }
+            if (typeof path._calcDimensions === 'function') {
+                path._calcDimensions();
+            }
+            if (typeof path.setDimensions === 'function') {
+                path.setDimensions();
+            }
+            path.setCoords();
+        }
+
+        collectPenBrushLivePoints(brush) {
+            const raw = brush?._points?.map((p) => ({ x: p.x, y: p.y })) || [];
+            if (raw.length < 2) return null;
+
+            let points = raw.slice();
+            const live = this.penLivePointer;
+            if (live && Number.isFinite(live.x) && Number.isFinite(live.y)) {
+                const last = points[points.length - 1];
+                if (Math.hypot(live.x - last.x, live.y - last.y) > 0.35) {
+                    points.push({ x: live.x, y: live.y });
+                }
+            }
+            return points;
+        }
+
+        buildPenBrushLiveCapContext(brush, endType) {
+            if (endType !== 'arrow' && endType !== 'bar') return null;
+            const points = this.collectPenBrushLivePoints(brush);
+            if (!points || points.length < 2) return null;
+
+            const strokeWidth = brush?.width || this.getStrokeWidth();
+            let wt = this.resolveWtArrowEndpoints(points, 'pen');
+            if (!wt && points.length >= 2) {
+                const end = points[points.length - 1];
+                const lookbackDist = this.getArrowLookbackDistance(strokeWidth);
+                let endPrev = points[0];
+                for (let i = points.length - 2; i >= 0; i -= 1) {
+                    if (Math.hypot(end.x - points[i].x, end.y - points[i].y) >= lookbackDist) {
+                        endPrev = points[i];
+                        break;
+                    }
+                }
+                wt = { a: endPrev, b: end };
+            }
+            if (!wt) return null;
+
+            const geom = this.getLineEndGeometry(
+                wt.a.x,
+                wt.a.y,
+                wt.b.x,
+                wt.b.y,
+                endType,
+                strokeWidth,
+                { pen: endType === 'arrow' },
+            );
+            if (!geom || geom.dist < 3) return null;
+
+            const bodyPoints = points.slice();
+            bodyPoints[bodyPoints.length - 1] = { x: geom.bodyX2, y: geom.bodyY2 };
+            return {
+                bodyPoints,
+                wt,
+                geom,
+                strokeWidth,
+                color: brush?.color || this.getStrokeColor(),
+            };
+        }
+
+        applyPenBrushStrokeStyles(ctx, brush) {
+            if (!ctx || !brush) return;
+            if (typeof brush._setBrushStyles === 'function') {
+                brush._setBrushStyles(ctx);
+            }
+            if (typeof brush._setShadow === 'function') {
+                brush._setShadow();
+            }
+            const endType = this.getEndType();
+            if (this.shouldForceButtCapForEnd(endType) || endType === 'arrow') {
+                ctx.lineCap = 'butt';
+            }
+            const dash = this.getStrokeDashArray();
+            if (dash?.length) {
+                ctx.setLineDash(dash);
+            } else {
+                ctx.setLineDash([]);
+            }
+        }
+
+        midPoint2d(a, b) {
+            return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        }
+
+        drawPencilBrushPointsOnCtx(ctx, points, brush) {
+            if (!ctx || !points || points.length < 2) return;
+
+            this.applyPenBrushStrokeStyles(ctx, brush);
+            ctx.beginPath();
+
+            let r = points[0];
+            let n = points[1];
+            if (points.length === 2 && r.x === n.x && r.y === n.y) {
+                const s = (brush?.width || this.getStrokeWidth()) / 1000;
+                r = { x: r.x, y: r.y };
+                n = { x: n.x, y: n.y };
+                r.x -= s;
+                n.x += s;
+            }
+
+            ctx.moveTo(r.x, r.y);
+            for (let e = 1; e < points.length; e += 1) {
+                const control = points[e];
+                const next = points[e + 1];
+                if (!next) {
+                    ctx.lineTo(control.x, control.y);
+                    break;
+                }
+                const mid = this.midPoint2d(control, next);
+                ctx.quadraticCurveTo(control.x, control.y, mid.x, mid.y);
+                r = control;
+                n = next;
+            }
+            ctx.stroke();
+        }
+
+        renderPenBrushLivePreview(ctx, brush, endType) {
+            if (!ctx || !brush || (endType !== 'arrow' && endType !== 'bar')) return false;
+            if (this.tool !== 'pen' || !this.drawEnabled || !this.fabric?.isDrawingMode) return false;
+
+            const capCtx = this.buildPenBrushLiveCapContext(brush, endType);
+            if (!capCtx) return false;
+
+            if (typeof brush._saveAndTransform === 'function') {
+                brush._saveAndTransform(ctx);
+            }
+
+            this.drawPencilBrushPointsOnCtx(ctx, capCtx.bodyPoints, brush);
+
+            let tipX = capCtx.wt.b.x;
+            let tipY = capCtx.wt.b.y;
+            if (endType === 'arrow') {
+                const forward = this.getPenArrowTipForward(capCtx.strokeWidth);
+                const offset = this.offsetPointAlong(
+                    tipX - capCtx.wt.a.x,
+                    tipY - capCtx.wt.a.y,
+                    forward,
+                );
+                if (offset) {
+                    tipX += offset.x;
+                    tipY += offset.y;
+                }
+            }
+
+            this.drawWtEndCapLocal(
+                ctx,
+                capCtx.wt.a.x,
+                capCtx.wt.a.y,
+                tipX,
+                tipY,
+                endType,
+                capCtx.strokeWidth,
+                capCtx.color,
+            );
+            ctx.restore();
+            return true;
+        }
+
+        retunePenEndCap(path, endType, endpoints = null) {
+            if (!path || (endType !== 'arrow' && endType !== 'bar')) return false;
+
+            const strokeWidth = path.strokeWidth || this.getStrokeWidth();
+            let tipX;
+            let tipY;
+            let prevX;
+            let prevY;
+
+            if (endpoints?.a && endpoints?.b) {
+                prevX = endpoints.a.x;
+                prevY = endpoints.a.y;
+                tipX = endpoints.b.x;
+                tipY = endpoints.b.y;
+            } else {
+                const ep = this.extractPathEndpoints(path);
+                if (!ep) return false;
+                prevX = ep.endPrev.x;
+                prevY = ep.endPrev.y;
+                if (path.tacticsCapTipX != null && path.tacticsCapTipY != null) {
+                    const tipCanvas = this.pathPointToCanvas(path, {
+                        x: path.tacticsCapTipX,
+                        y: path.tacticsCapTipY,
+                    });
+                    tipX = tipCanvas.x;
+                    tipY = tipCanvas.y;
+                } else {
+                    tipX = ep.end.x;
+                    tipY = ep.end.y;
+                }
+            }
+
+            const geom = this.getLineEndGeometry(
+                prevX,
+                prevY,
+                tipX,
+                tipY,
+                endType,
+                strokeWidth,
+                { pen: endType === 'arrow' },
+            );
+            if (!geom || geom.dist < 3) return false;
+
+            this.trimPathEnd(path, geom.bodyX2, geom.bodyY2, { straighten: true });
+            const tipLocal = this.canvasPointToPath(path, geom.tipX, geom.tipY);
+            path.set({
+                tacticsCapTipX: tipLocal.x,
+                tacticsCapTipY: tipLocal.y,
+            });
+            if (endType === 'bar') {
+                path.set({ strokeLineCap: 'butt' });
+            }
+            return true;
+        }
+
+        setupPenEndCap(path, endType) {
+            if (!path) return;
+
+            const strokeWidth = path.strokeWidth || this.getStrokeWidth();
+            path.set({ strokeWidth });
+
+            const wt = this.resolvePenPathArrowEndpoints(path);
+            if (!wt) return;
+
+            if (endType === 'bar' || endType === 'arrow') {
+                if (!this.retunePenEndCap(path, endType, wt)) return;
+            }
+
+            this.applyStrokeStyle(path);
+            if (endType === 'bar') {
+                path.set({ strokeLineCap: 'butt' });
+            }
+            this.installWtEndCapRenderer(path);
         }
 
         getShapeFill(color) {
@@ -2299,167 +3635,6 @@
 
         isPreviewObject(obj) {
             return !!(obj?.isDrawingPreview || obj?.isGridLine || obj?.isBackground);
-        }
-
-        clearLinePreview() {
-            if (!this.fabric || !this.linePreview) return;
-            this.isRemote = true;
-            if (this.linePreview.arrowHead) {
-                this.fabric.remove(this.linePreview.arrowHead);
-            }
-            if (this.linePreview.barEnd) {
-                this.fabric.remove(this.linePreview.barEnd);
-            }
-            if (this.linePreview.line) {
-                this.fabric.remove(this.linePreview.line);
-            }
-            this.isRemote = false;
-            this.linePreview = null;
-            this.fabric.requestRenderAll();
-        }
-
-        buildArrowHeadAt(tipX, tipY, angle, options = {}) {
-            const headLen = this.getArrowHeadLength();
-            const spread = this.getArrowSpread();
-            const absPoints = [
-                { x: tipX, y: tipY },
-                {
-                    x: tipX - headLen * Math.cos(angle - spread),
-                    y: tipY - headLen * Math.sin(angle - spread),
-                },
-                {
-                    x: tipX - headLen * Math.cos(angle + spread),
-                    y: tipY - headLen * Math.sin(angle + spread),
-                },
-            ];
-            const normalized = this.normalizePolygonPoints(absPoints);
-            return new fabric.Polygon(normalized.points, {
-                left: normalized.left,
-                top: normalized.top,
-                fill: this.getStrokeColor(),
-                stroke: null,
-                strokeWidth: 0,
-                objectCaching: false,
-                selectable: false,
-                evented: false,
-                ...options,
-            });
-        }
-
-        buildArrowHeadPolygon(line, options = {}) {
-            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
-            return this.buildArrowHeadAt(line.x2, line.y2, angle, options);
-        }
-
-        clearPreviewLineEnd() {
-            if (!this.fabric || !this.linePreview) return;
-            ['arrowHead', 'barEnd'].forEach((key) => {
-                if (!this.linePreview[key]) return;
-                this.isRemote = true;
-                this.fabric.remove(this.linePreview[key]);
-                this.isRemote = false;
-                this.linePreview[key] = null;
-            });
-        }
-
-        syncPreviewArrowHead(line, tipX, tipY, angle) {
-            if (!this.fabric || !this.linePreview) return;
-            this.clearPreviewLineEnd();
-
-            const tri = this.buildArrowHeadAt(tipX, tipY, angle);
-            tri.isDrawingPreview = true;
-            this.linePreview.arrowHead = tri;
-            this.isRemote = true;
-            this.fabric.add(tri);
-            this.isRemote = false;
-        }
-
-        buildBarEndAt(tipX, tipY, angle, options = {}) {
-            const half = this.getBarHalfLength();
-            const perp = angle + Math.PI / 2;
-            return new fabric.Line([
-                tipX - half * Math.cos(perp),
-                tipY - half * Math.sin(perp),
-                tipX + half * Math.cos(perp),
-                tipY + half * Math.sin(perp),
-            ], {
-                stroke: this.getStrokeColor(),
-                strokeWidth: this.getStrokeWidth(),
-                strokeLineCap: 'round',
-                selectable: false,
-                evented: false,
-                ...options,
-            });
-        }
-
-        buildBarEndLine(line, options = {}) {
-            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
-            return this.buildBarEndAt(line.x2, line.y2, angle, options);
-        }
-
-        syncPreviewBarEnd(line, tipX, tipY, angle) {
-            if (!this.fabric || !this.linePreview) return;
-            this.clearPreviewLineEnd();
-
-            const bar = this.buildBarEndAt(tipX, tipY, angle);
-            bar.isDrawingPreview = true;
-            this.linePreview.barEnd = bar;
-            this.isRemote = true;
-            this.fabric.add(bar);
-            this.isRemote = false;
-        }
-
-        startLinePreview(x, y) {
-            if (!this.fabric) return;
-
-            this.clearLinePreview();
-            this.lineStart = { x, y };
-            this.startLocalStrokeBroadcast({ x, y });
-
-            const line = new fabric.Line([x, y, x, y], {
-                stroke: this.getStrokeColor(),
-                strokeWidth: this.getStrokeWidth(),
-                selectable: false,
-                evented: false,
-                strokeLineCap: 'round',
-            });
-            this.applyStrokeDash(line);
-            line.isDrawingPreview = true;
-            this.linePreview = { line };
-
-            this.isRemote = true;
-            this.fabric.add(line);
-            this.isRemote = false;
-
-            this.syncLinePreviewEnds(x, y);
-        }
-
-        syncLinePreviewEnds(tipX, tipY) {
-            const line = this.linePreview?.line;
-            if (!line || !this.fabric) return;
-
-            const endType = this.getEndType();
-            const geom = this.getLineEndGeometry(line.x1, line.y1, tipX, tipY, endType);
-            line.set({ x2: geom.bodyX2, y2: geom.bodyY2 });
-            line.setCoords();
-
-            if (endType === 'arrow') {
-                this.syncPreviewArrowHead(line, geom.tipX, geom.tipY, geom.angle);
-            } else if (endType === 'bar') {
-                this.syncPreviewBarEnd(line, geom.tipX, geom.tipY, geom.angle);
-            } else {
-                this.clearPreviewLineEnd();
-            }
-        }
-
-        updateLinePreview(x, y) {
-            const line = this.linePreview?.line;
-            if (!line || !this.fabric) return;
-
-            this.syncLinePreviewEnds(x, y);
-
-            this.queueStrokePointBroadcast({ x, y });
-            this.fabric.requestRenderAll();
         }
 
         clearShapePreview() {
@@ -2616,58 +3791,6 @@
             }
         }
 
-        finishLineDraw(x, y) {
-            if (!this.fabric || !this.lineStart) return;
-
-            const start = this.lineStart;
-            const dx = x - start.x;
-            const dy = y - start.y;
-            this.clearLinePreview();
-            this.lineStart = null;
-
-            if (Math.hypot(dx, dy) < 3) {
-                return;
-            }
-
-            const endType = this.getEndType();
-            const geom = this.getLineEndGeometry(start.x, start.y, x, y, endType);
-            const line = new fabric.Line([start.x, start.y, geom.bodyX2, geom.bodyY2], {
-                stroke: this.getStrokeColor(),
-                strokeWidth: this.getStrokeWidth(),
-                selectable: false,
-                evented: false,
-                strokeLineCap: 'round',
-            });
-            this.applyStrokeDash(line);
-            line.set('tacticsType', 'line');
-            line.set('tacticsEndType', endType);
-            this.ensureTacticsId(line);
-
-            this.isRemote = true;
-            this.fabric.add(line);
-            if (endType === 'arrow') {
-                this.addArrowHeadAt(geom.tipX, geom.tipY, geom.angle, line);
-            } else if (endType === 'bar') {
-                this.addBarEndAt(geom.tipX, geom.tipY, geom.angle, line);
-            }
-            this.fabric.discardActiveObject();
-            this.isRemote = false;
-
-            this.syncInteractionState();
-            this.fabric.requestRenderAll();
-
-            this.finishLocalStrokeBroadcast();
-            this.pushHistory();
-            this.onChange();
-            if (this.slideId) {
-                this.onOp({
-                    op: 'full',
-                    slideId: this.slideId,
-                    payload: this.exportDrawingsJson(),
-                });
-            }
-        }
-
         ensureTacticsId(obj) {
             if (!obj.tacticsId) {
                 obj.tacticsId = 't' + Math.random().toString(16).slice(2, 10);
@@ -2689,7 +3812,21 @@
             'tacticsIconLabelPlacement',
             'tacticsIconSize',
             'tacticsEndType',
+            'tacticsLineType',
+            'tacticsCapTipX',
+            'tacticsCapTipY',
+            'tacticsCapTipT',
         ];
+
+        removeLegacyEndCapObjects() {
+            if (!this.fabric) return;
+            this.fabric.getObjects().forEach((obj) => {
+                if (!obj.tacticsArrowHead && !obj.tacticsBarEnd) return;
+                this.isRemote = true;
+                this.fabric.remove(obj);
+                this.isRemote = false;
+            });
+        }
 
         removeAttachedArrowHeads(parent) {
             if (!this.fabric || !parent) return;
@@ -2709,13 +3846,11 @@
             if (!this.fabric || !target || this.isPreviewObject(target)) return;
 
             this.isRemote = true;
-            if (target.tacticsType === 'line' || target.tacticsArrowHead || target.tacticsBarEnd) {
-                if ((target.tacticsArrowHead || target.tacticsBarEnd) && target.tacticsParent) {
-                    this.fabric.remove(target);
-                } else {
-                    this.removeAttachedArrowHeads(target);
-                    this.fabric.remove(target);
-                }
+            if (target.tacticsArrowHead || target.tacticsBarEnd) {
+                this.fabric.remove(target);
+            } else if (target.tacticsType === 'line' || target.tacticsType === 'pen') {
+                this.removeAttachedArrowHeads(target);
+                this.fabric.remove(target);
             } else {
                 this.fabric.remove(target);
             }
@@ -2732,34 +3867,6 @@
                     payload: this.exportDrawingsJson(),
                 });
             }
-        }
-
-        addArrowHeadAt(tipX, tipY, angle, line) {
-            const parentId = this.ensureTacticsId(line);
-            const tri = this.buildArrowHeadAt(tipX, tipY, angle);
-            tri.set('tacticsArrowHead', true);
-            tri.set('tacticsParent', line);
-            tri.set('tacticsParentId', parentId);
-            this.fabric.add(tri);
-        }
-
-        addArrowHead(line) {
-            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
-            this.addArrowHeadAt(line.x2, line.y2, angle, line);
-        }
-
-        addBarEndAt(tipX, tipY, angle, line) {
-            const parentId = this.ensureTacticsId(line);
-            const bar = this.buildBarEndAt(tipX, tipY, angle);
-            bar.set('tacticsBarEnd', true);
-            bar.set('tacticsParent', line);
-            bar.set('tacticsParentId', parentId);
-            this.fabric.add(bar);
-        }
-
-        addBarEnd(line) {
-            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
-            this.addBarEndAt(line.x2, line.y2, angle, line);
         }
 
         getMarkerViewBoxSize(markerDef) {
@@ -3169,6 +4276,7 @@
             }
 
             if (this.tool === 'pen' && this.drawEnabled && this.fabric.isDrawingMode) {
+                this.penLivePointer = pointer;
                 this.startLocalStrokeBroadcast(pointer);
                 return;
             }
@@ -3242,11 +4350,6 @@
                 return;
             }
 
-            if (this.tool === 'line') {
-                this.startLinePreview(pointer.x, pointer.y);
-                return;
-            }
-
             if (this.tool === 'rect' || this.tool === 'circle') {
                 this.shapeStart = { x: pointer.x, y: pointer.y };
                 return;
@@ -3295,11 +4398,6 @@
                 this.updatePolygonPreview(pointer.x, pointer.y);
                 return;
             }
-
-            if (!this.drawEnabled || !this.lineStart) return;
-            if (this.tool !== 'line') return;
-
-            this.updateLinePreview(pointer.x, pointer.y);
         }
 
         handleMouseUp(opt) {
@@ -3336,11 +4434,6 @@
                 this.finishShapeDraw(pointer.x, pointer.y);
                 return;
             }
-
-            if (this.tool !== 'line') return;
-            if (!this.lineStart) return;
-
-            this.finishLineDraw(pointer.x, pointer.y);
         }
 
         handleLocalChange(type, e) {
@@ -3372,8 +4465,13 @@
         exportDrawingsJson() {
             if (!this.fabric) return null;
             const objects = this.fabric.getObjects()
-                .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !o.isGridLine)
-                .map((o) => o.toObject(TacticsCanvas.EXPORT_PROPS));
+                .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !o.isGridLine
+                    && !o.tacticsArrowHead && !o.tacticsBarEnd)
+                .map((o) => {
+                    const data = o.toObject(TacticsCanvas.EXPORT_PROPS);
+                    delete data.tacticsParent;
+                    return data;
+                });
             return {
                 version: this.fabric.version || '5.3.0',
                 objects,
@@ -3417,9 +4515,7 @@
         }
 
         clearSlide() {
-            if (!this.drawEnabled) return;
-            const t = window.AbsTacticsI18n?.t('clearConfirm') || 'Clear?';
-            if (!confirm(t) || !this.fabric) return;
+            if (!this.drawEnabled || !this.fabric) return;
             this.fabric.getObjects().forEach((obj) => {
                 if (!obj.isBackground && !obj.isGridLine) {
                     this.fabric.remove(obj);
@@ -3436,7 +4532,11 @@
             if (!this.fabric) return null;
             const objects = this.fabric.getObjects()
                 .filter((o) => !o.isGridLine && !o.isDrawingPreview)
-                .map((o) => o.toObject([...TacticsCanvas.EXPORT_PROPS, 'isBackground', 'isGridLine']));
+                .map((o) => {
+                    const data = o.toObject([...TacticsCanvas.EXPORT_PROPS, 'isBackground', 'isGridLine']);
+                    delete data.tacticsParent;
+                    return data;
+                });
             return {
                 version: this.fabric.version || '5.3.0',
                 objects,
@@ -3446,21 +4546,116 @@
         relinkArrowHeads() {
             if (!this.fabric) return;
 
-            const linesById = new Map();
+            const parentsById = new Map();
             this.fabric.getObjects().forEach((obj) => {
-                if (obj.type === 'line' && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow')) {
-                    this.ensureTacticsId(obj);
-                    linesById.set(obj.tacticsId, obj);
-                }
+                const isLine = obj.type === 'line'
+                    && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow');
+                const isPen = obj.type === 'path' && obj.tacticsType === 'pen';
+                if (!isLine && !isPen) return;
+                this.ensureTacticsId(obj);
+                parentsById.set(obj.tacticsId, obj);
             });
 
             this.fabric.getObjects().forEach((obj) => {
-                if (!obj.tacticsArrowHead) return;
-                const parentId = obj.tacticsParentId;
-                if (parentId && linesById.has(parentId)) {
-                    obj.tacticsParent = linesById.get(parentId);
+                if (!obj.tacticsArrowHead && !obj.tacticsBarEnd) return;
+                const parent = obj.tacticsParent
+                    || (obj.tacticsParentId && parentsById.get(obj.tacticsParentId));
+                if (!parent) return;
+                if (!parent.tacticsEndType || parent.tacticsEndType === 'none') {
+                    parent.set('tacticsEndType', obj.tacticsArrowHead ? 'arrow' : 'bar');
                 }
             });
+
+            this.removeLegacyEndCapObjects();
+            this.rebuildEndCaps();
+        }
+
+        rebuildParentEndCap(parent) {
+            const endType = parent.tacticsEndType;
+            if (!endType || endType === 'none') return;
+
+            this.ensureTacticsId(parent);
+            const strokeWidth = parent.strokeWidth || TacticsCanvas.DEFAULT_STROKE_WIDTH;
+            this.applyStrokeStyle(parent);
+            this.removeAttachedArrowHeads(parent);
+
+            const isLine = parent.type === 'line'
+                && (parent.tacticsType === 'line' || parent.tacticsType === 'arrow');
+            const isPen = parent.type === 'path' && parent.tacticsType === 'pen';
+
+            if (isPen && (endType === 'bar' || endType === 'arrow')) {
+                if (parent.tacticsCapTipX == null) {
+                    this.setupPenEndCap(parent, endType);
+                } else {
+                    this.retunePenEndCap(parent, endType);
+                    this.applyStrokeStyle(parent);
+                    if (endType === 'bar') {
+                        parent.set({ strokeLineCap: 'butt' });
+                    }
+                    this.installWtEndCapRenderer(parent);
+                }
+                return;
+            }
+
+            if (isLine && endType === 'bar' && parent.tacticsCapTipX == null) {
+                this.ensureLineCapTipParam(parent, endType, strokeWidth);
+            }
+
+            if (isLine && endType === 'arrow' && parent.tacticsCapTipX == null) {
+                const tipX = parent.x2;
+                const tipY = parent.y2;
+                const geom = this.getLineEndGeometry(
+                    parent.x1,
+                    parent.y1,
+                    tipX,
+                    tipY,
+                    'arrow',
+                    strokeWidth,
+                );
+                parent.set({ x2: geom.bodyX2, y2: geom.bodyY2 });
+                this.setLineCapTip(parent, tipX, tipY);
+            }
+
+            if (isLine && (endType === 'bar' || endType === 'arrow')) {
+                this.ensureLineCapTipParam(parent, endType, strokeWidth);
+            }
+
+            if (isLine || isPen) {
+                this.installWtEndCapRenderer(parent);
+            }
+        }
+
+        rebuildEndCaps() {
+            if (!this.fabric) return;
+
+            const parents = [];
+            this.fabric.getObjects().forEach((obj) => {
+                if (obj.isDrawingPreview || obj.isGridLine || obj.isBackground) return;
+                if (obj.tacticsArrowHead || obj.tacticsBarEnd) return;
+
+                const isLine = obj.type === 'line'
+                    && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow');
+                const isPen = obj.type === 'path' && obj.tacticsType === 'pen';
+                if (!isLine && !isPen) return;
+
+                let endType = obj.tacticsEndType;
+                if (!endType || endType === 'none') {
+                    const cap = this.findAttachedEndCap(obj);
+                    if (cap?.tacticsArrowHead) endType = 'arrow';
+                    else if (cap?.tacticsBarEnd) endType = 'bar';
+                    else return;
+                    obj.set('tacticsEndType', endType);
+                }
+
+                parents.push(obj);
+            });
+
+            if (!parents.length) return;
+
+            const wasRemote = this.isRemote;
+            this.isRemote = true;
+            parents.forEach((parent) => this.rebuildParentEndCap(parent));
+            this.isRemote = wasRemote;
         }
 
         async loadDrawings(json) {
@@ -3520,8 +4715,8 @@
                 this.clearRuler();
                 this.slideId = slide.id;
                 this.mapCode = slide.map_code || 'cliff';
-                await this.refreshMapScaleInfo(slide);
-                await this.ensureCanvasLayout();
+                const scalePromise = this.refreshMapScaleInfo(slide);
+                await this.ensureCanvasLayout(3);
 
                 this.isRemote = true;
                 this.fabric.clear();
@@ -3553,7 +4748,8 @@
                 }
 
                 await jsonPromise;
-                await this.ensureCanvasLayout();
+                void scalePromise;
+                await this.ensureCanvasLayout(2);
 
                 this.history = [this.exportJson()];
                 this.historyIndex = 0;
@@ -3612,6 +4808,8 @@
             const activeSlideId = this.slideId != null ? String(this.slideId) : '';
             if (msgSlideId && activeSlideId && msgSlideId !== activeSlideId) return;
 
+            const remoteClientId = String(msg.from || msg.clientId || '');
+
             this.isRemote = true;
             try {
                 if (msg.op === 'clear') {
@@ -3619,8 +4817,14 @@
                         if (!obj.isBackground && !obj.isGridLine) this.fabric.remove(obj);
                     });
                     this.consolidateLayerOrder();
+                    if (remoteClientId) {
+                        this.removeRemoteStrokesFromClient(remoteClientId);
+                    }
                 } else if (msg.op === 'full' && msg.payload) {
                     await this.loadDrawings(msg.payload);
+                    if (remoteClientId) {
+                        this.removeRemoteStrokesFromClient(remoteClientId);
+                    }
                 } else if (msg.op === 'remove' && msg.payload) {
                     const objects = this.fabric.getObjects();
                     const match = objects.find((o) => o.type === msg.payload.type
@@ -3628,11 +4832,17 @@
                         && Math.round(o.top) === Math.round(msg.payload.top));
                     if (match) this.fabric.remove(match);
                 } else if ((msg.op === 'add' || msg.op === 'modify') && msg.payload) {
-                    fabric.util.enlivenObjects([msg.payload], (objs) => {
-                        objs.forEach((obj) => this.fabric.add(obj));
-                        this.syncInteractionState();
-                        this.fabric.requestRenderAll();
+                    await new Promise((resolve) => {
+                        fabric.util.enlivenObjects([msg.payload], (objs) => {
+                            objs.forEach((obj) => this.fabric.add(obj));
+                            this.syncInteractionState();
+                            this.fabric.requestRenderAll();
+                            resolve();
+                        });
                     });
+                    if (remoteClientId && msg.op === 'add') {
+                        this.removeRemoteStrokesFromClient(remoteClientId);
+                    }
                 } else if (msg.op === 'ping' && msg.payload) {
                     const p = msg.payload;
                     this.playPing(p.x, p.y, p.color, p.width, p.stroke);

@@ -45,17 +45,36 @@ try {
         }
     }
 
-    if ($slide === null || !tactics_is_custom_room_slide($slide)) {
-        tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+    $slideGame = is_array($slide) ? (string) ($slide['game'] ?? '') : '';
+    $slideBattleMode = is_array($slide) ? (string) ($slide['battle_mode'] ?? 'random') : 'random';
+    $slideMapCode = is_array($slide) ? (string) ($slide['map_code'] ?? '') : '';
+
+    $game = tactics_sanitize_game((string) ($_POST['game'] ?? $slideGame));
+    $battleMode = tactics_sanitize_battle_mode((string) ($_POST['battle_mode'] ?? $slideBattleMode), $game);
+    $mapCode = tactics_sanitize_map_code((string) ($_POST['map_code'] ?? $slideMapCode));
+
+    if ($slide !== null) {
+        if (!tactics_is_custom_room_slide($slide)) {
+            tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+        }
+        $game = tactics_sanitize_game((string) ($slide['game'] ?? $game));
+    } else {
+        if ($game === 'wot') {
+            $game = tactics_room_primary_game($roomData);
+        }
+        $expected = tactics_custom_map_code_for_game($game);
+        if ($expected === null || $battleMode !== 'custom' || $mapCode !== $expected) {
+            tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+        }
     }
 
     $isOwner = tactics_resolve_is_owner($row, $accessToken, $userId, $userDb);
-    $clientId = tactics_token_client_id($accessToken, $userDb, $publicId);
+    $clientId = tactics_token_client_id($accessToken, $userDb, $publicId, $row);
     if (!$isOwner && !tactics_user_can_draw($roomData, $clientId, false)) {
         tactics_json_error($lang === 'en' ? 'No draw permission' : 'Нет прав на редактирование', 403);
     }
 
-    $rel = tactics_custom_room_map_rel_path($publicId, $slideId, (string) ($slide['game'] ?? ''));
+    $rel = tactics_custom_room_map_rel_path($publicId, $slideId, $game);
     if ($rel === '') {
         tactics_json_error('Ошибка сервера', 500);
     }

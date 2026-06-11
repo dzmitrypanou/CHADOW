@@ -22,6 +22,10 @@
         wingman: 'modeWingman',
     };
 
+    const DEFAULT_CUSTOM_MAP_SCALE = 1000;
+    const MIN_CUSTOM_MAP_SCALE = 100;
+    const MAX_CUSTOM_MAP_SCALE = 20000;
+
     class TacticsMapPicker {
         constructor(options) {
             this.modalEl = options.modalId
@@ -31,20 +35,24 @@
                 ? document.getElementById(options.root)
                 : options.root;
             this.selectEl = options.selectEl
+                || this.modalEl?.querySelector('select[data-tactics-map-select]')
                 || this.root?.querySelector('select[data-tactics-map-select]')
                 || this.root?.querySelector('select');
             const queryRoot = this.modalEl || this.root;
             this.gameTabsEl = queryRoot?.querySelector('[data-tactics-game-tabs]');
             this.modeTabsEl = this.root?.querySelector('[data-tactics-mode-tabs]');
             this.modeFieldLabelEl = this.root?.querySelector('[data-tactics-mode-field-label]');
-            this.mapFieldEl = this.root?.querySelector('[data-tactics-map-field]');
+            this.mapFieldEl = this.root?.querySelector('[data-tactics-map-field]')
+                || this.modalEl?.querySelector('[data-tactics-map-field]');
             this.modalPreviewEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview]');
             this.modalPreviewPlaceholderEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview-placeholder]');
-            this.modalSearchEl = this.modalEl?.querySelector('[data-tactics-map-modal-search]');
-            this.modalListEl = this.modalEl?.querySelector('[data-tactics-map-modal-list]');
             this.modalModeEl = this.modalEl?.querySelector('[data-tactics-map-modal-mode]');
-            this.modalMapsColEl = this.modalEl?.querySelector('[data-tactics-map-modal-maps-col]');
+            this.modalModeLabelEl = this.modalEl?.querySelector('[data-tactics-map-modal-mode-label]');
+            this.modalMapFieldEl = this.modalEl?.querySelector('[data-tactics-map-modal-map-field]');
             this.modalGameFieldEl = this.modalEl?.querySelector('[data-tactics-map-modal-game-field]');
+            this.modalCustomPanelEl = this.modalEl?.querySelector('#tacticsCustomMapPanel');
+            this.modalScaleWidthEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-width]');
+            this.modalScaleHeightEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-height]');
             this.modalConfirmBtn = this.modalEl?.querySelector('[data-tactics-map-modal-confirm]');
             this.modalConfirmCallback = null;
             this.game = options.game || 'wot';
@@ -95,11 +103,65 @@
             return this.game === 'dota2' && this.battleMode === 'standard';
         }
 
+        shouldHideModalMapSelect() {
+            return this.shouldHideMapSelect() || this.shouldShowCustomUpload();
+        }
+
+        shouldShowCustomUpload() {
+            return this.battleMode === 'custom'
+                && (this.game === 'cs2' || this.game === 'dota2');
+        }
+
+        shouldShowCustomScalePanel() {
+            return this.shouldShowCustomUpload();
+        }
+
+        sanitizeCustomMapScale(value, fallback = DEFAULT_CUSTOM_MAP_SCALE) {
+            const parsed = parseInt(value, 10);
+            if (!Number.isFinite(parsed)) return fallback;
+            return Math.max(MIN_CUSTOM_MAP_SCALE, Math.min(MAX_CUSTOM_MAP_SCALE, parsed));
+        }
+
+        readCustomMapScale() {
+            return {
+                map_width_m: this.sanitizeCustomMapScale(this.modalScaleWidthEl?.value),
+                map_height_m: this.sanitizeCustomMapScale(this.modalScaleHeightEl?.value),
+            };
+        }
+
+        writeCustomMapScale(value) {
+            const width = this.sanitizeCustomMapScale(
+                value?.map_width_m,
+                DEFAULT_CUSTOM_MAP_SCALE,
+            );
+            const height = this.sanitizeCustomMapScale(
+                value?.map_height_m,
+                DEFAULT_CUSTOM_MAP_SCALE,
+            );
+            if (this.modalScaleWidthEl) {
+                this.modalScaleWidthEl.value = String(width);
+            }
+            if (this.modalScaleHeightEl) {
+                this.modalScaleHeightEl.value = String(height);
+            }
+        }
+
+        updateCustomPanelVisibility() {
+            const showCustom = this.shouldShowCustomScalePanel();
+            if (this.modalCustomPanelEl) {
+                this.modalCustomPanelEl.hidden = !showCustom;
+            }
+        }
+
         updateMapFieldVisibility() {
             const hidden = this.shouldHideMapSelect();
             if (this.mapFieldEl) {
                 this.mapFieldEl.hidden = hidden;
             }
+            if (this.modalMapFieldEl) {
+                this.modalMapFieldEl.hidden = this.shouldHideModalMapSelect();
+            }
+            this.updateCustomPanelVisibility();
         }
 
         resolveMapCode(selectedCode) {
@@ -231,6 +293,30 @@
                 const selected = modeId === this.battleMode ? ' selected' : '';
                 return `<option value="${modeId}"${selected}>${this.modeLabel(modeId, this.game)}</option>`;
             }).join('');
+            if (this.modalModeLabelEl) {
+                this.modalModeLabelEl.textContent = this.usesMapTypeField(this.game)
+                    ? i18n().t('fieldMapType')
+                    : i18n().t('fieldBattleMode');
+            }
+            this.refreshModalModeSelect();
+        }
+
+        refreshModalModeSelect() {
+            if (!this.modalModeEl) return;
+            if (window.recruitingRefreshSelect && this.modalModeEl.dataset.recruitingSelectEnhanced === '1') {
+                window.recruitingRefreshSelect(this.modalModeEl);
+            } else if (window.recruitingEnhanceSelect) {
+                window.recruitingEnhanceSelect(this.modalModeEl);
+            }
+        }
+
+        refreshMapSelect() {
+            if (!this.selectEl) return;
+            if (window.recruitingRefreshSelect && this.selectEl.dataset.recruitingSelectEnhanced === '1') {
+                window.recruitingRefreshSelect(this.selectEl);
+            } else if (window.recruitingEnhanceSelect) {
+                window.recruitingEnhanceSelect(this.selectEl);
+            }
         }
 
         bindModal() {
@@ -244,21 +330,29 @@
             this.modalConfirmBtn?.addEventListener('click', () => {
                 const pick = this.getValue();
                 if (!pick.map_code && !this.shouldHideMapSelect()) return;
+                if (this.shouldShowCustomScalePanel()) {
+                    const scale = this.readCustomMapScale();
+                    pick.map_width_m = scale.map_width_m;
+                    pick.map_height_m = scale.map_height_m;
+                }
                 if (this.modalConfirmCallback) {
                     this.modalConfirmCallback(pick);
                 }
                 this.closeModal();
             });
 
-            this.modalSearchEl?.addEventListener('input', () => this.renderModalMapList());
             this.modalModeEl?.addEventListener('change', () => {
                 const mode = this.modalModeEl.value;
                 if (mode && mode !== this.battleMode) {
                     this.setBattleMode(mode);
                 } else {
+                    this.updateCustomPanelVisibility();
                     this.notifyModalUpdate();
                 }
             });
+
+            this.modalScaleWidthEl?.addEventListener('input', () => this.notifyModalUpdate());
+            this.modalScaleHeightEl?.addEventListener('input', () => this.notifyModalUpdate());
 
             this.modalKeydownHandler = (ev) => {
                 if (ev.key === 'Escape' && this.modalEl && !this.modalEl.hidden) {
@@ -277,17 +371,15 @@
             return this.init().then(() => {
                 if (initialValue) {
                     this.setValue(initialValue);
-                }
-                if (this.modalSearchEl) {
-                    this.modalSearchEl.value = '';
+                } else {
+                    this.writeCustomMapScale(null);
                 }
                 this.updateModalVisibility();
-                this.renderModalMapList();
                 this.updateModalPreview();
                 this.modalEl.hidden = false;
                 document.body.classList.add('tactics-map-modal-open');
                 this.notifyModalUpdate();
-                (this.modalSearchEl || this.modalConfirmBtn)?.focus();
+                this.modalConfirmBtn?.focus();
             });
         }
 
@@ -303,55 +395,16 @@
         }
 
         updateModalVisibility() {
-            const hideMaps = this.shouldHideMapSelect();
-            if (this.modalMapsColEl) {
-                this.modalMapsColEl.hidden = hideMaps;
-            }
+            this.updateMapFieldVisibility();
         }
 
         selectMapCode(mapCode) {
             if (!mapCode || !this.selectEl) return;
             this.selectEl.value = mapCode;
-            this.renderModalMapList();
+            this.refreshMapSelect();
             this.updateModalPreview();
             this.onChange(this.getValue());
             this.notifyModalUpdate();
-        }
-
-        renderModalMapList() {
-            if (!this.modalListEl) return;
-            const lang = i18n().getLang();
-            const query = String(this.modalSearchEl?.value || '').trim().toLowerCase();
-            const rows = this.getMapRows();
-            const selected = this.resolveMapCode(this.selectEl?.value || '');
-
-            const filtered = query
-                ? rows.filter((map) => {
-                    const name = i18n().mapDisplayName(map, lang).toLowerCase();
-                    const code = String(map.map_code || '').toLowerCase();
-                    return name.includes(query) || code.includes(query);
-                })
-                : rows;
-
-            if (!filtered.length) {
-                this.modalListEl.innerHTML = `<li class="tactics-map-modal__empty">${i18n().t('noMapsForMode')}</li>`;
-                return;
-            }
-
-            this.modalListEl.innerHTML = filtered.map((map) => {
-                const code = map.map_code;
-                const name = i18n().mapDisplayName(map, lang);
-                const active = code === selected;
-                return `<li class="tactics-map-modal__item-wrap" role="presentation">`
-                    + `<button type="button" class="tactics-map-modal__item${active ? ' is-active' : ''}" role="option" aria-selected="${active ? 'true' : 'false'}" data-map-code="${code}">${name}</button>`
-                    + '</li>';
-            }).join('');
-
-            this.modalListEl.querySelectorAll('[data-map-code]').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    this.selectMapCode(btn.getAttribute('data-map-code'));
-                });
-            });
         }
 
         setModalPreviewVisible(hasImage) {
@@ -427,16 +480,9 @@
             if (code && this.selectEl.value !== code) {
                 this.selectEl.value = code;
             }
-            if (!this.modalEl) {
-                if (window.recruitingRefreshSelect && this.selectEl.dataset.recruitingSelectEnhanced === '1') {
-                    window.recruitingRefreshSelect(this.selectEl);
-                } else if (window.recruitingEnhanceSelect) {
-                    window.recruitingEnhanceSelect(this.selectEl);
-                }
-            }
+            this.refreshMapSelect();
             this.updateMapFieldVisibility();
             this.updateModalVisibility();
-            this.renderModalMapList();
             this.updateModalPreview();
         }
 
@@ -469,15 +515,22 @@
             this.buildGameTabs();
             this.buildModeTabs();
             this.renderSelect(selectedCode);
-            this.selectEl?.addEventListener('change', () => this.onChange(this.getValue()));
+            this.selectEl?.addEventListener('change', () => {
+                this.updateModalPreview();
+                this.onChange(this.getValue());
+            });
         }
 
         getValue() {
-            return {
+            const value = {
                 map_code: this.resolveMapCode(this.selectEl?.value || ''),
                 game: this.game,
                 battle_mode: this.battleMode,
             };
+            if (this.shouldShowCustomScalePanel()) {
+                Object.assign(value, this.readCustomMapScale());
+            }
+            return value;
         }
 
         setValue(value) {
@@ -487,6 +540,12 @@
             this.buildGameTabs();
             this.buildModeTabs();
             this.renderSelect(value.map_code || '');
+            if (value.map_width_m || value.map_height_m) {
+                this.writeCustomMapScale(value);
+            } else {
+                this.writeCustomMapScale(null);
+            }
+            this.updateCustomPanelVisibility();
         }
 
         setLockGame(game) {

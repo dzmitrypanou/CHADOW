@@ -45,15 +45,17 @@ $metaRobots = isset($metaRobots) && trim((string) $metaRobots) !== ''
     : 'index,follow';
 $siteNameRu = 'Chadow';
 $siteNameEn = 'Chadow';
-try {
-    require_once __DIR__ . '/../config/database.php';
-    require_once __DIR__ . '/../config/ensure_site_settings.php';
-    $_siteSettingsDb = Database::getInstance();
-    $siteNameRu = get_site_name($_siteSettingsDb, 'ru');
-    $siteNameEn = get_site_name($_siteSettingsDb, 'en');
-} catch (Throwable $e) {
-    $siteNameRu = 'Chadow';
-    $siteNameEn = 'Chadow';
+if (empty($tacticsRoomShell)) {
+    try {
+        require_once __DIR__ . '/../config/database.php';
+        require_once __DIR__ . '/../config/ensure_site_settings.php';
+        $_siteSettingsDb = Database::getInstance();
+        $siteNameRu = get_site_name($_siteSettingsDb, 'ru');
+        $siteNameEn = get_site_name($_siteSettingsDb, 'en');
+    } catch (Throwable $e) {
+        $siteNameRu = 'Chadow';
+        $siteNameEn = 'Chadow';
+    }
 }
 $siteName = $absLang === 'en' ? $siteNameEn : $siteNameRu;
 $pageTitleRaw = isset($pageTitle) ? trim((string) $pageTitle) : '';
@@ -98,31 +100,33 @@ if (isset($jsonLdData) && is_array($jsonLdData)) {
 }
 
 $siteMenuItems = [];
-try {
-    require_once __DIR__ . '/../config/database.php';
-    require_once __DIR__ . '/../config/ensure_site_menu.php';
-    $_menuDb = Database::getInstance();
-    if (!isset($GLOBALS['__chadow_site_menu_cache']) || !is_array($GLOBALS['__chadow_site_menu_cache'])) {
-        $GLOBALS['__chadow_site_menu_cache'] = [];
+if (empty($tacticsRoomShell)) {
+    try {
+        require_once __DIR__ . '/../config/database.php';
+        require_once __DIR__ . '/../config/ensure_site_menu.php';
+        $_menuDb = Database::getInstance();
+        if (!isset($GLOBALS['__chadow_site_menu_cache']) || !is_array($GLOBALS['__chadow_site_menu_cache'])) {
+            $GLOBALS['__chadow_site_menu_cache'] = [];
+        }
+        $menuCache = &$GLOBALS['__chadow_site_menu_cache'];
+        $cacheTtl = 120;
+        $cacheFresh = isset($menuCache['loaded_at']) && (time() - (int) $menuCache['loaded_at']) < $cacheTtl;
+        if (!$cacheFresh) {
+            ensure_site_menu_table($_menuDb);
+            $menuCache = [
+                'loaded_at' => time(),
+                'header' => $_menuDb->fetchAll(
+                    "SELECT label, label_en, href FROM cms_site_menu WHERE is_enabled = 1 AND (placement = 'header' OR placement IS NULL OR placement = '') ORDER BY sort_order ASC, id ASC"
+                ),
+                'footer' => $_menuDb->fetchAll(
+                    "SELECT label, label_en, href FROM cms_site_menu WHERE is_enabled = 1 AND placement = 'footer' ORDER BY sort_order ASC, id ASC"
+                ),
+            ];
+        }
+        $siteMenuItems = is_array($menuCache['header'] ?? null) ? $menuCache['header'] : [];
+    } catch (Throwable $e) {
+        $siteMenuItems = [];
     }
-    $menuCache = &$GLOBALS['__chadow_site_menu_cache'];
-    $cacheTtl = 120;
-    $cacheFresh = isset($menuCache['loaded_at']) && (time() - (int) $menuCache['loaded_at']) < $cacheTtl;
-    if (!$cacheFresh) {
-        ensure_site_menu_table($_menuDb);
-        $menuCache = [
-            'loaded_at' => time(),
-            'header' => $_menuDb->fetchAll(
-                "SELECT label, label_en, href FROM cms_site_menu WHERE is_enabled = 1 AND (placement = 'header' OR placement IS NULL OR placement = '') ORDER BY sort_order ASC, id ASC"
-            ),
-            'footer' => $_menuDb->fetchAll(
-                "SELECT label, label_en, href FROM cms_site_menu WHERE is_enabled = 1 AND placement = 'footer' ORDER BY sort_order ASC, id ASC"
-            ),
-        ];
-    }
-    $siteMenuItems = is_array($menuCache['header'] ?? null) ? $menuCache['header'] : [];
-} catch (Throwable $e) {
-    $siteMenuItems = [];
 }
 
 $siteLogoTextRu = $siteNameRu;
@@ -188,11 +192,16 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <?php endif; ?>
     <script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
     <link rel="manifest" href="/site.webmanifest">
+    <?php if (empty($tacticsRoomShell)): ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css">
+    <?php else: ?>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
+    <?php endif; ?>
     <link rel="stylesheet" href="/css/style.css?v=<?php echo htmlspecialchars($siteVersion); ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.svg">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">

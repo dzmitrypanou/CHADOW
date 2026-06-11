@@ -167,10 +167,11 @@
             }
 
             const payload = res.data.data;
+            const resolvedNickname = payload.nickname || nickname;
             store().saveRoomSession(payload.room.public_id, {
                 access_token: payload.access_token,
                 ws_token: payload.ws_token,
-                nickname,
+                nickname: resolvedNickname,
                 client_id: store().getClientId(),
                 is_owner: true,
             });
@@ -209,10 +210,11 @@
         }
 
         const payload = res.data.data;
+        const resolvedNickname = payload.nickname || nickname;
         store().saveRoomSession(publicId, {
             access_token: payload.access_token,
             ws_token: payload.ws_token,
-            nickname,
+            nickname: resolvedNickname,
             client_id: store().getClientId(),
         });
         window.location.href = payload.room_href || (window.ABS_TACTICS_LOBBY_BASE + '/' + publicId);

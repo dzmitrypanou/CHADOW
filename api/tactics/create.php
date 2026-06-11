@@ -65,6 +65,9 @@ try {
         $data['nickname'],
         $userId !== null
     );
+    if ($userId === null && tactics_is_generic_guest_nickname($nickname)) {
+        $nickname = tactics_allocate_guest_nickname($userDb, $publicId, $data['client_id'], $lang);
+    }
     echo json_encode([
         'success' => true,
         'data' => tactics_format_response($row, $userDb, $data['client_id'], $nickname, $isOwner),

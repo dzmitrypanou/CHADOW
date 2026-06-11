@@ -40,6 +40,12 @@ if ($payload === null) {
 }
 
 $publicId = trim((string) ($payload['pid'] ?? ''));
+$row = tactics_fetch_row($userDb, $publicId, true);
+if (!$row || !tactics_token_password_fingerprint_valid($row, $payload)) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE);
+    exit();
+}
 $clientId = trim((string) ($payload['cid'] ?? ''));
 $nickname = tactics_sanitize_nickname((string) ($payload['nick'] ?? 'Guest'));
 if ($clientId !== '') {

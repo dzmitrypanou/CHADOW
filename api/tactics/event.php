@@ -34,7 +34,12 @@ if ($token === '') {
     tactics_json_error($lang === 'en' ? 'Token required' : 'Требуется токен', 401);
 }
 
-$tokenPayload = tactics_verify_signed_token($userDb, $token, $publicId);
+$row = tactics_fetch_row($userDb, $publicId, true);
+if (!$row) {
+    tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
+}
+
+$tokenPayload = tactics_verify_room_token($userDb, $token, $row);
 if ($tokenPayload === null) {
     tactics_json_error($lang === 'en' ? 'Unauthorized' : 'Нет доступа', 401);
 }
@@ -43,11 +48,6 @@ $clientId = trim((string) ($tokenPayload['cid'] ?? ''));
 $nickname = tactics_sanitize_nickname((string) ($tokenPayload['nick'] ?? 'Guest'));
 if ($clientId === '') {
     tactics_json_error($lang === 'en' ? 'Invalid client' : 'Некорректный клиент', 400);
-}
-
-$row = tactics_fetch_row($userDb, $publicId, true);
-if (!$row) {
-    tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
 }
 
 try {

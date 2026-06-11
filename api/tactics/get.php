@@ -13,6 +13,9 @@ if (!tactics_public_id_valid($publicId)) {
 }
 
 $password = isset($_GET['password']) ? (string) $_GET['password'] : null;
+$accessToken = tactics_resolve_access_token([
+    'access_token' => (string) ($_GET['access_token'] ?? ''),
+]);
 $userId = user_current_id();
 
 try {
@@ -22,7 +25,7 @@ try {
         tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
     }
 
-    $access = tactics_assert_can_access_room($row, $password, $userId);
+    $access = tactics_assert_can_access_room($row, $password, $userId, $accessToken, $userDb);
     if (!$access['ok']) {
         if (!empty($access['needs_password'])) {
             echo json_encode([

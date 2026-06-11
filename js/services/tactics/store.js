@@ -43,9 +43,14 @@
     }
 
     async function postJson(url, body, accessToken) {
+        const payload = body && typeof body === 'object' ? { ...body } : {};
+        const csrf = window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '';
+        if (csrf && payload.csrf_token == null) {
+            payload.csrf_token = csrf;
+        }
         const headers = {
             'Content-Type': 'application/json',
-            'X-CSRF-Token': window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '',
+            'X-CSRF-Token': csrf,
         };
         if (accessToken) {
             headers['X-Tactics-Token'] = accessToken;
@@ -54,7 +59,7 @@
             method: 'POST',
             credentials: 'same-origin',
             headers,
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
         });
         const data = await res.json().catch(() => ({}));
         return { ok: res.ok, status: res.status, data };

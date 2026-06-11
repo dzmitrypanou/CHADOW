@@ -30,7 +30,7 @@ try {
     $nickname = tactics_sanitize_nickname((string) ($_GET['nickname'] ?? 'Guest'));
 
     if ($wsToken !== '') {
-        $tokenPayload = tactics_verify_signed_token($userDb, $wsToken, $publicId);
+        $tokenPayload = tactics_verify_room_token($userDb, $wsToken, $row);
         if ($tokenPayload !== null) {
             $clientId = trim((string) ($tokenPayload['cid'] ?? $clientId));
             $nickname = tactics_sanitize_nickname((string) ($tokenPayload['nick'] ?? $nickname));

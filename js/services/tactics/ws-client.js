@@ -26,6 +26,8 @@
                 return;
             }
 
+            this.releaseWs();
+
             let url = this.wsUrl;
             if (url.indexOf('?') === -1) {
                 url += '?';
@@ -74,6 +76,23 @@
             this.ws.addEventListener('error', () => {
                 this.onConnection('offline');
             });
+        }
+
+        releaseWs() {
+            if (!this.ws) return;
+            const prev = this.ws;
+            this.ws = null;
+            prev.onopen = null;
+            prev.onmessage = null;
+            prev.onerror = null;
+            prev.onclose = null;
+            if (prev.readyState === WebSocket.OPEN || prev.readyState === WebSocket.CLOSING) {
+                try {
+                    prev.close();
+                } catch (e) {
+                    // ignore
+                }
+            }
         }
 
         scheduleReconnect() {
@@ -195,10 +214,7 @@
         reconnectWithToken(wsToken) {
             this.wsToken = wsToken;
             clearTimeout(this.reconnectTimer);
-            if (this.ws) {
-                this.ws.close();
-                this.ws = null;
-            }
+            this.releaseWs();
             this.shouldReconnect = true;
             this.connect();
         }
@@ -206,10 +222,7 @@
         disconnect() {
             this.shouldReconnect = false;
             clearTimeout(this.reconnectTimer);
-            if (this.ws) {
-                this.ws.close();
-                this.ws = null;
-            }
+            this.releaseWs();
         }
     }
 

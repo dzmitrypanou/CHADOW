@@ -31,7 +31,7 @@ try {
     }
 
     $isOwner = tactics_resolve_is_owner($row, $accessToken, $userId, $userDb);
-    $tokenClientId = tactics_token_client_id($accessToken, $userDb, $publicId);
+    $tokenClientId = tactics_token_client_id($accessToken, $userDb, $publicId, $row);
     $oldRoomData = tactics_parse_room_data($row['room_data'] ?? null);
 
     $currentRevision = (int) ($row['revision'] ?? 1);
@@ -64,9 +64,6 @@ try {
             if (!tactics_user_can_draw($oldRoomData, $tokenClientId, $isOwner)) {
                 tactics_json_error($lang === 'en' ? 'Only the room creator can change maps' : 'Менять карты может только создатель комнаты', 403);
             }
-            if (tactics_room_slides_ids_removed($oldRoomData, $newRoomData)) {
-                tactics_json_error($lang === 'en' ? 'Only the room creator can delete maps' : 'Удалять карты может только создатель комнаты', 403);
-            }
         }
 
         if (tactics_room_data_canvas_changed($oldRoomData, $newRoomData)
@@ -91,6 +88,13 @@ try {
         if ($visibility === 'open') {
             $sets[] = 'password_hash = NULL';
         }
+    }
+
+    if (!empty($input['clear_password'])) {
+        if (!$isOwner) {
+            tactics_json_error($lang === 'en' ? 'Only the room creator can change password' : 'Менять пароль может только создатель комнаты', 403);
+        }
+        $sets[] = 'password_hash = NULL';
     }
 
     if (array_key_exists('title', $input)) {

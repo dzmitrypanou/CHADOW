@@ -28,7 +28,9 @@ try {
         tactics_json_error($lang === 'en' ? 'Access denied' : 'Нет доступа', 403);
     }
 
-    $userDb->delete('DELETE FROM tactics_rooms WHERE public_id = ?', [$publicId]);
+    if (!tactics_delete_room($userDb, $publicId)) {
+        tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
+    }
 
     echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {

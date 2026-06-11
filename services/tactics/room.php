@@ -56,6 +56,9 @@ $needsPassword = ($row['visibility'] ?? '') === 'closed'
     && ($userId === null || (int) ($row['user_id'] ?? 0) !== $userId);
 
 $roomItem = tactics_format_item($row, !$needsPassword, true);
+$roomItemBoot = !$needsPassword ? tactics_strip_inactive_slide_canvas($roomItem) : null;
+$isRoomOwner = $userId !== null && (int) ($row['user_id'] ?? 0) === $userId;
+$roomHasPassword = tactics_room_has_password($row);
 
 $roomGame = tactics_room_primary_game(is_array($roomItem['room_data'] ?? null) ? $roomItem['room_data'] : []);
 if ($userLoggedIn && $userId !== null) {
@@ -74,9 +77,9 @@ abs_set_page_titles((string) $row['title'], (string) $row['title']);
 $metaDescription = $lang === 'en'
     ? 'Tactics room: ' . (string) $row['title']
     : 'Тактическая комната: ' . (string) $row['title'];
-$bodyClass = 'page-tactics page-tactics-room'
-    . ($needsPassword ? ' page-tactics-room-locked' : ' page-tactics-room-shell');
-$tacticsRoomShell = !$needsPassword;
+$bodyClass = 'page-tactics page-tactics-room page-tactics-room-shell'
+    . ($needsPassword ? ' page-tactics-room-locked' : '');
+$tacticsRoomShell = true;
 $seoSlug = 'services/tactics/' . $publicId;
 
 if (($row['visibility'] ?? '') === 'closed') {
@@ -109,14 +112,15 @@ if (!$needsPassword && $mapUrls !== []) {
             . htmlspecialchars($preloadMapUrl, ENT_QUOTES, 'UTF-8')
             . '" crossorigin="anonymous" fetchpriority="high">';
     }
-    $preloadAllUrls = array_values(array_unique(array_filter($mapUrls)));
-    if ($preloadAllUrls !== []) {
-        $extraHeadHtml .= '<script>(function(u){u.forEach(function(s){var i=new Image();i.crossOrigin="anonymous";i.src=s})})('
-            . json_encode($preloadAllUrls, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-            . ')</script>';
-    }
+    $extraHeadHtml .= '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css">';
+    $extraHeadHtml .= '<link rel="preload" as="script" href="/js/vendor/fabric.min.js?v='
+        . htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8')
+        . '">'
+        . '<script src="/js/vendor/fabric.min.js?v='
+        . htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8')
+        . '"></script>';
     $extraHeadHtml .= '<style>'
-        . '.page-tactics-room-shell{background:#0c0c0c}'
+        . '.page-tactics-room-shell{background:#0a1022;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}'
         . '.page-tactics-room .tactics-editor.is-booting{opacity:0;pointer-events:none}'
         . '.page-tactics-room .tactics-editor.is-ready{opacity:1;transition:opacity .12s ease}'
         . '</style>';
@@ -157,15 +161,19 @@ require __DIR__ . '/../../includes/site_header.php';
                             <i class="fas fa-play" aria-hidden="true"></i>
                             <span id="tacticsPresentBtnLabel" data-tactics-i18n="presentBtn"><?php echo $lang === 'en' ? 'Present' : 'Презентация'; ?></span>
                         </button>
-                        <span class="tactics-editor-topbar__divider" aria-hidden="true"></span>
                         <button type="button" class="tactics-editor-topbar__btn" id="tacticsUndoBtn" title="<?php echo $lang === 'en' ? 'Undo' : 'Отменить'; ?>"><i class="fas fa-undo" aria-hidden="true"></i></button>
                         <button type="button" class="tactics-editor-topbar__btn" id="tacticsRedoBtn" title="<?php echo $lang === 'en' ? 'Redo' : 'Повтор'; ?>"><i class="fas fa-redo" aria-hidden="true"></i></button>
                     </div>
                     <div class="tactics-editor-topbar__group tactics-editor-topbar__group--center">
+                        <div class="tactics-editor-topbar__title-cluster">
+                        <div class="tactics-editor-topbar__title-row">
                         <div class="tactics-room-visibility-wrap" id="tacticsRoomVisibilityWrap" hidden>
                             <div class="tactics-room-visibility-anchor">
                                 <div class="tactics-room-password-slot<?php echo ($row['visibility'] ?? '') === 'closed' ? ' is-open' : ''; ?>" id="tacticsRoomPasswordSlot" aria-hidden="<?php echo ($row['visibility'] ?? '') === 'closed' ? 'false' : 'true'; ?>">
-                                    <input type="password" id="tacticsRoomSettingPassword" class="tactics-room-password-input" maxlength="64" autocomplete="new-password" data-tactics-i18n-placeholder="roomPasswordPlaceholder" placeholder="<?php echo $lang === 'en' ? 'Password' : 'Пароль'; ?>" tabindex="<?php echo ($row['visibility'] ?? '') === 'closed' ? '0' : '-1'; ?>">
+                                    <button type="button" class="tactics-room-password-save-btn<?php echo $roomHasPassword ? ' is-saved' : ''; ?>" id="tacticsRoomPasswordSaveBtn" data-tactics-i18n-title="roomPasswordSave" title="<?php echo $lang === 'en' ? 'Save password' : 'Сохранить пароль'; ?>" tabindex="<?php echo ($row['visibility'] ?? '') === 'closed' ? '0' : '-1'; ?>" aria-label="<?php echo $lang === 'en' ? 'Save password' : 'Сохранить пароль'; ?>">
+                                        <i class="fas fa-check" aria-hidden="true"></i>
+                                    </button>
+                                    <input type="password" id="tacticsRoomSettingPassword" class="tactics-room-password-input" maxlength="64" autocomplete="new-password" data-tactics-i18n-placeholder="roomPasswordPlaceholder" placeholder="<?php echo $lang === 'en' ? 'Password' : 'Пароль'; ?>" tabindex="<?php echo ($row['visibility'] ?? '') === 'closed' ? '0' : '-1'; ?>"<?php echo $roomHasPassword ? ' readonly data-password-masked="1" value="••••••••"' : ''; ?>>
                                 </div>
                                 <input type="checkbox" class="tactics-room-visibility-toggle__input" id="tacticsRoomVisibilityToggle"<?php echo ($row['visibility'] ?? '') === 'closed' ? ' checked' : ''; ?> tabindex="-1" aria-hidden="true">
                                 <button type="button" class="tactics-room-visibility-lock-btn<?php echo ($row['visibility'] ?? '') === 'closed' ? ' is-closed' : ''; ?>" id="tacticsRoomVisibilityBtn" aria-pressed="<?php echo ($row['visibility'] ?? '') === 'closed' ? 'true' : 'false'; ?>" data-tactics-i18n-title="<?php echo ($row['visibility'] ?? '') === 'closed' ? 'visibilityClosedShort' : 'visibilityOpenShort'; ?>" title="<?php echo $lang === 'en' ? (($row['visibility'] ?? '') === 'closed' ? 'Closed' : 'Open') : (($row['visibility'] ?? '') === 'closed' ? 'Закрытая' : 'Открытая'); ?>">
@@ -174,6 +182,8 @@ require __DIR__ . '/../../includes/site_header.php';
                             </div>
                         </div>
                         <h1 class="tactics-editor-topbar__title" id="tacticsRoomTitle"><?php echo htmlspecialchars((string) $row['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
+                        </div>
+                        </div>
                     </div>
                     <div class="tactics-editor-topbar__group tactics-editor-topbar__group--right">
                         <button type="button" class="tactics-editor-topbar__btn tactics-editor-topbar__btn--text tactics-room-delete-btn" id="tacticsDeleteRoomBtn" data-tactics-i18n-title="deleteRoom" title="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>" aria-label="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>" hidden>
@@ -182,7 +192,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         </button>
                         <button type="button" class="tactics-editor-topbar__btn tactics-room-code-btn" id="tacticsCopyLinkBtn" title="<?php echo $lang === 'en' ? 'Copy link' : 'Копировать ссылку'; ?>">
                             <span class="tactics-room-code-btn__text">
-                                <span class="tactics-room-code-btn__label" data-tactics-i18n="roomCode"><?php echo $lang === 'en' ? 'Code' : 'Код'; ?></span>:
+                                <span class="tactics-room-code-btn__label"><span data-tactics-i18n="roomCode"><?php echo $lang === 'en' ? 'Code' : 'Код'; ?></span>:</span>
                                 <span class="tactics-room-code-btn__value"><?php echo htmlspecialchars($publicId, ENT_QUOTES, 'UTF-8'); ?></span>
                             </span>
                             <i class="fas fa-link tactics-room-code-btn__icon" aria-hidden="true"></i>
@@ -190,10 +200,10 @@ require __DIR__ . '/../../includes/site_header.php';
                         <button type="button" class="tactics-editor-topbar__btn" id="tacticsDownloadScreenshotBtn" title="<?php echo $lang === 'en' ? 'Download screenshot' : 'Скачать скрин'; ?>"><i class="fas fa-download" aria-hidden="true"></i></button>
                         <div class="site-lang-switch tactics-editor-lang-switch" id="tacticsEditorLangSwitch" aria-label="<?php echo $lang === 'en' ? 'Language' : 'Язык'; ?>">
                             <a class="site-lang-link<?php echo $lang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
-                                <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span>
+                                <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span><span class="site-lang-code">RU</span>
                             </a>
                             <a class="site-lang-link<?php echo $lang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($langEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
-                                <span class="site-lang-flag fi fi-us" aria-hidden="true"></span>
+                                <span class="site-lang-flag fi fi-us" aria-hidden="true"></span><span class="site-lang-code">US</span>
                             </a>
                         </div>
                     </div>
@@ -233,16 +243,15 @@ require __DIR__ . '/../../includes/site_header.php';
                         </div>
                         <div class="tactics-tool-list tactics-toolbar" id="tacticsToolbar" role="toolbar" aria-orientation="horizontal">
                             <button type="button" class="tactics-tool-btn is-active" data-tool="select" title="<?php echo $lang === 'en' ? 'Select' : 'Выбор'; ?>" aria-label="<?php echo $lang === 'en' ? 'Select' : 'Выбор'; ?>"><i class="fas fa-arrow-pointer tactics-tool-btn__icon" aria-hidden="true"></i></button>
+                            <button type="button" class="tactics-tool-btn" data-tool="ping" title="<?php echo $lang === 'en' ? 'Ping' : 'Пинг'; ?>" aria-label="<?php echo $lang === 'en' ? 'Ping' : 'Пинг'; ?>"><svg class="tactics-tool-btn__icon tactics-tool-btn__icon--ping" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.5"/></svg></button>
                             <button type="button" class="tactics-tool-btn" data-tool="cell" title="<?php echo $lang === 'en' ? 'Grid cell' : 'Клетка'; ?>" aria-label="<?php echo $lang === 'en' ? 'Grid cell' : 'Клетка'; ?>"><i class="fas fa-hand-pointer tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="pen" title="<?php echo $lang === 'en' ? 'Draw' : 'Рисование'; ?>" aria-label="<?php echo $lang === 'en' ? 'Draw' : 'Рисование'; ?>"><i class="fas fa-pen tactics-tool-btn__icon" aria-hidden="true"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="line" title="<?php echo $lang === 'en' ? 'Line' : 'Линия'; ?>" aria-label="<?php echo $lang === 'en' ? 'Line' : 'Линия'; ?>"><i class="fas fa-minus tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="circle" title="<?php echo $lang === 'en' ? 'Circle' : 'Круг'; ?>" aria-label="<?php echo $lang === 'en' ? 'Circle' : 'Круг'; ?>"><i class="far fa-circle tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="rect" title="<?php echo $lang === 'en' ? 'Rectangle' : 'Прямоугольник'; ?>" aria-label="<?php echo $lang === 'en' ? 'Rectangle' : 'Прямоугольник'; ?>"><i class="far fa-square tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="polygon" title="<?php echo $lang === 'en' ? 'Shape' : 'Фигура'; ?>" aria-label="<?php echo $lang === 'en' ? 'Shape' : 'Фигура'; ?>"><i class="fas fa-draw-polygon tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="eraser" title="<?php echo $lang === 'en' ? 'Eraser' : 'Ластик'; ?>" aria-label="<?php echo $lang === 'en' ? 'Eraser' : 'Ластик'; ?>"><i class="fas fa-eraser tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="text" title="<?php echo $lang === 'en' ? 'Text' : 'Текст'; ?>" aria-label="<?php echo $lang === 'en' ? 'Text' : 'Текст'; ?>"><i class="fas fa-font tactics-tool-btn__icon" aria-hidden="true"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="image" title="<?php echo $lang === 'en' ? 'Icons' : 'Значки'; ?>" aria-label="<?php echo $lang === 'en' ? 'Icons' : 'Значки'; ?>"><i class="fas fa-icons tactics-tool-btn__icon" aria-hidden="true"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="ping" title="<?php echo $lang === 'en' ? 'Ping' : 'Пинг'; ?>" aria-label="<?php echo $lang === 'en' ? 'Ping' : 'Пинг'; ?>"><svg class="tactics-tool-btn__icon tactics-tool-btn__icon--ping" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
                             <button type="button" class="tactics-tool-btn" data-tool="ruler" title="<?php echo $lang === 'en' ? 'Measure' : 'Линейка'; ?>" aria-label="<?php echo $lang === 'en' ? 'Measure' : 'Линейка'; ?>"><i class="fas fa-ruler-combined tactics-tool-btn__icon" aria-hidden="true"></i></button>
                         </div>
                         <section class="tactics-tool-context" id="tacticsToolContext">
@@ -471,7 +480,10 @@ require __DIR__ . '/../../includes/site_header.php';
                                 <button type="button" class="tactics-slides-nav-btn" id="tacticsSlidesScrollLeft" data-tactics-i18n-title="slidesPrev" title="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
                                 <button type="button" class="tactics-slides-nav-btn" id="tacticsSlidesScrollRight" data-tactics-i18n-title="slidesNext" title="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
                                 <button type="button" class="tactics-slides-nav-btn" id="tacticsSlidesViewToggle" data-tactics-i18n-title="slidesViewList" title="<?php echo $lang === 'en' ? 'List view' : 'Список'; ?>" aria-label="<?php echo $lang === 'en' ? 'List view' : 'Список'; ?>"><i class="fas fa-list" id="tacticsSlidesViewToggleIcon" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-add-slide-btn" id="tacticsAddSlideBtn"><?php echo $lang === 'en' ? 'Add' : 'Добавить'; ?> <i class="fas fa-plus" aria-hidden="true"></i></button>
+                                <button type="button" class="tactics-add-slide-btn" id="tacticsAddSlideBtn">
+                                    <span data-tactics-i18n="addSlide"><?php echo $lang === 'en' ? 'Add' : 'Добавить'; ?></span>
+                                    <i class="fas fa-plus" aria-hidden="true"></i>
+                                </button>
                             </div>
                         </div>
                         <div class="tactics-slides-strip-wrap tactics-slides-strip-wrap--grid">
@@ -481,10 +493,10 @@ require __DIR__ . '/../../includes/site_header.php';
                     </div>
                 </aside>
                 </div>
+                <span class="tactics-editor-build" aria-hidden="true"><?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
 
             <?php
-            $mapPickerId = 'tacticsAddMapPicker';
             $mapSelectId = 'tacticsAddSlideMap';
             $mapPickerModalId = 'tacticsMapPickerModal';
             require __DIR__ . '/_map_picker_modal.php';
@@ -500,13 +512,12 @@ require __DIR__ . '/../../includes/site_header.php';
 <?php
 require __DIR__ . '/../../includes/site_footer.php';
 ?>
-    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js" defer></script>
     <script>
         window.ABS_TACTICS_LANG = <?php echo json_encode($lang); ?>;
         window.ABS_TACTICS_CSRF = <?php echo json_encode(user_csrf_token()); ?>;
         window.ABS_TACTICS_PUBLIC_ID = <?php echo json_encode($publicId); ?>;
         window.ABS_TACTICS_NEEDS_PASSWORD = <?php echo json_encode($needsPassword); ?>;
-        window.ABS_TACTICS_INITIAL_ROOM = <?php echo json_encode($needsPassword ? null : $roomItem); ?>;
+        window.ABS_TACTICS_INITIAL_ROOM = <?php echo json_encode($roomItemBoot); ?>;
         window.ABS_TACTICS_MAP_URLS = <?php echo json_encode($mapUrls); ?>;
         window.ABS_TACTICS_GET_API = <?php echo json_encode(user_api_path('/api/tactics/get.php')); ?>;
         window.ABS_TACTICS_JOIN_API = <?php echo json_encode(user_api_path('/api/tactics/join.php')); ?>;
@@ -517,10 +528,12 @@ require __DIR__ . '/../../includes/site_footer.php';
         window.ABS_TACTICS_CATALOG_API = <?php echo json_encode(user_api_path('/api/tactics/maps.php')); ?>;
         window.ABS_TACTICS_DEFAULT_NICK = <?php echo json_encode($defaultNickname); ?>;
         window.ABS_TACTICS_IS_LOGGED_IN = <?php echo json_encode($userLoggedIn); ?>;
+        window.ABS_TACTICS_IS_OWNER = <?php echo json_encode($isRoomOwner); ?>;
         window.ABS_TACTICS_GAME_NICKS = <?php echo json_encode($gameNicknames); ?>;
         window.ABS_TACTICS_LOBBY_HREF = <?php echo json_encode($lobbyHref); ?>;
         window.ABS_TACTICS_ROOMS_HREF = <?php echo json_encode($roomsHref); ?>;
         window.ABS_TACTICS_UPLOAD_CUSTOM_MAP_API = <?php echo json_encode(user_api_path('/api/tactics/upload_custom_map.php')); ?>;
+        window.ABS_TACTICS_DUPLICATE_CUSTOM_MAP_API = <?php echo json_encode(user_api_path('/api/tactics/duplicate_custom_map.php')); ?>;
         window.ABS_TACTICS_WS_URL = <?php echo json_encode(tactics_ws_public_url()); ?>;
         window.ABS_TACTICS_PRESENCE_API = <?php echo json_encode(user_api_path('/api/tactics/presence.php')); ?>;
         window.ABS_TACTICS_EVENT_API = <?php echo json_encode(user_api_path('/api/tactics/event.php')); ?>;

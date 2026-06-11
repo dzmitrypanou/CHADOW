@@ -51,7 +51,6 @@
         ping: 'ping',
         ruler: 'none',
         pen: 'draw',
-        line: 'draw',
         circle: 'shape',
         rect: 'shape',
         polygon: 'shape',
@@ -222,7 +221,7 @@
 
         const endRow = document.getElementById('tacticsEndTypeRow');
         if (endRow) {
-            endRow.hidden = tool === 'pen';
+            endRow.hidden = tool !== 'pen';
         }
 
         const titleEl = document.getElementById('tacticsToolContextTitle');
@@ -230,7 +229,6 @@
             select: 'toolSelect',
             cell: 'toolCell',
             pen: 'toolPen',
-            line: 'toolLine',
             circle: 'toolCircle',
             rect: 'toolRect',
             polygon: 'toolPolygon',
@@ -400,9 +398,19 @@
 
     function getStrokeDashArray(lineType, strokeWidth = 6) {
         const w = Math.max(2, strokeWidth || 6);
-        if (lineType === 'dashed') return [w * 4, w * 3];
-        if (lineType === 'dotted') return [w * 0.2, w * 3.2];
+        if (lineType === 'dashed') return [w * 3, w * 2.5];
+        if (lineType === 'dotted') return [0.001, w * 3.5];
         return null;
+    }
+
+    function getStrokeLineCap(lineType) {
+        if (lineType === 'dotted') return 'round';
+        if (lineType === 'dashed') return 'butt';
+        return 'round';
+    }
+
+    function getStrokeLineJoin(lineType) {
+        return lineType === 'dotted' ? 'round' : 'round';
     }
 
     function colorWithOpacity(color, opacityPercent) {
@@ -432,6 +440,8 @@
         showPanel,
         syncUi,
         getStrokeDashArray,
+        getStrokeLineCap,
+        getStrokeLineJoin,
         getShapeFill,
         LINE_TYPE_LABELS,
         END_TYPE_LABELS,

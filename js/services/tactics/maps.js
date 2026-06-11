@@ -387,6 +387,52 @@
         return len && len > 0 ? len : null;
     }
 
+    async function slideMapScale(slide) {
+        if (!slide) return null;
+
+        const width = parseInt(slide.map_width_m, 10);
+        const height = parseInt(slide.map_height_m, 10);
+        if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+            return { width, height };
+        }
+
+        const side = await slideSideLength(slide);
+        if (side && side > 0) {
+            return { width: side, height: side };
+        }
+
+        return null;
+    }
+
+    function slideMapScaleSync(slide) {
+        if (!slide) return null;
+
+        const width = parseInt(slide.map_width_m, 10);
+        const height = parseInt(slide.map_height_m, 10);
+        if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+            return { width, height };
+        }
+
+        const code = (slide.map_code || '').toLowerCase();
+        if (!code || !mapsCache) return null;
+
+        const game = slide.game || 'wot';
+        const mode = slide.battle_mode || 'random';
+        const list = getMapsFor(game, mode);
+        const row = list.find((m) => (m.map_code || '').toLowerCase() === code) || findMap(code);
+        const len = row?.side_length != null ? parseInt(row.side_length, 10) : null;
+        if (len && len > 0) {
+            return { width: len, height: len };
+        }
+
+        return null;
+    }
+
+    function formatSlideScaleLabel(scale) {
+        if (!scale?.width || !scale?.height) return '';
+        return scale.width + '\u00d7' + scale.height;
+    }
+
     window.addEventListener('tactics:langchange', () => {
         resetCatalogCache();
         catalogReady = false;
@@ -401,6 +447,83 @@
         if (document.visibilityState !== 'visible' || !catalogReady) return;
         refreshCatalog();
     });
+
+    function customMapCodeForGame(game) {
+        return CUSTOM_MAP_CODES[(game || 'wot').toLowerCase()] || null;
+    }
+
+    function normalizeCustomRoomSlide(slide) {
+        if (!slide) return slide;
+        const game = (slide.game || 'wot').toLowerCase();
+        const expected = customMapCodeForGame(game);
+        if (expected && (slide.battle_mode || '').toLowerCase() === 'custom') {
+            slide.map_code = expected;
+        }
+        return slide;
+    }
+
+    function needsCustomMapFileCopy(source, copy, publicId, mapUrls = {}) {
+        if (!source || !copy) return false;
+        normalizeCustomRoomSlide(source);
+        normalizeCustomRoomSlide(copy);
+        if (isCustomRoomSlide(source) || isCustomRoomSlide(copy)) return true;
+        const sourceUrl = knownSlideMapUrl(source, mapUrls);
+        return sourceUrl.includes('/custom/rooms/');
+    }
+
+    function swapCustomMapSlideId(sourceUrl, sourceId, targetId) {
+        if (!sourceUrl || !sourceId || !targetId || !sourceUrl.includes('/custom/rooms/')) {
+            return '';
+        }
+        if (!sourceUrl.includes(sourceId)) {
+            return '';
+        }
+        const base = sourceUrl.replace(/\?.*$/, '');
+        return base.replace(sourceId, targetId) + '?t=' + Date.now();
+    }
+
+    function resolveCustomMapUrlAfterCopy(slide, publicId, mapUrls = {}, extHint = 'webp') {
+        normalizeCustomRoomSlide(slide);
+        if (!publicId || !isCustomRoomSlide(slide)) return '';
+        const known = knownSlideMapUrl(slide, mapUrls);
+        if (known && known !== placeholderUrl()) return known;
+        const base = customRoomMapBase(slide, publicId);
+        const ext = (extHint || 'webp').replace(/^\./, '');
+        return base + '.' + ext + '?t=' + Date.now();
+    }
+
+    function clearStoredSlideMapUrl(slideId, mapUrls) {
+        if (!slideId) return;
+        if (mapUrls && typeof mapUrls === 'object') {
+            delete mapUrls[slideId];
+        }
+        if (typeof window !== 'undefined' && window.ABS_TACTICS_MAP_URLS) {
+            delete window.ABS_TACTICS_MAP_URLS[slideId];
+        }
+    }
+
+    function refreshSlidePreviewUrl(slide, publicId, mapUrls = {}, opts = {}) {
+        if (!slide?.id) return placeholderUrl();
+        normalizeCustomRoomSlide(slide);
+
+        if (opts.preferredUrl) {
+            return opts.preferredUrl;
+        }
+
+        if (opts.resetKnown !== false) {
+            clearStoredSlideMapUrl(slide.id, mapUrls);
+        }
+
+        if (isCustomRoomSlide(slide)) {
+            if (opts.allowCustomPath) {
+                const extHint = opts.extHint || 'webp';
+                return resolveCustomMapUrlAfterCopy(slide, publicId, mapUrls, extHint);
+            }
+            return placeholderUrl();
+        }
+
+        return mapUrl(slide.map_code, slide.game, slide.battle_mode);
+    }
 
     window.AbsTacticsMaps = {
         loadMaps,
@@ -422,6 +545,18 @@
         slideMapUrl,
         slideMapUrlCandidates,
         slideSideLength,
+        slideMapScale,
+        slideMapScaleSync,
+        formatSlideScaleLabel,
         placeholderUrl,
+        isCustomRoomSlide,
+        customRoomMapBase,
+        customMapCodeForGame,
+        normalizeCustomRoomSlide,
+        needsCustomMapFileCopy,
+        swapCustomMapSlideId,
+        resolveCustomMapUrlAfterCopy,
+        clearStoredSlideMapUrl,
+        refreshSlidePreviewUrl,
     };
 })();

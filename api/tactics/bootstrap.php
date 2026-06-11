@@ -52,8 +52,8 @@ function tactics_resolve_access_token(array $input): ?string {
 
 function tactics_format_response(array $row, $db, string $clientId, string $nickname, bool $isOwner): array {
     $publicId = (string) ($row['public_id'] ?? '');
-    $accessToken = tactics_issue_access_token($db, $publicId, $clientId, $nickname, $isOwner);
-    $wsToken = tactics_issue_ws_token($db, $publicId, $clientId, $nickname, $isOwner ? 'owner' : 'guest');
+    $accessToken = tactics_issue_access_token($db, $publicId, $clientId, $nickname, $isOwner, $row);
+    $wsToken = tactics_issue_ws_token($db, $publicId, $clientId, $nickname, $isOwner ? 'owner' : 'guest', $row);
     $roomItem = tactics_format_item($row, true, true);
     $roomData = is_array($roomItem['room_data'] ?? null) ? $roomItem['room_data'] : [];
     $roomItem['map_urls'] = tactics_build_slide_map_urls($roomData, $publicId);
@@ -67,6 +67,7 @@ function tactics_format_response(array $row, $db, string $clientId, string $nick
         'ws_token' => $wsToken,
         'ws_url' => tactics_ws_public_url(),
         'room_href' => tactics_build_href(abs_detect_lang(), $publicId),
+        'nickname' => $nickname,
         'can_manage' => $isOwner,
         'can_draw' => $canDraw,
     ];

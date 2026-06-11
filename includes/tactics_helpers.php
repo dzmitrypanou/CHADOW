@@ -60,6 +60,9 @@ function tactics_default_room_data(string $mapCode, string $game = 'wot', string
                 'game' => tactics_sanitize_game($game),
                 'battle_mode' => tactics_sanitize_battle_mode($battleMode, tactics_sanitize_game($game)),
                 'canvas' => null,
+                'view' => [
+                    'show_grid' => true,
+                ],
             ],
         ],
         'active_slide_id' => $slideId,
@@ -141,29 +144,89 @@ function tactics_verify_signed_token($db, string $token, ?string $expectedPublic
     return $payload;
 }
 
-function tactics_issue_token($db, string $publicId, string $clientId, string $nickname, string $role, int $ttlSec): string {
-    $payload = [
+function tactics_issue_token($db, string $publicId, string $clientId, string $nickname, string $role, int $ttlSec, array $extraClaims = []): string {
+    $payload = array_merge([
         'pid' => $publicId,
         'cid' => $clientId,
         'nick' => $nickname,
         'role' => $role,
         'exp' => time() + max(60, $ttlSec),
-    ];
+    ], $extraClaims);
     $payloadB64 = tactics_b64url_encode(json_encode($payload, JSON_UNESCAPED_UNICODE));
     $sig = hash_hmac('sha256', $payloadB64, tactics_ws_secret($db));
 
     return $payloadB64 . '.' . $sig;
 }
 
-function tactics_issue_ws_token($db, string $publicId, string $clientId, string $nickname, string $role): string {
-    return tactics_issue_token($db, $publicId, $clientId, $nickname, $role, TACTICS_WS_TOKEN_TTL_SEC);
+function tactics_room_password_fingerprint(array $row): string {
+    if (!tactics_password_required($row)) {
+        return '';
+    }
+    $hash = (string) ($row['password_hash'] ?? '');
+    if ($hash === '') {
+        return '';
+    }
+
+    return substr(hash('sha256', $hash), 0, 16);
 }
 
-function tactics_issue_access_token($db, string $publicId, string $clientId, string $nickname, bool $isOwner): string {
+function tactics_token_extra_for_room(array $row): array {
+    $fp = tactics_room_password_fingerprint($row);
+
+    return $fp !== '' ? ['pwd_fp' => $fp] : [];
+}
+
+function tactics_token_password_fingerprint_valid(array $row, ?array $payload): bool {
+    $expected = tactics_room_password_fingerprint($row);
+    if ($expected === '') {
+        return true;
+    }
+    if (!is_array($payload)) {
+        return false;
+    }
+    $got = trim((string) ($payload['pwd_fp'] ?? ''));
+
+    return $got !== '' && hash_equals($expected, $got);
+}
+
+function tactics_verify_room_token($db, string $token, array $row): ?array {
+    $publicId = (string) ($row['public_id'] ?? '');
+    $payload = tactics_verify_signed_token($db, $token, $publicId);
+    if ($payload === null) {
+        return null;
+    }
+    if (!tactics_token_password_fingerprint_valid($row, $payload)) {
+        return null;
+    }
+
+    return $payload;
+}
+
+function tactics_issue_ws_token($db, string $publicId, string $clientId, string $nickname, string $role, array $row): string {
+    return tactics_issue_token(
+        $db,
+        $publicId,
+        $clientId,
+        $nickname,
+        $role,
+        TACTICS_WS_TOKEN_TTL_SEC,
+        tactics_token_extra_for_room($row)
+    );
+}
+
+function tactics_issue_access_token($db, string $publicId, string $clientId, string $nickname, bool $isOwner, array $row): string {
     $ttl = $isOwner ? TACTICS_TOKEN_TTL_OWNER_SEC : TACTICS_TOKEN_TTL_GUEST_SEC;
     $role = $isOwner ? 'owner' : 'guest';
 
-    return tactics_issue_token($db, $publicId, $clientId, $nickname, $role, $ttl);
+    return tactics_issue_token(
+        $db,
+        $publicId,
+        $clientId,
+        $nickname,
+        $role,
+        $ttl,
+        tactics_token_extra_for_room($row)
+    );
 }
 
 function tactics_sanitize_nickname(string $nickname): string {
@@ -319,7 +382,13 @@ function tactics_verify_room_password(array $row, ?string $password): bool {
     return $hash !== '' && password_verify($password, $hash);
 }
 
-function tactics_assert_can_access_room(array $row, ?string $password, ?int $userId): array {
+function tactics_assert_can_access_room(
+    array $row,
+    ?string $password,
+    ?int $userId,
+    ?string $accessToken = null,
+    $db = null
+): array {
     if (($row['visibility'] ?? '') === 'open') {
         return ['ok' => true];
     }
@@ -336,6 +405,21 @@ function tactics_assert_can_access_room(array $row, ?string $password, ?int $use
         return ['ok' => true];
     }
 
+    if ($db !== null && $accessToken !== null && $accessToken !== '') {
+        $payload = tactics_verify_room_token($db, $accessToken, $row);
+        if ($payload !== null) {
+            return ['ok' => true];
+        }
+    }
+
+    if ($password !== null && $password !== '') {
+        return [
+            'ok' => false,
+            'error' => 'wrong_password',
+            'needs_password' => true,
+        ];
+    }
+
     return [
         'ok' => false,
         'error' => 'password_required',
@@ -349,7 +433,7 @@ function tactics_assert_can_edit(array $row, ?string $accessToken, ?int $userId,
     }
 
     if ($accessToken !== null && $accessToken !== '') {
-        $payload = tactics_verify_signed_token($db, $accessToken, (string) ($row['public_id'] ?? ''));
+        $payload = tactics_verify_room_token($db, $accessToken, $row);
         if ($payload !== null) {
             return ['ok' => true, 'role' => (string) ($payload['role'] ?? 'guest')];
         }
@@ -358,11 +442,11 @@ function tactics_assert_can_edit(array $row, ?string $accessToken, ?int $userId,
     return ['ok' => false, 'error' => 'forbidden'];
 }
 
-function tactics_token_client_id(?string $accessToken, $db, string $publicId): string {
+function tactics_token_client_id(?string $accessToken, $db, string $publicId, array $row): string {
     if ($accessToken === null || $accessToken === '') {
         return '';
     }
-    $payload = tactics_verify_signed_token($db, $accessToken, $publicId);
+    $payload = tactics_verify_room_token($db, $accessToken, $row);
     if ($payload === null) {
         return '';
     }
@@ -375,7 +459,7 @@ function tactics_resolve_is_owner(array $row, ?string $accessToken, ?int $userId
         return true;
     }
     if ($accessToken !== null && $accessToken !== '') {
-        $payload = tactics_verify_signed_token($db, $accessToken, (string) ($row['public_id'] ?? ''));
+        $payload = tactics_verify_room_token($db, $accessToken, $row);
         if ($payload !== null && ($payload['role'] ?? '') === 'owner') {
             return true;
         }
@@ -543,6 +627,16 @@ function tactics_purge_stale_guest_rooms($db, int $days = TACTICS_GUEST_ROOM_INA
     $days = max(1, $days);
 
     try {
+        $rows = $db->fetchAll(
+            'SELECT public_id FROM tactics_rooms
+             WHERE user_id IS NULL
+               AND COALESCE(last_active_at, created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)',
+            [$days]
+        );
+        foreach ($rows as $row) {
+            tactics_delete_room_custom_map_assets((string) ($row['public_id'] ?? ''));
+        }
+
         return $db->delete(
             'DELETE FROM tactics_rooms
              WHERE user_id IS NULL
@@ -593,6 +687,30 @@ function tactics_format_item(array $row, bool $includeRoomData = true, bool $inc
     }
 
     return $item;
+}
+
+/**
+ * Drop canvas JSON from inactive slides for faster initial HTML payload.
+ */
+function tactics_strip_inactive_slide_canvas(array $roomItem): array {
+    $roomData = $roomItem['room_data'] ?? null;
+    if (!is_array($roomData) || !is_array($roomData['slides'] ?? null)) {
+        return $roomItem;
+    }
+
+    $activeId = (string) ($roomData['active_slide_id'] ?? '');
+    foreach ($roomItem['room_data']['slides'] as &$slide) {
+        if (!is_array($slide)) {
+            continue;
+        }
+        $slideId = (string) ($slide['id'] ?? '');
+        if ($activeId !== '' && $slideId !== '' && $slideId !== $activeId) {
+            unset($slide['canvas']);
+        }
+    }
+    unset($slide);
+
+    return $roomItem;
 }
 
 function tactics_format_profile_item(array $row, string $lang): array {
@@ -788,6 +906,55 @@ function tactics_custom_room_map_rel_path(string $publicId, string $slideId, str
     return "assets/tactics/maps/{$game}/custom/rooms/{$publicId}/{$slideId}";
 }
 
+function tactics_delete_path_recursive(string $path): void {
+    if (!file_exists($path)) {
+        return;
+    }
+    if (is_file($path) || is_link($path)) {
+        @unlink($path);
+
+        return;
+    }
+
+    $items = scandir($path);
+    if (!is_array($items)) {
+        @rmdir($path);
+
+        return;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+        tactics_delete_path_recursive($path . DIRECTORY_SEPARATOR . $item);
+    }
+
+    @rmdir($path);
+}
+
+function tactics_delete_room_custom_map_assets(string $publicId): void {
+    $publicId = preg_replace('/[^a-zA-Z0-9]/', '', $publicId);
+    if ($publicId === '' || !tactics_public_id_valid($publicId)) {
+        return;
+    }
+
+    $root = dirname(__DIR__);
+    foreach (['cs2', 'dota2'] as $game) {
+        tactics_delete_path_recursive($root . '/assets/tactics/maps/' . $game . '/custom/rooms/' . $publicId);
+    }
+}
+
+function tactics_delete_room($db, string $publicId): bool {
+    if (!tactics_public_id_valid($publicId)) {
+        return false;
+    }
+
+    tactics_delete_room_custom_map_assets($publicId);
+
+    return $db->delete('DELETE FROM tactics_rooms WHERE public_id = ?', [$publicId]) > 0;
+}
+
 function tactics_room_primary_game(array $roomData): string {
     $slides = $roomData['slides'] ?? null;
     if (!is_array($slides) || $slides === []) {
@@ -915,6 +1082,80 @@ function tactics_resolve_user_nickname(
     return $nickname !== '' ? $nickname : ($lang === 'en' ? 'Guest' : 'Гость');
 }
 
+function tactics_guest_nickname_prefix(string $lang): string {
+    return $lang === 'en' ? 'Guest' : 'Гость';
+}
+
+function tactics_parse_guest_nickname_number(string $nickname): ?int {
+    $nickname = trim($nickname);
+    if ($nickname === 'Guest' || $nickname === 'Гость') {
+        return 0;
+    }
+    if (preg_match('/^(?:Guest|Гость)\s+(\d+)$/u', $nickname, $matches)) {
+        $number = (int) $matches[1];
+
+        return $number > 0 ? $number : null;
+    }
+
+    return null;
+}
+
+function tactics_is_generic_guest_nickname(string $nickname): bool {
+    return tactics_parse_guest_nickname_number($nickname) !== null;
+}
+
+function tactics_format_guest_nickname(int $number, string $lang): string {
+    return tactics_guest_nickname_prefix($lang) . ' ' . max(1, $number);
+}
+
+function tactics_fetch_presence_nickname($db, string $publicId, string $clientId): ?string {
+    if (!tactics_public_id_valid($publicId) || $clientId === '') {
+        return null;
+    }
+
+    ensure_tactics_realtime_tables($db);
+    $stmt = $db->getConnection()->prepare(
+        'SELECT nickname FROM tactics_room_presence WHERE public_id = ? AND client_id = ? LIMIT 1'
+    );
+    $stmt->execute([$publicId, $clientId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return null;
+    }
+
+    $nickname = trim((string) ($row['nickname'] ?? ''));
+
+    return $nickname !== '' ? $nickname : null;
+}
+
+function tactics_allocate_guest_nickname($db, string $publicId, string $clientId, string $lang): string {
+    $existing = tactics_fetch_presence_nickname($db, $publicId, $clientId);
+    if ($existing !== null) {
+        $existingNumber = tactics_parse_guest_nickname_number($existing);
+        if ($existingNumber !== null && $existingNumber > 0) {
+            return tactics_format_guest_nickname($existingNumber, $lang);
+        }
+    }
+
+    $used = [];
+    foreach (tactics_fetch_presence_participants($db, $publicId) as $participant) {
+        if (($participant['clientId'] ?? '') === $clientId) {
+            continue;
+        }
+        $number = tactics_parse_guest_nickname_number((string) ($participant['nickname'] ?? ''));
+        if ($number !== null && $number > 0) {
+            $used[$number] = true;
+        }
+    }
+
+    $number = 1;
+    while (isset($used[$number])) {
+        $number++;
+    }
+
+    return tactics_format_guest_nickname($number, $lang);
+}
+
 function tactics_sanitize_slide_title(string $title): string {
     $title = trim(preg_replace('/\s+/u', ' ', $title) ?? '');
     if ($title === '') {
@@ -942,6 +1183,25 @@ function tactics_normalize_room_data(array $roomData): array {
                 unset($roomData['slides'][$index]['title']);
             } else {
                 $roomData['slides'][$index]['title'] = $title;
+            }
+        }
+        if (!is_array($slide['view'] ?? null)) {
+            $roomData['slides'][$index]['view'] = [];
+        }
+        if (!array_key_exists('show_grid', $roomData['slides'][$index]['view'])) {
+            $roomData['slides'][$index]['view']['show_grid'] = true;
+        } else {
+            $roomData['slides'][$index]['view']['show_grid'] = ($roomData['slides'][$index]['view']['show_grid'] !== false);
+        }
+        foreach (['map_width_m', 'map_height_m'] as $scaleKey) {
+            if (!array_key_exists($scaleKey, $slide)) {
+                continue;
+            }
+            $meters = tactics_sanitize_side_length($slide[$scaleKey]);
+            if ($meters === null) {
+                unset($roomData['slides'][$index][$scaleKey]);
+            } else {
+                $roomData['slides'][$index][$scaleKey] = $meters;
             }
         }
     }
@@ -1171,14 +1431,12 @@ function tactics_admin_delete_room($db, int $id): bool {
         return false;
     }
 
-    $existing = $db->fetchOne('SELECT id FROM tactics_rooms WHERE id = ?', [$id]);
+    $existing = $db->fetchOne('SELECT public_id FROM tactics_rooms WHERE id = ?', [$id]);
     if (!$existing) {
         return false;
     }
 
-    $db->delete('DELETE FROM tactics_rooms WHERE id = ?', [$id]);
-
-    return true;
+    return tactics_delete_room($db, (string) ($existing['public_id'] ?? ''));
 }
 
 /**
