@@ -1,0 +1,151 @@
+ErrorDocument 404 /404.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    RewriteRule ^\.well-known/ - [L]
+
+    # www.chadow.ru → chadow.ru (канонический домен)
+    RewriteCond %{HTTP_HOST} ^www\.chadow\.ru$ [NC]
+    RewriteRule ^ https://chadow.ru%{REQUEST_URI} [R=301,L]
+
+    # abs.chadow.ru → главная chadow.ru
+    RewriteCond %{HTTP_HOST} ^abs\.chadow\.ru$ [NC]
+    RewriteRule ^ https://chadow.ru/ [R=301,L]
+
+    # Канонизация языка: ?lang=en -> /en/
+    RewriteCond %{QUERY_STRING} (^|&)lang=en(&|$) [NC]
+    RewriteRule ^$ /en/? [R=301,L]
+    RewriteCond %{QUERY_STRING} (^|&)lang=en(&|$) [NC]
+    RewriteRule ^([a-z0-9\-]+)/?$ /en/$1/? [R=301,L]
+
+    # Главная: /index.php → / (только при прямом запросе index.php)
+    RewriteCond %{THE_REQUEST} \s/+index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^index\.php$ / [R=301,L,QSA]
+
+    # SEO: человекочитаемый маршрут sitemap.xml (корень и префикс /en/)
+    RewriteRule ^sitemap\.xml$ sitemap.php [L,QSA]
+    RewriteRule ^en/sitemap\.xml$ sitemap.php [L,QSA]
+
+    # Сервис анализа реплеев: /services/abs и /en/services/abs
+    RewriteCond %{THE_REQUEST} \s/+services/abs/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/abs/index\.php$ /services/abs [R=301,L,QSA]
+    RewriteRule ^en/services/abs/?$ services/abs/index.php [L,QSA]
+    RewriteRule ^services/abs/?$ services/abs/index.php [L,QSA]
+
+    # Сервис онлайна серверов WoT
+    RewriteCond %{THE_REQUEST} \s/+services/online/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/online/index\.php$ /services/online [R=301,L,QSA]
+    RewriteRule ^en/services/online/?$ services/online/index.php [L,QSA]
+    RewriteRule ^services/online/?$ services/online/index.php [L,QSA]
+
+    # Авторизация пользователей
+    RewriteCond %{THE_REQUEST} \s/+auth/([a-z0-9_\-]+)\.php(?:[?\s]|$) [NC]
+    RewriteRule ^auth/([a-z0-9_\-]+)\.php$ /auth/$1 [R=301,L,QSA]
+    RewriteRule ^en/auth/wg/callback/?$ auth/wg_callback.php [L,QSA]
+    RewriteRule ^auth/wg/callback/?$ auth/wg_callback.php [L,QSA]
+    RewriteRule ^en/auth/([a-z0-9\-]+)/?$ auth/$1.php [L,QSA]
+    RewriteRule ^auth/([a-z0-9\-]+)/?$ auth/$1.php [L,QSA]
+
+    # Сервис рекрутинга
+    RewriteCond %{THE_REQUEST} \s/+services/recruiting/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/recruiting/index\.php$ /services/recruiting [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/+services/recruiting/post\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/recruiting/post\.php$ /services/recruiting/post [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/+services/recruiting/edit\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/recruiting/edit\.php$ /services/recruiting/edit [R=301,L,QSA]
+    RewriteRule ^en/services/recruiting/post/?$ services/recruiting/post.php [L,QSA]
+    RewriteRule ^services/recruiting/post/?$ services/recruiting/post.php [L,QSA]
+    RewriteRule ^en/services/recruiting/edit/?$ services/recruiting/edit.php [L,QSA]
+    RewriteRule ^services/recruiting/edit/?$ services/recruiting/edit.php [L,QSA]
+    RewriteRule ^en/services/recruiting/?$ services/recruiting/index.php [L,QSA]
+    RewriteRule ^services/recruiting/?$ services/recruiting/index.php [L,QSA]
+
+    # Сервис турнирных сеток
+    RewriteCond %{THE_REQUEST} \s/+services/bracket/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/bracket/index\.php$ /services/bracket [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/+services/bracket/create\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/bracket/create\.php$ /services/bracket/create [R=301,L,QSA]
+    RewriteRule ^en/services/bracket/create/?$ services/bracket/create.php [L,QSA]
+    RewriteRule ^services/bracket/create/?$ services/bracket/create.php [L,QSA]
+    RewriteRule ^en/services/bracket/([a-zA-Z0-9]{10,16})/edit/?$ services/bracket/edit.php?public_id=$1 [L,QSA]
+    RewriteRule ^services/bracket/([a-zA-Z0-9]{10,16})/edit/?$ services/bracket/edit.php?public_id=$1 [L,QSA]
+    RewriteRule ^en/services/bracket/([a-zA-Z0-9]{10,16})/?$ services/bracket/view.php?public_id=$1 [L,QSA]
+    RewriteRule ^services/bracket/([a-zA-Z0-9]{10,16})/?$ services/bracket/view.php?public_id=$1 [L,QSA]
+    RewriteRule ^en/services/bracket/?$ services/bracket/index.php [L,QSA]
+    RewriteRule ^services/bracket/?$ services/bracket/index.php [L,QSA]
+
+    # Тактический планшет
+    RewriteCond %{THE_REQUEST} \s/+services/tactics/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/tactics/index\.php$ /services/tactics [R=301,L,QSA]
+    RewriteRule ^en/services/tactics/rooms/?$ services/tactics/rooms.php [L,QSA]
+    RewriteRule ^services/tactics/rooms/?$ services/tactics/rooms.php [L,QSA]
+    RewriteRule ^en/services/tactics/([a-zA-Z0-9]{6,8})/?$ services/tactics/room.php?public_id=$1 [L,QSA]
+    RewriteRule ^services/tactics/([a-zA-Z0-9]{6,8})/?$ services/tactics/room.php?public_id=$1 [L,QSA]
+    RewriteRule ^en/services/tactics/?$ services/tactics/index.php [L,QSA]
+    RewriteRule ^services/tactics/?$ services/tactics/index.php [L,QSA]
+
+    # Английский роутинг (/en и /en/<slug>)
+    # Язык определяется по префиксу /en в includes/lang.php,
+    # поэтому не добавляем lang=en в query (иначе копятся дубли при refresh).
+    RewriteRule ^en/?$ index.php [L,QSA]
+    RewriteRule ^en/([a-z0-9\-]+)/?$ page.php?slug=$1 [L,QSA]
+
+    # Реальные файлы и каталоги (admin/, api/, css/, js/, …) не трогаем
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # ЧПУ CMS: /test → page.php?slug=test
+    RewriteRule ^([a-z0-9\-]+)/?$ page.php?slug=$1 [L,QSA]
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType text/javascript "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    ExpiresByType image/webp "access plus 90 days"
+    ExpiresByType image/png "access plus 90 days"
+    ExpiresByType image/jpeg "access plus 90 days"
+    ExpiresByType image/gif "access plus 90 days"
+    ExpiresByType font/woff2 "access plus 180 days"
+    ExpiresByType font/woff "access plus 180 days"
+    ExpiresByType application/font-woff "access plus 180 days"
+    ExpiresByType application/vnd.ms-fontobject "access plus 180 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <Files "sitemap.php">
+        Header set Content-Type "text/xml; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
+    </Files>
+
+    <FilesMatch "\.(css|js|svg|ico|webp|png|jpe?g|gif|woff2?|eot)$">
+        Header set Cache-Control "public, max-age=2592000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(webmanifest)$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/xml .xml
+    AddType image/svg+xml .svg
+    AddType application/manifest+json .webmanifest
+</IfModule>

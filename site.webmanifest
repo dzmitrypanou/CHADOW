@@ -1,0 +1,19 @@
+{
+  "name": "Chadow — WoT services hub",
+  "short_name": "Chadow",
+  "description": "ABS replay analysis, player statistics, server status and other World of Tanks tools.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A1022",
+  "theme_color": "#0A1022",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
