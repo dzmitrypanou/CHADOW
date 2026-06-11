@@ -36,6 +36,7 @@
             this.remoteCursors = new Map();
             this.cursorsLayerEl = null;
             this.pingsLayerEl = null;
+            this.cellFlashesLayerEl = null;
             this.cursorSendTimer = null;
             this.cursorRaf = null;
             this.lastCursorPayload = null;
@@ -54,8 +55,9 @@
             this.shapeStart = null;
             this.shapePreview = null;
             this.polygonPoints = [];
+            this.polygonPreview = null;
             this.eyedropperActive = false;
-            this.secondaryColorEl = options.secondaryColorEl || document.getElementById('tacticsStrokeColorSecondary');
+            this.eyedropperPickInFlight = false;
             this.hueSliderEl = options.hueSliderEl || document.getElementById('tacticsHueSlider');
             this.imageUploadEl = options.imageUploadEl || document.getElementById('tacticsImageUpload');
             this.applyToolPrefs();
@@ -67,6 +69,50 @@
         static TOOL_PREFS_KEY = 'abs_tactics_tool_prefs';
         static DEFAULT_STROKE_WIDTH = 6;
         static DEFAULT_STROKE_COLOR = '#ff4444';
+        static ARROW_SPREAD = Math.PI / 7;
+        static ICON_LABEL_FONT = 'Segoe UI, sans-serif';
+        static ICON_LABEL_GAP = 4;
+        static ICON_LABEL_MARKER_GAP_EXTRA = 3;
+        static ICON_LABEL_MARKER_BODY_EXTRA = 1;
+        static ICON_LABEL_EDGE_MARGIN = 6;
+        static DEFAULT_ICON_SIZE = 16;
+        static DEFAULT_ICON_LABEL_SIZE = 14;
+
+        static circlePathData(radius) {
+            const r = Math.max(0.5, radius);
+            return `M ${r} 0 A ${r} ${r} 0 1 1 ${r} ${2 * r} A ${r} ${r} 0 1 1 ${r} 0 Z`;
+        }
+
+        createCircleShape(options) {
+            const radius = Math.max(0.5, options.radius || 0);
+            const shape = new fabric.Path(TacticsCanvas.circlePathData(radius), {
+                left: options.left,
+                top: options.top,
+                fill: options.fill ?? 'transparent',
+                stroke: options.stroke,
+                strokeWidth: options.strokeWidth,
+                selectable: options.selectable ?? false,
+                evented: options.evented ?? false,
+                strokeLineCap: 'round',
+                strokeLineJoin: 'round',
+            });
+            this.applyStrokeDash(shape);
+            return shape;
+        }
+        static TOOL_I18N_KEYS = {
+            select: 'toolSelect',
+            pen: 'toolPen',
+            line: 'toolLine',
+            circle: 'toolCircle',
+            rect: 'toolRect',
+            polygon: 'toolPolygon',
+            eraser: 'toolEraser',
+            text: 'toolText',
+            image: 'toolImage',
+            cell: 'toolCell',
+            ping: 'toolPing',
+            ruler: 'toolRuler',
+        };
 
         static loadCursorPrefs() {
             try {
@@ -94,19 +140,38 @@
         }
 
         saveToolPrefs() {
-            localStorage.setItem(TacticsCanvas.TOOL_PREFS_KEY, JSON.stringify({
+            const customEl = this.getCustomSwatchEl();
+            const customColor = TacticsCanvas.normalizeHexColor(customEl?.getAttribute('data-color'));
+            const hueRaw = parseInt(this.hueSliderEl?.value, 10);
+            const prefs = {
                 strokeColor: this.getStrokeColor(),
+                customColor: customColor || this.getStrokeColor(),
+                hue: Number.isFinite(hueRaw) ? hueRaw : TacticsCanvas.hexToHue(customColor || this.getStrokeColor()),
                 strokeWidth: this.getStrokeWidth(),
-            }));
+            };
+            try {
+                localStorage.setItem(TacticsCanvas.TOOL_PREFS_KEY, JSON.stringify(prefs));
+            } catch (e) {
+                // storage unavailable
+            }
         }
 
         applyToolPrefs() {
             const prefs = TacticsCanvas.loadToolPrefs();
+            const strokeColor = TacticsCanvas.normalizeHexColor(prefs.strokeColor)
+                || TacticsCanvas.DEFAULT_STROKE_COLOR;
+            const customColor = TacticsCanvas.normalizeHexColor(prefs.customColor)
+                || strokeColor;
+
             if (this.strokeColorEl) {
-                const color = String(prefs.strokeColor || TacticsCanvas.DEFAULT_STROKE_COLOR).trim();
-                if (/^#[0-9a-fA-F]{6}$/.test(color)) {
-                    this.strokeColorEl.value = color;
-                }
+                this.strokeColorEl.value = strokeColor;
+            }
+            this.updateCustomSwatch(customColor);
+            if (this.hueSliderEl) {
+                const hue = Number.isFinite(prefs.hue)
+                    ? Math.max(0, Math.min(360, prefs.hue))
+                    : TacticsCanvas.hexToHue(customColor);
+                this.hueSliderEl.value = String(hue);
             }
             if (this.strokeWidthEl) {
                 const width = parseInt(prefs.strokeWidth, 10);
@@ -115,6 +180,7 @@
                     : TacticsCanvas.DEFAULT_STROKE_WIDTH;
                 this.strokeWidthEl.value = String(clamped);
             }
+            this.updateStrokeWidthLabel();
         }
 
         static CURSOR_COLORS = [
@@ -168,6 +234,8 @@
             const observeTargets = [
                 this.canvasEl.closest('.tactics-map-column'),
                 this.canvasEl.closest('.tactics-canvas-panel'),
+                this.canvasEl.closest('.tactics-map-grid'),
+                this.canvasEl.closest('.tactics-editor-body'),
                 this.canvasEl.closest('.tactics-canvas-row'),
             ].filter(Boolean);
             if (typeof ResizeObserver !== 'undefined' && observeTargets.length) {
@@ -188,6 +256,12 @@
             this.fabric.on('object:scaling', (e) => this.guardObjectTransform(e));
             this.fabric.on('object:rotating', (e) => this.guardObjectTransform(e));
             this.fabric.on('path:created', (e) => {
+                const path = e.path;
+                if (path && this.tool === 'pen') {
+                    this.applyStrokeStyle(path);
+                    path.set('tacticsType', 'pen');
+                    this.ensureTacticsId(path);
+                }
                 if (this.tool === 'pen' && this.fabric) {
                     this.fabric.discardActiveObject();
                     this.syncInteractionState();
@@ -203,7 +277,10 @@
             this.ensureRemoteStrokesLayer();
             this.ensureRulerLayer();
             this.bindCursorTracking();
+            this.bindContextMenuBlock();
             this.bindPingHoldRelease();
+            this.bindDeleteKey();
+            this.bindUndoRedoKeys();
             this.fabric.on('mouse:move', (opt) => {
                 this.handleFabricPointerMove(opt);
                 if (this.localStrokeId && this.tool === 'pen' && this.fabric?.isDrawingMode) {
@@ -223,6 +300,13 @@
             this.updateShareCursorBtn();
         }
 
+        mountOverlayLayer(layer, root) {
+            if (!layer || !root) return;
+            if (layer.parentElement !== root) {
+                root.appendChild(layer);
+            }
+        }
+
         ensureCursorsLayer() {
             const root = this.getOverlaysEl();
             if (!root) return;
@@ -232,7 +316,7 @@
                 layer.setAttribute('aria-hidden', 'true');
                 this.cursorsLayerEl = layer;
             }
-            root.appendChild(this.cursorsLayerEl);
+            this.mountOverlayLayer(this.cursorsLayerEl, root);
         }
 
         ensurePingsLayer() {
@@ -244,12 +328,153 @@
                 layer.setAttribute('aria-hidden', 'true');
                 this.pingsLayerEl = layer;
             }
-            root.appendChild(this.pingsLayerEl);
+            this.mountOverlayLayer(this.pingsLayerEl, root);
         }
 
         clearPings() {
             if (this.pingsLayerEl) {
                 this.pingsLayerEl.innerHTML = '';
+            }
+        }
+
+        ensureCellFlashesLayer() {
+            const root = this.getOverlaysEl();
+            if (!root) return;
+            if (!this.cellFlashesLayerEl) {
+                const layer = document.createElement('div');
+                layer.className = 'tactics-cell-flashes-layer';
+                layer.setAttribute('aria-hidden', 'true');
+                this.cellFlashesLayerEl = layer;
+            }
+            this.mountOverlayLayer(this.cellFlashesLayerEl, root);
+        }
+
+        clearCellFlashes() {
+            if (this.cellFlashesLayerEl) {
+                this.cellFlashesLayerEl.innerHTML = '';
+            }
+        }
+
+        static GRID_DIVISIONS = 10;
+        static DEFAULT_CELL_FLASH_MS = 2000;
+
+        getGridCanvasSize() {
+            return this.fabric?.getWidth() || 0;
+        }
+
+        getGridStep(size = this.getGridCanvasSize()) {
+            return size > 0 ? size / TacticsCanvas.GRID_DIVISIONS : 0;
+        }
+
+        getGridLineCanvasCoord(index, size = this.getGridCanvasSize()) {
+            if (index <= 0) return 0;
+            if (index >= TacticsCanvas.GRID_DIVISIONS) return size;
+            return this.getGridStep(size) * index;
+        }
+
+        getGridCellFromPointer(pointer) {
+            const size = this.getGridCanvasSize();
+            if (!pointer || size <= 0) return null;
+
+            const step = this.getGridStep(size);
+            if (step <= 0) return null;
+
+            return {
+                col: Math.min(TacticsCanvas.GRID_DIVISIONS - 1, Math.max(0, Math.floor(pointer.x / step))),
+                row: Math.min(TacticsCanvas.GRID_DIVISIONS - 1, Math.max(0, Math.floor(pointer.y / step))),
+            };
+        }
+
+        getCellFlashDuration() {
+            const settings = this.getToolSettings();
+            const ms = Number(settings.cellFlashDuration);
+            if (!Number.isFinite(ms)) {
+                return TacticsCanvas.DEFAULT_CELL_FLASH_MS;
+            }
+            return Math.round(Math.max(400, Math.min(4000, ms)));
+        }
+
+        getCellOverlaySize() {
+            const layer = this.cellFlashesLayerEl;
+            if (layer?.clientWidth > 0 && layer?.clientHeight > 0) {
+                return {
+                    width: layer.clientWidth,
+                    height: layer.clientHeight,
+                };
+            }
+            return this.getOverlaySize();
+        }
+
+        getCellFlashOverlayRect(col, row) {
+            const { width, height } = this.getCellOverlaySize();
+            if (width <= 0 || height <= 0) {
+                return { left: 0, top: 0, width: 0, height: 0 };
+            }
+
+            const divisions = TacticsCanvas.GRID_DIVISIONS;
+            const left = Math.round((col * width) / divisions);
+            const top = Math.round((row * height) / divisions);
+            const right = Math.round(((col + 1) * width) / divisions);
+            const bottom = Math.round(((row + 1) * height) / divisions);
+            return {
+                left,
+                top,
+                width: Math.max(1, right - left),
+                height: Math.max(1, bottom - top),
+            };
+        }
+
+        playCellFlash(col, row, color) {
+            this.ensureCellFlashesLayer();
+            if (!this.cellFlashesLayerEl) return null;
+
+            const cellRect = this.getCellFlashOverlayRect(col, row);
+            if (cellRect.width <= 0 || cellRect.height <= 0) return null;
+
+            const durationMs = this.getCellFlashDuration();
+
+            const flash = document.createElement('div');
+            flash.className = 'tactics-cell-flash';
+            flash.style.setProperty('--cell-flash-color', String(color || '#ff4444'));
+            flash.style.setProperty('--cell-flash-duration', `${durationMs}ms`);
+            flash.style.left = `${cellRect.left}px`;
+            flash.style.top = `${cellRect.top}px`;
+            flash.style.width = `${cellRect.width}px`;
+            flash.style.height = `${cellRect.height}px`;
+
+            this.cellFlashesLayerEl.appendChild(flash);
+
+            const cleanup = () => {
+                if (flash.isConnected) flash.remove();
+            };
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                flash.style.opacity = '0.45';
+                window.setTimeout(cleanup, durationMs);
+                return flash;
+            }
+
+            flash.addEventListener('animationend', cleanup, { once: true });
+            window.setTimeout(cleanup, durationMs + 80);
+            return flash;
+        }
+
+        fireCellFlashAtPointer(pointer) {
+            const cell = this.getGridCellFromPointer(pointer);
+            if (!cell) return;
+
+            const payload = {
+                col: cell.col,
+                row: cell.row,
+                color: this.getStrokeColor(),
+            };
+            this.playCellFlash(payload.col, payload.row, payload.color);
+            if (this.slideId) {
+                this.onOp({
+                    op: 'cell',
+                    slideId: this.slideId,
+                    payload,
+                });
             }
         }
 
@@ -262,7 +487,7 @@
                 layer.setAttribute('aria-hidden', 'true');
                 this.rulerLayerEl = layer;
             }
-            root.appendChild(this.rulerLayerEl);
+            this.mountOverlayLayer(this.rulerLayerEl, root);
         }
 
         clearRuler() {
@@ -311,6 +536,7 @@
         updateMapScaleInfo() {
             const el = document.getElementById('tacticsMapScale');
             if (!el) return;
+            const wasHidden = el.hidden;
             const i18n = window.AbsTacticsI18n;
             const len = this.mapSideLength;
             if (len && len > 0) {
@@ -321,6 +547,9 @@
             } else {
                 el.textContent = '';
                 el.hidden = true;
+            }
+            if (this.fabric && wasHidden !== el.hidden) {
+                this.scheduleResize();
             }
         }
 
@@ -365,49 +594,96 @@
             `;
         }
 
-        static PING_HOLD_MS = 100;
+        static PING_HOLD_MS = Math.round(1000 / 6);
+        static DEFAULT_PING_SIZE = 70;
+        static DEFAULT_PING_STROKE_WIDTH = 6;
+        static PING_RING_ANIMATION_MS = 900;
 
-        pingSizePx(width) {
-            const strokeWidth = Math.max(2, Math.min(16, Number(width) || TacticsCanvas.DEFAULT_STROKE_WIDTH));
+        pingSizePx(size) {
+            const value = Number(size);
+            if (Number.isFinite(value) && value >= 24) {
+                return Math.round(Math.max(24, Math.min(140, value)));
+            }
+            const strokeWidth = Math.max(2, Math.min(16, Number(size) || TacticsCanvas.DEFAULT_STROKE_WIDTH));
             return Math.round(strokeWidth * 10);
         }
 
-        playPing(nx, ny, color, width) {
+        getPingSize() {
+            const settings = this.getToolSettings();
+            const size = settings.pingSize ?? TacticsCanvas.DEFAULT_PING_SIZE;
+            return this.pingSizePx(size);
+        }
+
+        pingStrokePx(strokeWidth) {
+            const value = Number(strokeWidth);
+            if (!Number.isFinite(value)) {
+                return TacticsCanvas.DEFAULT_PING_STROKE_WIDTH;
+            }
+            return Math.round(Math.max(1, Math.min(12, value)));
+        }
+
+        getPingStrokeWidth() {
+            const settings = this.getToolSettings();
+            return this.pingStrokePx(settings.pingStrokeWidth ?? TacticsCanvas.DEFAULT_PING_STROKE_WIDTH);
+        }
+
+        startPingRingAnimation(ring, pingEl) {
+            if (!ring || !pingEl) return;
+
+            const duration = TacticsCanvas.PING_RING_ANIMATION_MS;
+            const cleanup = () => {
+                if (pingEl.isConnected) pingEl.remove();
+            };
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                ring.style.opacity = '0.55';
+                ring.style.transform = 'scale(0.85)';
+                window.setTimeout(cleanup, duration);
+                return;
+            }
+
+            const anim = ring.animate(
+                [
+                    { transform: 'scale(0.15)', opacity: 0.9 },
+                    { opacity: 0.4, offset: 0.7 },
+                    { transform: 'scale(1)', opacity: 0 },
+                ],
+                {
+                    duration,
+                    easing: 'ease-out',
+                    fill: 'forwards',
+                },
+            );
+
+            anim.onfinish = cleanup;
+            window.setTimeout(cleanup, duration + 120);
+        }
+
+        playPing(nx, ny, color, size, strokeWidth) {
             this.ensurePingsLayer();
             const { width: overlayW, height: overlayH } = this.getOverlaySize();
-            if (!this.pingsLayerEl || overlayW <= 0 || overlayH <= 0) return;
+            if (!this.pingsLayerEl || overlayW <= 0 || overlayH <= 0) return null;
 
             const x = Math.max(0, Math.min(1, Number(nx) || 0));
             const y = Math.max(0, Math.min(1, Number(ny) || 0));
             const pingColor = String(color || '#ff4444');
-            const sizePx = this.pingSizePx(width);
+            const sizePx = this.pingSizePx(size);
+            const strokePx = this.pingStrokePx(strokeWidth);
 
             const ping = document.createElement('div');
             ping.className = 'tactics-ping';
             ping.style.setProperty('--ping-color', pingColor);
             ping.style.setProperty('--ping-size', `${sizePx}px`);
+            ping.style.setProperty('--ping-stroke', `${strokePx}px`);
             ping.style.transform = `translate(${Math.round(x * overlayW)}px, ${Math.round(y * overlayH)}px)`;
 
-            ['', ' tactics-ping__ring--delay-1', ' tactics-ping__ring--delay-2'].forEach((delayClass) => {
-                const ring = document.createElement('span');
-                ring.className = `tactics-ping__ring${delayClass}`;
-                ping.appendChild(ring);
-            });
-
-            const tick = document.createElement('span');
-            tick.className = 'tactics-ping__tick';
-            ['n', 's', 'e', 'w'].forEach((dir) => {
-                const line = document.createElement('span');
-                line.className = `tactics-ping__tick-line tactics-ping__tick-line--${dir}`;
-                tick.appendChild(line);
-            });
-            ping.appendChild(tick);
+            const ring = document.createElement('span');
+            ring.className = 'tactics-ping__ring';
+            ping.appendChild(ring);
 
             this.pingsLayerEl.appendChild(ping);
-            requestAnimationFrame(() => {
-                ping.classList.add('is-animate');
-            });
-            setTimeout(() => ping.remove(), 1000);
+            this.startPingRingAnimation(ring, ping);
+            return ping;
         }
 
         firePingAtPointer(pointer) {
@@ -415,13 +691,16 @@
             const w = this.fabric.getWidth();
             const h = this.fabric.getHeight();
             if (w <= 0 || h <= 0) return;
+            const pingSize = this.getPingSize();
+            const pingStroke = this.getPingStrokeWidth();
             const payload = {
                 x: pointer.x / w,
                 y: pointer.y / h,
                 color: this.getStrokeColor(),
-                width: this.getStrokeWidth(),
+                width: pingSize,
+                stroke: pingStroke,
             };
-            this.playPing(payload.x, payload.y, payload.color, payload.width);
+            this.playPing(payload.x, payload.y, payload.color, payload.width, payload.stroke);
             if (this.slideId) {
                 this.onOp({
                     op: 'ping',
@@ -460,6 +739,108 @@
             window.addEventListener('mouseup', () => this.stopPingHold());
         }
 
+        shouldIgnoreCanvasHotkey(ev) {
+            const target = ev?.target;
+            if (!target) return false;
+            const tag = target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+            if (target.isContentEditable) return true;
+
+            const active = this.fabric?.getActiveObject();
+            if (active?.isEditing) return true;
+            return false;
+        }
+
+        getSelectedDrawingTargets() {
+            if (!this.fabric || !this.canMoveObjects()) return [];
+
+            const active = this.fabric.getActiveObject();
+            if (!active) return [];
+
+            const selected = active.type === 'activeSelection'
+                ? active.getObjects()
+                : [active];
+
+            return selected.filter((obj) => obj && !this.isPreviewObject(obj) && !obj.isBackground);
+        }
+
+        deleteSelectedObjects() {
+            if (!this.fabric || !this.canMoveObjects()) return;
+
+            const targets = this.getSelectedDrawingTargets();
+            if (!targets.length) return;
+
+            const targetSet = new Set(targets);
+            const toRemove = targets.filter((obj) => {
+                if ((obj.tacticsArrowHead || obj.tacticsBarEnd) && obj.tacticsParent && targetSet.has(obj.tacticsParent)) {
+                    return false;
+                }
+                return true;
+            });
+
+            this.isRemote = true;
+            toRemove.forEach((target) => {
+                if (target.tacticsType === 'line') {
+                    this.removeAttachedArrowHeads(target);
+                }
+                this.fabric.remove(target);
+            });
+            this.isRemote = false;
+
+            this.fabric.discardActiveObject();
+            this.fabric.requestRenderAll();
+            this.pushHistory();
+            this.onChange();
+            if (this.slideId) {
+                this.onOp({
+                    op: 'full',
+                    slideId: this.slideId,
+                    payload: this.exportDrawingsJson(),
+                });
+            }
+        }
+
+        bindDeleteKey() {
+            if (this.deleteKeyBound) return;
+            this.deleteKeyBound = true;
+
+            window.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+                if (!this.fabric || !this.canMoveObjects()) return;
+                if (this.shouldIgnoreCanvasHotkey(ev)) return;
+                if (!this.getSelectedDrawingTargets().length) return;
+
+                ev.preventDefault();
+                this.deleteSelectedObjects();
+            });
+        }
+
+        bindUndoRedoKeys() {
+            if (this.undoKeyBound) return;
+            this.undoKeyBound = true;
+
+            window.addEventListener('keydown', (ev) => {
+                if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+                if (!this.fabric || !this.drawEnabled) return;
+                if (this.shouldIgnoreCanvasHotkey(ev)) return;
+
+                const isUndo = ev.code === 'KeyZ' && !ev.shiftKey;
+                const isRedo = (ev.code === 'KeyZ' && ev.shiftKey) || ev.code === 'KeyY';
+                if (!isUndo && !isRedo) return;
+
+                if (isUndo) {
+                    if (this.historyIndex <= 0) return;
+                    ev.preventDefault();
+                    void this.undo();
+                    return;
+                }
+
+                if (this.historyIndex >= this.history.length - 1) return;
+                ev.preventDefault();
+                void this.redo();
+            }, true);
+        }
+
         bindCursorTracking() {
             const wrap = this.getStackEl() || this.getWrapEl();
             if (!wrap || wrap.dataset.cursorBound) return;
@@ -478,6 +859,22 @@
 
             wrap.addEventListener('mouseleave', () => {
                 this.queueCursorSend(0, 0, false);
+            });
+        }
+
+        bindContextMenuBlock() {
+            const stack = this.getStackEl();
+            if (!stack || stack.dataset.contextMenuBound) return;
+            stack.dataset.contextMenuBound = '1';
+
+            stack.addEventListener('contextmenu', (ev) => {
+                ev.preventDefault();
+            });
+            stack.addEventListener('mousedown', (ev) => {
+                if (ev.button === 2) ev.preventDefault();
+            });
+            stack.addEventListener('auxclick', (ev) => {
+                if (ev.button === 2) ev.preventDefault();
             });
         }
 
@@ -777,6 +1174,13 @@
             return this.drawEnabled && this.tool === 'select';
         }
 
+        isTextObject(obj) {
+            if (!obj || obj.isBackground || obj.isGridLine || obj.isDrawingPreview) {
+                return false;
+            }
+            return obj.tacticsType === 'text' || obj.type === 'i-text' || obj.type === 'textbox';
+        }
+
         static LABEL_LEFT = 28;
         static LABEL_TOP = 24;
         static LABEL_GAP = 4;
@@ -818,11 +1222,18 @@
             if (!mapColumn) return 640;
 
             const columnRect = mapColumn.getBoundingClientRect();
-            let measureWidth = columnRect?.width || 0;
-            if (measureWidth <= 0) return null;
+            const measureWidth = columnRect?.width || 0;
+            const measureHeight = columnRect?.height || 0;
+            if (measureWidth <= 0 || measureHeight <= 0) return null;
 
             const labelsW = TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP;
-            const size = Math.floor(measureWidth - labelsW);
+            const labelsH = TacticsCanvas.LABEL_TOP + TacticsCanvas.LABEL_GAP;
+            const scaleEl = document.getElementById('tacticsMapScale');
+            const scaleExtra = (scaleEl && !scaleEl.hidden) ? scaleEl.offsetHeight + 6 : 0;
+
+            const maxW = measureWidth - labelsW;
+            const maxH = measureHeight - labelsH - scaleExtra;
+            const size = Math.floor(Math.min(maxW, maxH));
             return Math.max(300, size);
         }
 
@@ -833,6 +1244,25 @@
                 this.resize();
                 requestAnimationFrame(() => this.resize());
             });
+        }
+
+        setMapViewportLoading(loading) {
+            const grid = this.getMapGridEl();
+            if (grid) {
+                grid.classList.toggle('is-map-loading', loading);
+            }
+        }
+
+        async ensureCanvasLayout(maxFrames = 8) {
+            if (!this.fabric) return;
+            for (let i = 0; i < maxFrames; i += 1) {
+                if (this.getSquareSize()) {
+                    this.resize();
+                    return;
+                }
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
+            this.resize();
         }
 
         syncFabricContainer(size) {
@@ -894,12 +1324,11 @@
             }
 
             const size = this.fabric.getWidth();
-            const step = size / 10;
             const stroke = 'rgba(100, 140, 175, 0.42)';
             const newLines = [];
 
-            for (let i = 1; i < 10; i += 1) {
-                const p = Math.round(step * i) + 0.5;
+            for (let i = 1; i < TacticsCanvas.GRID_DIVISIONS; i += 1) {
+                const p = this.getGridLineCanvasCoord(i, size);
                 newLines.push(new fabric.Line([p, 0, p, size], {
                     stroke,
                     strokeWidth: 1,
@@ -1043,9 +1472,11 @@
             const readonly = !this.drawEnabled;
             const canMove = this.canMoveObjects();
             const canErase = this.drawEnabled && this.tool === 'eraser';
+            const canEditText = this.drawEnabled && this.tool === 'text';
             const canPing = this.tool === 'ping';
             const canRuler = this.tool === 'ruler';
-            const canOverlayTool = canPing || canRuler;
+            const canCell = this.tool === 'cell';
+            const canOverlayTool = canPing || canRuler || canCell;
             this.fabric.selection = canMove;
             this.fabric.skipTargetFind = (readonly && !canOverlayTool) || canOverlayTool;
 
@@ -1059,9 +1490,10 @@
                     this.applyBackgroundLock(obj);
                     return;
                 }
-                const isEditingText = obj.type === 'i-text' && obj.isEditing;
+                const isTextObj = this.isTextObject(obj);
+                const isEditingText = (obj.type === 'i-text' || obj.type === 'textbox') && obj.isEditing;
                 obj.selectable = canMove || isEditingText;
-                obj.evented = canMove || canErase || isEditingText;
+                obj.evented = canMove || canErase || isEditingText || (canEditText && isTextObj);
                 obj.lockMovementX = !canMove;
                 obj.lockMovementY = !canMove;
                 obj.lockScalingX = !canMove;
@@ -1083,10 +1515,13 @@
             wrap?.classList.toggle('tactics-canvas-wrap--eraser', canErase);
             wrap?.classList.toggle('tactics-canvas-wrap--ping', canPing);
             wrap?.classList.toggle('tactics-canvas-wrap--ruler', canRuler);
+            wrap?.classList.toggle('tactics-canvas-wrap--cell', canCell);
 
             if (this.fabric.upperCanvasEl) {
                 this.fabric.upperCanvasEl.style.pointerEvents = (readonly && !canOverlayTool) ? 'none' : '';
-                if (canOverlayTool) {
+                if (canCell) {
+                    this.fabric.upperCanvasEl.style.cursor = 'pointer';
+                } else if (canPing || canRuler) {
                     this.fabric.upperCanvasEl.style.cursor = 'crosshair';
                 } else if (readonly) {
                     this.fabric.upperCanvasEl.style.cursor = 'default';
@@ -1100,7 +1535,9 @@
             if (this.fabric) {
                 if (canErase) {
                     this.fabric.defaultCursor = TacticsCanvas.getEraserCursor();
-                } else if (canOverlayTool) {
+                } else if (canCell) {
+                    this.fabric.defaultCursor = 'pointer';
+                } else if (canPing || canRuler) {
                     this.fabric.defaultCursor = 'crosshair';
                 } else {
                     this.fabric.defaultCursor = 'default';
@@ -1112,10 +1549,6 @@
             this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
                 btn.addEventListener('click', () => {
                     const tool = btn.getAttribute('data-tool');
-                    if (tool === 'image') {
-                        this.imageUploadEl?.click();
-                        return;
-                    }
                     this.setTool(tool);
                 });
             });
@@ -1127,16 +1560,27 @@
             document.getElementById('tacticsShareCursorBtn')?.addEventListener('click', () => this.toggleShareMyCursor());
 
             this.strokeColorEl?.addEventListener('input', () => {
-                this.syncBrushFromColor();
-                this.updatePaletteSwatches();
-                this.saveToolPrefs();
+                this.applyStrokeColor(this.getStrokeColor(), { selectCustom: true });
             });
             this.strokeWidthEl?.addEventListener('input', () => {
-                if (this.fabric?.isDrawingMode && this.fabric.freeDrawingBrush) {
-                    this.fabric.freeDrawingBrush.width = this.getStrokeWidth();
-                }
+                this.syncFreeDrawingBrushStyles();
+                this.updateStrokeWidthLabel();
                 this.saveToolPrefs();
             });
+            window.AbsTacticsToolSettings?.onChange(() => {
+                this.syncFreeDrawingBrushStyles();
+                if (this.linePreview?.line) {
+                    this.applyStrokeStyle(this.linePreview.line);
+                }
+                if (this.shapePreview) {
+                    this.applyStrokeStyle(this.shapePreview);
+                }
+                if (this.polygonPreview) {
+                    this.applyStrokeStyle(this.polygonPreview);
+                }
+                this.fabric?.requestRenderAll();
+            });
+            this.updateToolContext();
 
             this.imageUploadEl?.addEventListener('change', (ev) => {
                 const file = ev.target.files?.[0];
@@ -1145,49 +1589,228 @@
             });
         }
 
+        getCustomSwatchEl() {
+            return document.getElementById('tacticsCustomColorSwatch')
+                || document.querySelector('.tactics-palette-swatch[data-custom]');
+        }
+
+        updateCustomSwatch(color) {
+            const el = this.getCustomSwatchEl();
+            if (!el || !color) return;
+            el.style.setProperty('--swatch-color', color);
+            el.setAttribute('data-color', color);
+        }
+
+        static rgbToHex(r, g, b) {
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        static normalizeHexColor(color) {
+            const value = String(color || '').trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(value)) return value.toLowerCase();
+            return null;
+        }
+
+        static hexToHue(hex) {
+            const normalized = TacticsCanvas.normalizeHexColor(hex);
+            if (!normalized) return 0;
+            const r = parseInt(normalized.slice(1, 3), 16) / 255;
+            const g = parseInt(normalized.slice(3, 5), 16) / 255;
+            const b = parseInt(normalized.slice(5, 7), 16) / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            if (max === min) return 0;
+            const d = max - min;
+            let h = 0;
+            if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+            else if (max === g) h = ((b - r) / d + 2) * 60;
+            else h = ((r - g) / d + 4) * 60;
+            return Math.round(h);
+        }
+
+        normalizeFabricColor(color) {
+            if (!color || color === 'transparent') return null;
+            if (typeof color === 'string') {
+                return TacticsCanvas.normalizeHexColor(color);
+            }
+            if (typeof color?.toHex === 'function') {
+                return TacticsCanvas.normalizeHexColor(`#${color.toHex()}`);
+            }
+            return null;
+        }
+
+        syncHueSliderFromColor(color) {
+            if (!this.hueSliderEl) return;
+            this.hueSliderEl.value = String(TacticsCanvas.hexToHue(color));
+        }
+
+        applyStrokeColor(color, options = {}) {
+            const hex = TacticsCanvas.normalizeHexColor(color);
+            if (!hex || !this.strokeColorEl) return;
+
+            this.strokeColorEl.value = hex;
+            if (options.selectCustom === true) {
+                this.updateCustomSwatch(hex);
+                this.syncHueSliderFromColor(hex);
+            }
+            this.syncBrushFromColor();
+            this.updatePaletteSwatches();
+            this.saveToolPrefs();
+        }
+
+        restorePaletteUi() {
+            this.syncBrushFromColor();
+            this.updatePaletteSwatches();
+        }
+
+        resetStrokeColor() {
+            this.applyStrokeColor(TacticsCanvas.DEFAULT_STROKE_COLOR);
+        }
+
+        sampleColorFromObject(domEvent) {
+            if (!this.fabric || !domEvent) return null;
+            const target = this.fabric.findTarget(domEvent, false);
+            if (!target || target.isGridLine) return null;
+
+            if (!target.isBackground) {
+                const stroke = this.normalizeFabricColor(target.stroke);
+                if (stroke) return stroke;
+                const fill = this.normalizeFabricColor(target.fill);
+                if (fill) return fill;
+            }
+
+            return null;
+        }
+
+        sampleColorFromCanvas(domEvent) {
+            const canvas = this.fabric?.lowerCanvasEl;
+            if (!canvas || !domEvent) return null;
+
+            const rect = canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return null;
+
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.floor((domEvent.clientX - rect.left) * scaleX);
+            const y = Math.floor((domEvent.clientY - rect.top) * scaleY);
+
+            try {
+                const ctx = canvas.getContext('2d');
+                const data = ctx.getImageData(x, y, 1, 1).data;
+                if (data[3] === 0) return null;
+                return TacticsCanvas.rgbToHex(data[0], data[1], data[2]);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        sampleColorFromBackground(pointer) {
+            const img = this.bgImageEl;
+            const bg = this.fabric?.getObjects().find((o) => o.isBackground);
+            if (!img || !bg || !img.width || !img.height || !pointer) return null;
+
+            try {
+                const bounds = bg.getBoundingRect();
+                if (pointer.x < bounds.left || pointer.y < bounds.top
+                    || pointer.x > bounds.left + bounds.width
+                    || pointer.y > bounds.top + bounds.height) {
+                    return null;
+                }
+
+                const relX = (pointer.x - bounds.left) / bounds.width;
+                const relY = (pointer.y - bounds.top) / bounds.height;
+                const px = Math.min(img.width - 1, Math.max(0, Math.floor(relX * img.width)));
+                const py = Math.min(img.height - 1, Math.max(0, Math.floor(relY * img.height)));
+                const off = document.createElement('canvas');
+                off.width = 1;
+                off.height = 1;
+                const ctx = off.getContext('2d');
+                ctx.drawImage(img, px, py, 1, 1, 0, 0, 1, 1);
+                const data = ctx.getImageData(0, 0, 1, 1).data;
+                return TacticsCanvas.rgbToHex(data[0], data[1], data[2]);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        sampleColorAtPointer(pointer, domEvent) {
+            return this.sampleColorFromObject(domEvent)
+                || this.sampleColorFromCanvas(domEvent)
+                || this.sampleColorFromBackground(pointer);
+        }
+
+        supportsScreenEyeDropper() {
+            return typeof window.EyeDropper === 'function';
+        }
+
+        setEyedropperActive(active) {
+            this.eyedropperActive = !!active;
+            document.getElementById('tacticsEyedropperBtn')?.classList.toggle('is-active', this.eyedropperActive);
+            this.getWrapEl()?.classList.toggle('tactics-canvas-wrap--eyedropper', this.eyedropperActive);
+        }
+
+        async pickColorFromScreen() {
+            if (this.supportsScreenEyeDropper()) {
+                if (this.eyedropperPickInFlight) return;
+                this.eyedropperPickInFlight = true;
+                this.setEyedropperActive(true);
+                try {
+                    const dropper = new window.EyeDropper();
+                    const result = await dropper.open();
+                    const hex = TacticsCanvas.normalizeHexColor(result?.sRGBHex);
+                    if (hex) {
+                        this.applyStrokeColor(hex, { selectCustom: true });
+                    }
+                } catch (e) {
+                    // AbortError — пользователь отменил выбор
+                } finally {
+                    this.eyedropperPickInFlight = false;
+                    this.setEyedropperActive(false);
+                }
+                return;
+            }
+
+            const next = !this.eyedropperActive;
+            this.setEyedropperActive(next);
+            if (next) {
+                this.setTool('select');
+            }
+        }
+
         bindPalette() {
             document.querySelectorAll('.tactics-palette-swatch').forEach((btn) => {
                 btn.addEventListener('click', () => {
                     const color = btn.getAttribute('data-color');
-                    if (color && this.strokeColorEl) {
-                        this.strokeColorEl.value = color;
-                        this.syncBrushFromColor();
-                        this.updatePaletteSwatches();
-                        this.saveToolPrefs();
+                    if (!color) return;
+                    if (btn.dataset.custom === '1') {
+                        this.applyStrokeColor(color, { selectCustom: true });
+                        return;
                     }
+                    this.applyStrokeColor(color);
                 });
             });
 
             this.hueSliderEl?.addEventListener('input', () => {
                 const hue = parseInt(this.hueSliderEl.value, 10) || 0;
                 const color = TacticsCanvas.hslToHex(hue, 100, 50);
-                if (this.strokeColorEl) {
-                    this.strokeColorEl.value = color;
-                    this.syncBrushFromColor();
-                    this.updatePaletteSwatches();
-                    this.saveToolPrefs();
-                }
+                this.applyStrokeColor(color, { selectCustom: true });
             });
 
-            document.getElementById('tacticsSwapColorsBtn')?.addEventListener('click', () => {
-                if (!this.strokeColorEl || !this.secondaryColorEl) return;
-                const a = this.strokeColorEl.value;
-                this.strokeColorEl.value = this.secondaryColorEl.value;
-                this.secondaryColorEl.value = a;
-                this.syncBrushFromColor();
-                this.updatePaletteSwatches();
-                this.saveToolPrefs();
+            document.getElementById('tacticsResetColorBtn')?.addEventListener('click', () => {
+                this.resetStrokeColor();
             });
 
             document.getElementById('tacticsEyedropperBtn')?.addEventListener('click', () => {
-                this.eyedropperActive = !this.eyedropperActive;
-                document.getElementById('tacticsEyedropperBtn')?.classList.toggle('is-active', this.eyedropperActive);
-                if (this.eyedropperActive) {
-                    this.setTool('select');
-                }
+                void this.pickColorFromScreen();
             });
 
-            this.updatePaletteSwatches();
+            if (!this.toolPrefsUnloadBound) {
+                this.toolPrefsUnloadBound = true;
+                window.addEventListener('pagehide', () => this.saveToolPrefs());
+            }
+
+            this.restorePaletteUi();
         }
 
         static hslToHex(h, s, l) {
@@ -1209,17 +1832,51 @@
             return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         }
 
+        getStrokeLineCap() {
+            const lineType = this.getToolSettings().lineType || 'solid';
+            return lineType === 'dotted' ? 'butt' : 'round';
+        }
+
+        applyStrokeStyle(obj) {
+            if (!obj) return;
+            const dash = this.getStrokeDashArray();
+            obj.set({
+                strokeDashArray: dash || null,
+                strokeLineCap: this.getStrokeLineCap(),
+            });
+        }
+
+        syncFreeDrawingBrushStyles() {
+            const brush = this.fabric?.freeDrawingBrush;
+            if (!brush) return;
+            brush.color = this.getStrokeColor();
+            brush.width = this.getStrokeWidth();
+            brush.strokeDashArray = this.getStrokeDashArray();
+            brush.strokeLineCap = this.getStrokeLineCap();
+        }
+
         syncBrushFromColor() {
-            if (this.fabric?.isDrawingMode && this.fabric.freeDrawingBrush) {
-                this.fabric.freeDrawingBrush.color = this.getStrokeColor();
-            }
+            this.syncFreeDrawingBrushStyles();
         }
 
         updatePaletteSwatches() {
             const current = (this.getStrokeColor() || '').toLowerCase();
-            document.querySelectorAll('.tactics-palette-swatch').forEach((btn) => {
+            const swatches = Array.from(document.querySelectorAll('.tactics-palette-swatch'));
+            const presetMatch = swatches.find((btn) => btn.dataset.custom !== '1'
+                && (btn.getAttribute('data-color') || '').toLowerCase() === current);
+
+            swatches.forEach((btn) => {
+                const isCustom = btn.dataset.custom === '1';
                 const color = (btn.getAttribute('data-color') || '').toLowerCase();
-                btn.classList.toggle('is-active', color === current);
+                let active = false;
+                if (presetMatch) {
+                    active = btn === presetMatch;
+                } else if (isCustom) {
+                    active = true;
+                } else {
+                    active = color === current;
+                }
+                btn.classList.toggle('is-active', active);
             });
         }
 
@@ -1389,13 +2046,49 @@
             reader.readAsDataURL(file);
         }
 
+        setInteractionLocked(locked) {
+            this.interactionLocked = !!locked;
+            if (!this.interactionLocked) {
+                this.setDrawEnabled(this.drawEnabled);
+                return;
+            }
+            const strictDisabled = this.interactionLocked;
+
+            this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
+                btn.disabled = strictDisabled;
+                btn.classList.toggle('is-disabled', strictDisabled);
+            });
+            document.querySelectorAll('.tactics-palette-swatch, .tactics-palette-action-btn, .tactics-hue-slider, #tacticsStrokeWidth, #tacticsStrokeWidthShape, #tacticsFontSize, #tacticsShapeFilled, #tacticsShapeFillOpacity, #tacticsIconLabel, #tacticsIconSize, #tacticsIconLabelSize, #tacticsPingSize, #tacticsPingStrokeWidth, #tacticsCellFlashDuration, .tactics-option-btn, .tactics-icon-grid__btn')
+                .forEach((el) => {
+                    el.disabled = strictDisabled;
+                    el.classList.toggle('is-disabled', strictDisabled);
+                });
+            ['tacticsUndoBtn', 'tacticsRedoBtn', 'tacticsClearBtn'].forEach((id) => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.disabled = strictDisabled || !this.drawEnabled;
+                btn.classList.toggle('is-disabled', btn.disabled);
+            });
+
+            if (strictDisabled) {
+                this.stopPingHold();
+                if (this.tool !== 'select') {
+                    this.setTool('select');
+                }
+                this.fabric?.discardActiveObject();
+            }
+
+            this.syncInteractionState();
+            this.fabric?.requestRenderAll();
+        }
+
         setDrawEnabled(enabled) {
             this.drawEnabled = !!enabled;
             const disabled = !this.drawEnabled;
 
             this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
                 const tool = btn.getAttribute('data-tool');
-                const alwaysOn = tool === 'select' || tool === 'ping' || tool === 'ruler';
+                const alwaysOn = tool === 'select' || tool === 'cell' || tool === 'ping' || tool === 'ruler';
                 btn.disabled = disabled && !alwaysOn;
                 btn.classList.toggle('is-disabled', disabled && !alwaysOn);
             });
@@ -1419,7 +2112,7 @@
                 this.clearLinePreview();
                 this.lineStart = null;
                 this.fabric.discardActiveObject();
-                if (this.tool !== 'select' && this.tool !== 'ping' && this.tool !== 'ruler') {
+                if (this.tool !== 'select' && this.tool !== 'cell' && this.tool !== 'ping' && this.tool !== 'ruler') {
                     this.setTool('select');
                 }
             }
@@ -1428,13 +2121,15 @@
         }
 
         setTool(tool) {
-            if (!this.drawEnabled && tool !== 'select' && tool !== 'ping' && tool !== 'ruler') return;
+            if (this.interactionLocked) return;
+            if (!this.drawEnabled && tool !== 'select' && tool !== 'cell' && tool !== 'ping' && tool !== 'ruler') return;
             this.stopPingHold();
             if (tool !== 'ruler') {
                 this.clearRuler();
             }
             this.clearLinePreview();
             this.clearShapePreview();
+            this.clearPolygonPreview();
             this.shapeStart = null;
             this.polygonPoints = [];
             this.lineStart = null;
@@ -1442,6 +2137,7 @@
             this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
                 btn.classList.toggle('is-active', btn.getAttribute('data-tool') === this.tool);
             });
+            this.updateToolContext();
             if (!this.fabric) return;
 
             this.fabric.isDrawingMode = this.drawEnabled && this.tool === 'pen';
@@ -1449,8 +2145,7 @@
 
             if (this.fabric.isDrawingMode) {
                 this.fabric.freeDrawingBrush = new fabric.PencilBrush(this.fabric);
-                this.fabric.freeDrawingBrush.color = this.getStrokeColor();
-                this.fabric.freeDrawingBrush.width = this.getStrokeWidth();
+                this.syncFreeDrawingBrushStyles();
             }
         }
 
@@ -1463,6 +2158,145 @@
                 || TacticsCanvas.DEFAULT_STROKE_WIDTH;
         }
 
+        updateStrokeWidthLabel() {
+            const el = document.getElementById('tacticsStrokeWidthValue');
+            if (el && this.strokeWidthEl) {
+                el.textContent = this.strokeWidthEl.value;
+            }
+        }
+
+        getToolSettings() {
+            return window.AbsTacticsToolSettings?.getState() || {};
+        }
+
+        getStrokeDashArray() {
+            const lineType = this.getToolSettings().lineType || 'solid';
+            return window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, this.getStrokeWidth()) || null;
+        }
+
+        getEndType() {
+            return this.getToolSettings().endType || 'none';
+        }
+
+        getArrowHeadLength() {
+            const w = this.getStrokeWidth();
+            return Math.max(10, w * 2.6);
+        }
+
+        getArrowSpread() {
+            const w = this.getStrokeWidth();
+            const headLen = this.getArrowHeadLength();
+            const fromWidth = Math.atan((w * 1.2) / headLen);
+            return Math.max(TacticsCanvas.ARROW_SPREAD, Math.min(Math.PI / 4.5, fromWidth));
+        }
+
+        getBarHalfLength() {
+            const w = this.getStrokeWidth();
+            return Math.max(5, w * 1.35);
+        }
+
+        getLineEndGeometry(x1, y1, tipX, tipY, endType) {
+            const dx = tipX - x1;
+            const dy = tipY - y1;
+            const dist = Math.hypot(dx, dy);
+            const angle = Math.atan2(dy, dx);
+            let bodyX2 = tipX;
+            let bodyY2 = tipY;
+
+            const capPad = this.getStrokeWidth() / 2;
+            if (endType === 'arrow' && dist > 0) {
+                const headLen = this.getArrowHeadLength();
+                const inset = headLen * Math.cos(this.getArrowSpread()) + capPad;
+                if (dist > inset) {
+                    bodyX2 = tipX - inset * Math.cos(angle);
+                    bodyY2 = tipY - inset * Math.sin(angle);
+                }
+            } else if (endType === 'bar' && dist > capPad) {
+                bodyX2 = tipX - capPad * Math.cos(angle);
+                bodyY2 = tipY - capPad * Math.sin(angle);
+            }
+
+            return { bodyX2, bodyY2, tipX, tipY, angle, dist };
+        }
+
+        getShapeFill(color) {
+            const settings = this.getToolSettings();
+            const filled = !!settings.shapeFilled;
+            const opacity = settings.shapeFillOpacity ?? 50;
+            return window.AbsTacticsToolSettings?.getShapeFill(color, filled, opacity) ?? 'transparent';
+        }
+
+        normalizePolygonPoints(points) {
+            if (!points.length) return { points: [], left: 0, top: 0 };
+            const xs = points.map((p) => p.x);
+            const ys = points.map((p) => p.y);
+            const minX = Math.min(...xs);
+            const minY = Math.min(...ys);
+            return {
+                left: minX,
+                top: minY,
+                points: points.map((p) => ({ x: p.x - minX, y: p.y - minY })),
+            };
+        }
+
+        clearPolygonPreview() {
+            if (!this.fabric || !this.polygonPreview) return;
+            this.isRemote = true;
+            this.fabric.remove(this.polygonPreview);
+            this.isRemote = false;
+            this.polygonPreview = null;
+            this.fabric.requestRenderAll();
+        }
+
+        updatePolygonPreview(cursorX, cursorY) {
+            if (!this.fabric || this.tool !== 'polygon' || !this.polygonPoints.length) {
+                this.clearPolygonPreview();
+                return;
+            }
+
+            this.clearPolygonPreview();
+
+            const color = this.getStrokeColor();
+            const strokeWidth = this.getStrokeWidth();
+            const previewPoints = [...this.polygonPoints];
+            if (Number.isFinite(cursorX) && Number.isFinite(cursorY)) {
+                previewPoints.push({ x: cursorX, y: cursorY });
+            }
+
+            if (previewPoints.length < 2) return;
+
+            const normalized = this.normalizePolygonPoints(previewPoints);
+            const shapeOpts = {
+                left: normalized.left,
+                top: normalized.top,
+                fill: previewPoints.length >= 3 ? this.getShapeFill(color) : 'transparent',
+                stroke: color,
+                strokeWidth,
+                selectable: false,
+                evented: false,
+                isDrawingPreview: true,
+            };
+            const shape = previewPoints.length >= 3
+                ? new fabric.Polygon(normalized.points, shapeOpts)
+                : new fabric.Polyline(normalized.points, shapeOpts);
+            this.applyStrokeDash(shape);
+
+            this.polygonPreview = shape;
+            this.isRemote = true;
+            this.fabric.add(shape);
+            this.isRemote = false;
+            this.fabric.requestRenderAll();
+        }
+
+        applyStrokeDash(obj) {
+            this.applyStrokeStyle(obj);
+        }
+
+        updateToolContext() {
+            window.AbsTacticsToolSettings?.showPanel(this.tool);
+            window.AbsTacticsToolSettings?.syncUi();
+        }
+
         isPreviewObject(obj) {
             return !!(obj?.isDrawingPreview || obj?.isGridLine || obj?.isBackground);
         }
@@ -1473,6 +2307,9 @@
             if (this.linePreview.arrowHead) {
                 this.fabric.remove(this.linePreview.arrowHead);
             }
+            if (this.linePreview.barEnd) {
+                this.fabric.remove(this.linePreview.barEnd);
+            }
             if (this.linePreview.line) {
                 this.fabric.remove(this.linePreview.line);
             }
@@ -1481,48 +2318,94 @@
             this.fabric.requestRenderAll();
         }
 
-        buildArrowHeadPolygon(line, options = {}) {
-            const x1 = line.x1;
-            const y1 = line.y1;
-            const x2 = line.x2;
-            const y2 = line.y2;
-            const angle = Math.atan2(y2 - y1, x2 - x1);
-            const headLen = 14;
-            const points = [
-                { x: x2, y: y2 },
+        buildArrowHeadAt(tipX, tipY, angle, options = {}) {
+            const headLen = this.getArrowHeadLength();
+            const spread = this.getArrowSpread();
+            const absPoints = [
+                { x: tipX, y: tipY },
                 {
-                    x: x2 - headLen * Math.cos(angle - Math.PI / 6),
-                    y: y2 - headLen * Math.sin(angle - Math.PI / 6),
+                    x: tipX - headLen * Math.cos(angle - spread),
+                    y: tipY - headLen * Math.sin(angle - spread),
                 },
                 {
-                    x: x2 - headLen * Math.cos(angle + Math.PI / 6),
-                    y: y2 - headLen * Math.sin(angle + Math.PI / 6),
+                    x: tipX - headLen * Math.cos(angle + spread),
+                    y: tipY - headLen * Math.sin(angle + spread),
                 },
             ];
-            return new fabric.Polygon(points, {
+            const normalized = this.normalizePolygonPoints(absPoints);
+            return new fabric.Polygon(normalized.points, {
+                left: normalized.left,
+                top: normalized.top,
                 fill: this.getStrokeColor(),
-                stroke: this.getStrokeColor(),
+                stroke: null,
+                strokeWidth: 0,
+                objectCaching: false,
                 selectable: false,
                 evented: false,
                 ...options,
             });
         }
 
-        syncPreviewArrowHead(line) {
-            if (!this.fabric || !this.linePreview || this.tool !== 'arrow') return;
+        buildArrowHeadPolygon(line, options = {}) {
+            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+            return this.buildArrowHeadAt(line.x2, line.y2, angle, options);
+        }
 
-            if (this.linePreview.arrowHead) {
+        clearPreviewLineEnd() {
+            if (!this.fabric || !this.linePreview) return;
+            ['arrowHead', 'barEnd'].forEach((key) => {
+                if (!this.linePreview[key]) return;
                 this.isRemote = true;
-                this.fabric.remove(this.linePreview.arrowHead);
+                this.fabric.remove(this.linePreview[key]);
                 this.isRemote = false;
-                this.linePreview.arrowHead = null;
-            }
+                this.linePreview[key] = null;
+            });
+        }
 
-            const tri = this.buildArrowHeadPolygon(line);
+        syncPreviewArrowHead(line, tipX, tipY, angle) {
+            if (!this.fabric || !this.linePreview) return;
+            this.clearPreviewLineEnd();
+
+            const tri = this.buildArrowHeadAt(tipX, tipY, angle);
             tri.isDrawingPreview = true;
             this.linePreview.arrowHead = tri;
             this.isRemote = true;
             this.fabric.add(tri);
+            this.isRemote = false;
+        }
+
+        buildBarEndAt(tipX, tipY, angle, options = {}) {
+            const half = this.getBarHalfLength();
+            const perp = angle + Math.PI / 2;
+            return new fabric.Line([
+                tipX - half * Math.cos(perp),
+                tipY - half * Math.sin(perp),
+                tipX + half * Math.cos(perp),
+                tipY + half * Math.sin(perp),
+            ], {
+                stroke: this.getStrokeColor(),
+                strokeWidth: this.getStrokeWidth(),
+                strokeLineCap: 'round',
+                selectable: false,
+                evented: false,
+                ...options,
+            });
+        }
+
+        buildBarEndLine(line, options = {}) {
+            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+            return this.buildBarEndAt(line.x2, line.y2, angle, options);
+        }
+
+        syncPreviewBarEnd(line, tipX, tipY, angle) {
+            if (!this.fabric || !this.linePreview) return;
+            this.clearPreviewLineEnd();
+
+            const bar = this.buildBarEndAt(tipX, tipY, angle);
+            bar.isDrawingPreview = true;
+            this.linePreview.barEnd = bar;
+            this.isRemote = true;
+            this.fabric.add(bar);
             this.isRemote = false;
         }
 
@@ -1540,6 +2423,7 @@
                 evented: false,
                 strokeLineCap: 'round',
             });
+            this.applyStrokeDash(line);
             line.isDrawingPreview = true;
             this.linePreview = { line };
 
@@ -1547,8 +2431,24 @@
             this.fabric.add(line);
             this.isRemote = false;
 
-            if (this.tool === 'arrow') {
-                this.syncPreviewArrowHead(line);
+            this.syncLinePreviewEnds(x, y);
+        }
+
+        syncLinePreviewEnds(tipX, tipY) {
+            const line = this.linePreview?.line;
+            if (!line || !this.fabric) return;
+
+            const endType = this.getEndType();
+            const geom = this.getLineEndGeometry(line.x1, line.y1, tipX, tipY, endType);
+            line.set({ x2: geom.bodyX2, y2: geom.bodyY2 });
+            line.setCoords();
+
+            if (endType === 'arrow') {
+                this.syncPreviewArrowHead(line, geom.tipX, geom.tipY, geom.angle);
+            } else if (endType === 'bar') {
+                this.syncPreviewBarEnd(line, geom.tipX, geom.tipY, geom.angle);
+            } else {
+                this.clearPreviewLineEnd();
             }
         }
 
@@ -1556,12 +2456,7 @@
             const line = this.linePreview?.line;
             if (!line || !this.fabric) return;
 
-            line.set({ x2: x, y2: y });
-            line.setCoords();
-
-            if (this.tool === 'arrow') {
-                this.syncPreviewArrowHead(line);
-            }
+            this.syncLinePreviewEnds(x, y);
 
             this.queueStrokePointBroadcast({ x, y });
             this.fabric.requestRenderAll();
@@ -1583,6 +2478,7 @@
 
             const color = this.getStrokeColor();
             const strokeWidth = this.getStrokeWidth();
+            const fill = this.getShapeFill(color);
             let shape = null;
 
             if (this.tool === 'rect') {
@@ -1591,7 +2487,7 @@
                     top: Math.min(start.y, y),
                     width: Math.abs(x - start.x),
                     height: Math.abs(y - start.y),
-                    fill: 'transparent',
+                    fill,
                     stroke: color,
                     strokeWidth,
                     selectable: false,
@@ -1599,11 +2495,11 @@
                 });
             } else if (this.tool === 'circle') {
                 const radius = Math.hypot(x - start.x, y - start.y) / 2;
-                shape = new fabric.Circle({
+                shape = this.createCircleShape({
                     left: (start.x + x) / 2 - radius,
                     top: (start.y + y) / 2 - radius,
                     radius,
-                    fill: 'transparent',
+                    fill,
                     stroke: color,
                     strokeWidth,
                     selectable: false,
@@ -1612,6 +2508,9 @@
             }
 
             if (!shape) return;
+            if (this.tool !== 'circle') {
+                this.applyStrokeDash(shape);
+            }
             shape.isDrawingPreview = true;
             this.shapePreview = shape;
             this.isRemote = true;
@@ -1630,6 +2529,7 @@
 
             const color = this.getStrokeColor();
             const strokeWidth = this.getStrokeWidth();
+            const fill = this.getShapeFill(color);
             let shape = null;
 
             if (this.tool === 'rect') {
@@ -1638,7 +2538,7 @@
                     top: Math.min(start.y, y),
                     width: Math.abs(x - start.x),
                     height: Math.abs(y - start.y),
-                    fill: 'transparent',
+                    fill,
                     stroke: color,
                     strokeWidth,
                     selectable: false,
@@ -1646,11 +2546,11 @@
                 });
             } else if (this.tool === 'circle') {
                 const radius = Math.hypot(x - start.x, y - start.y) / 2;
-                shape = new fabric.Circle({
+                shape = this.createCircleShape({
                     left: (start.x + x) / 2 - radius,
                     top: (start.y + y) / 2 - radius,
                     radius,
-                    fill: 'transparent',
+                    fill,
                     stroke: color,
                     strokeWidth,
                     selectable: false,
@@ -1659,6 +2559,9 @@
             }
 
             if (!shape) return;
+            if (this.tool !== 'circle') {
+                this.applyStrokeDash(shape);
+            }
             shape.set('tacticsType', this.tool);
             this.ensureTacticsId(shape);
             this.isRemote = true;
@@ -1678,20 +2581,25 @@
         finishPolygon() {
             if (!this.fabric || this.polygonPoints.length < 3) {
                 this.polygonPoints = [];
-                this.clearShapePreview();
+                this.clearPolygonPreview();
                 return;
             }
             const points = this.polygonPoints.map((p) => ({ x: p.x, y: p.y }));
             this.polygonPoints = [];
-            this.clearShapePreview();
+            this.clearPolygonPreview();
 
-            const poly = new fabric.Polygon(points, {
-                fill: 'transparent',
-                stroke: this.getStrokeColor(),
+            const color = this.getStrokeColor();
+            const normalized = this.normalizePolygonPoints(points);
+            const poly = new fabric.Polygon(normalized.points, {
+                left: normalized.left,
+                top: normalized.top,
+                fill: this.getShapeFill(color),
+                stroke: color,
                 strokeWidth: this.getStrokeWidth(),
                 selectable: false,
                 evented: false,
             });
+            this.applyStrokeDash(poly);
             poly.set('tacticsType', 'polygon');
             this.ensureTacticsId(poly);
             this.isRemote = true;
@@ -1721,20 +2629,26 @@
                 return;
             }
 
-            const line = new fabric.Line([start.x, start.y, x, y], {
+            const endType = this.getEndType();
+            const geom = this.getLineEndGeometry(start.x, start.y, x, y, endType);
+            const line = new fabric.Line([start.x, start.y, geom.bodyX2, geom.bodyY2], {
                 stroke: this.getStrokeColor(),
                 strokeWidth: this.getStrokeWidth(),
                 selectable: false,
                 evented: false,
                 strokeLineCap: 'round',
             });
-            line.set('tacticsType', this.tool);
+            this.applyStrokeDash(line);
+            line.set('tacticsType', 'line');
+            line.set('tacticsEndType', endType);
             this.ensureTacticsId(line);
 
             this.isRemote = true;
             this.fabric.add(line);
-            if (this.tool === 'arrow') {
-                this.addArrowHead(line);
+            if (endType === 'arrow') {
+                this.addArrowHeadAt(geom.tipX, geom.tipY, geom.angle, line);
+            } else if (endType === 'bar') {
+                this.addBarEndAt(geom.tipX, geom.tipY, geom.angle, line);
             }
             this.fabric.discardActiveObject();
             this.isRemote = false;
@@ -1764,9 +2678,17 @@
         static EXPORT_PROPS = [
             'tacticsType',
             'tacticsArrowHead',
+            'tacticsBarEnd',
             'tacticsParent',
             'tacticsId',
             'tacticsParentId',
+            'tacticsIconId',
+            'tacticsIconMarker',
+            'tacticsIconLabel',
+            'tacticsIconLabelSize',
+            'tacticsIconLabelPlacement',
+            'tacticsIconSize',
+            'tacticsEndType',
         ];
 
         removeAttachedArrowHeads(parent) {
@@ -1774,7 +2696,7 @@
 
             const parentId = parent.tacticsId;
             this.fabric.getObjects().forEach((obj) => {
-                if (!obj.tacticsArrowHead) return;
+                if (!obj.tacticsArrowHead && !obj.tacticsBarEnd) return;
                 if (obj.tacticsParent === parent || (parentId && obj.tacticsParentId === parentId)) {
                     this.isRemote = true;
                     this.fabric.remove(obj);
@@ -1787,8 +2709,8 @@
             if (!this.fabric || !target || this.isPreviewObject(target)) return;
 
             this.isRemote = true;
-            if (target.tacticsType === 'arrow' || target.tacticsArrowHead) {
-                if (target.tacticsArrowHead && target.tacticsParent) {
+            if (target.tacticsType === 'line' || target.tacticsArrowHead || target.tacticsBarEnd) {
+                if ((target.tacticsArrowHead || target.tacticsBarEnd) && target.tacticsParent) {
                     this.fabric.remove(target);
                 } else {
                     this.removeAttachedArrowHeads(target);
@@ -1812,39 +2734,418 @@
             }
         }
 
-        addArrowHead(line) {
+        addArrowHeadAt(tipX, tipY, angle, line) {
             const parentId = this.ensureTacticsId(line);
-            const tri = this.buildArrowHeadPolygon(line);
+            const tri = this.buildArrowHeadAt(tipX, tipY, angle);
             tri.set('tacticsArrowHead', true);
             tri.set('tacticsParent', line);
             tri.set('tacticsParentId', parentId);
             this.fabric.add(tri);
         }
 
+        addArrowHead(line) {
+            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+            this.addArrowHeadAt(line.x2, line.y2, angle, line);
+        }
+
+        addBarEndAt(tipX, tipY, angle, line) {
+            const parentId = this.ensureTacticsId(line);
+            const bar = this.buildBarEndAt(tipX, tipY, angle);
+            bar.set('tacticsBarEnd', true);
+            bar.set('tacticsParent', line);
+            bar.set('tacticsParentId', parentId);
+            this.fabric.add(bar);
+        }
+
+        addBarEnd(line) {
+            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+            this.addBarEndAt(line.x2, line.y2, angle, line);
+        }
+
+        getMarkerViewBoxSize(markerDef) {
+            const parts = String(markerDef?.viewBox || '0 0 14 18').trim().split(/\s+/).map(Number);
+            return { width: parts[2] || 14, height: parts[3] || 18 };
+        }
+
+        getIconMarkerScale(markerDef, iconSize) {
+            const size = Number.isFinite(iconSize)
+                ? iconSize
+                : (this.getToolSettings().iconSize ?? TacticsCanvas.DEFAULT_ICON_SIZE);
+            if (!markerDef) return 1;
+            const { height } = this.getMarkerViewBoxSize(markerDef);
+            return size / Math.max(1, height);
+        }
+
+        getIconGlyphSize(iconSize, onMarker = false) {
+            const size = Number.isFinite(iconSize)
+                ? iconSize
+                : (this.getToolSettings().iconSize ?? TacticsCanvas.DEFAULT_ICON_SIZE);
+            if (onMarker) {
+                return Math.max(7, Math.round(size * 0.55));
+            }
+            return Math.max(8, Math.round(size));
+        }
+
+        measurePartExtents(part) {
+            if (!part) return { halfW: 8, halfH: 8 };
+
+            part.set({
+                left: 0,
+                top: 0,
+                originX: 'center',
+                originY: 'center',
+            });
+            if (typeof part.initDimensions === 'function') {
+                part.initDimensions();
+            }
+            part.setCoords();
+
+            const rect = part.getBoundingRect(false, true);
+            if (rect.width > 0 && rect.height > 0) {
+                const scale = Math.max(part.scaleX ?? 1, part.scaleY ?? 1);
+                const strokePad = (part.strokeWidth || 0) * scale / 2;
+                return {
+                    halfW: rect.width / 2 + strokePad,
+                    halfH: rect.height / 2 + strokePad,
+                };
+            }
+
+            const scaleY = part.scaleY ?? 1;
+            if (part.fontSize) {
+                const fs = part.fontSize * scaleY;
+                return { halfW: fs / 2 + 1, halfH: fs / 2 + 1 };
+            }
+
+            return { halfW: 8, halfH: 8 };
+        }
+
+        measurePartLabelExtents(part) {
+            const extents = this.measurePartExtents(part);
+            if (part?.type === 'path') {
+                return {
+                    halfW: extents.halfW,
+                    halfH: extents.halfH + TacticsCanvas.ICON_LABEL_MARKER_BODY_EXTRA,
+                };
+            }
+            return extents;
+        }
+
+        getIconLabelGap(bodyPart) {
+            if (bodyPart?.type === 'path') {
+                return TacticsCanvas.ICON_LABEL_GAP + TacticsCanvas.ICON_LABEL_MARKER_GAP_EXTRA;
+            }
+            return TacticsCanvas.ICON_LABEL_GAP;
+        }
+
+        measureIconLabelSize(label, fontSize) {
+            const text = new fabric.Text(label, {
+                fontSize,
+                fontFamily: TacticsCanvas.ICON_LABEL_FONT,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+            });
+            return { width: text.width || 0, height: text.height || fontSize };
+        }
+
+        pickIconLabelSide(preferred, spaceRight, spaceLeft, needHoriz) {
+            if (preferred === 'right' && spaceRight >= needHoriz) return 'right';
+            if (preferred === 'left' && spaceLeft >= needHoriz) return 'left';
+            if (spaceRight >= needHoriz) return 'right';
+            if (spaceLeft >= needHoriz) return 'left';
+            return preferred;
+        }
+
+        resolveIconLabelPlacement(x, y, labelSize, bodyHalfW, bodyHalfH, labelGap = TacticsCanvas.ICON_LABEL_GAP) {
+            const w = this.fabric?.getWidth() || 0;
+            const h = this.fabric?.getHeight() || 0;
+            if (!w || !h) return 'bottom';
+
+            const margin = TacticsCanvas.ICON_LABEL_EDGE_MARGIN;
+            const gap = labelGap;
+            const needVert = bodyHalfH + gap + labelSize.height;
+            const needHoriz = bodyHalfW + gap + labelSize.width;
+            const needDiag = bodyHalfH + gap + Math.max(labelSize.height, labelSize.width * 0.6);
+
+            const spaceBelow = h - y - margin;
+            const spaceAbove = y - margin;
+            const spaceRight = w - x - margin;
+            const spaceLeft = x - margin;
+
+            const labelHalfW = labelSize.width / 2;
+            const nearTop = y - bodyHalfH < margin;
+            const nearBottom = y + bodyHalfH > h - margin;
+            const nearLeft = x - Math.max(bodyHalfW, labelHalfW) < margin;
+            const nearRight = x + Math.max(bodyHalfW, labelHalfW) > w - margin;
+
+            if (nearTop && nearLeft && spaceRight >= needDiag && spaceBelow >= needDiag) return 'bottom-right';
+            if (nearTop && nearRight && spaceLeft >= needDiag && spaceBelow >= needDiag) return 'bottom-left';
+            if (nearBottom && nearLeft && spaceRight >= needDiag && spaceAbove >= needDiag) return 'top-right';
+            if (nearBottom && nearRight && spaceLeft >= needDiag && spaceAbove >= needDiag) return 'top-left';
+
+            if (nearTop && nearLeft) return this.pickIconLabelSide('right', spaceRight, spaceLeft, needHoriz);
+            if (nearTop && nearRight) return this.pickIconLabelSide('left', spaceRight, spaceLeft, needHoriz);
+            if (nearBottom && nearLeft) return this.pickIconLabelSide('right', spaceRight, spaceLeft, needHoriz);
+            if (nearBottom && nearRight) return this.pickIconLabelSide('left', spaceRight, spaceLeft, needHoriz);
+
+            const clipsLeft = x - labelHalfW < margin;
+            const clipsRight = x + labelHalfW > w - margin;
+
+            if (clipsLeft || clipsRight) {
+                if (clipsLeft && !clipsRight) return this.pickIconLabelSide('right', spaceRight, spaceLeft, needHoriz);
+                if (clipsRight && !clipsLeft) return this.pickIconLabelSide('left', spaceRight, spaceLeft, needHoriz);
+                return this.pickIconLabelSide(
+                    spaceRight >= spaceLeft ? 'right' : 'left',
+                    spaceRight,
+                    spaceLeft,
+                    needHoriz,
+                );
+            }
+
+            if (spaceBelow >= needVert) return 'bottom';
+            if (spaceAbove >= needVert) return 'top';
+
+            return this.pickIconLabelSide(
+                spaceRight >= spaceLeft ? 'right' : 'left',
+                spaceRight,
+                spaceLeft,
+                needHoriz,
+            );
+        }
+
+        getIconBodyPart(objects) {
+            const path = objects.find((o) => o.type === 'path');
+            if (path) return path;
+            return objects.find((o) => o.type === 'text'
+                && String(o.fontFamily || '').includes('Font Awesome'))
+                || objects[0];
+        }
+
+        getIconLabelPart(objects) {
+            return objects.find((o) => o.type === 'text'
+                && String(o.fontFamily || '').includes(TacticsCanvas.ICON_LABEL_FONT));
+        }
+
+        positionIconGroup(group, canvasX, canvasY, placement) {
+            if (!group) return;
+
+            const objects = group.getObjects();
+            const body = this.getIconBodyPart(objects);
+            const label = this.getIconLabelPart(objects);
+
+            if (label && body) {
+                if (placement === 'left' || placement === 'right') {
+                    label.set({ top: body.top });
+                } else if (placement === 'top' || placement === 'bottom') {
+                    label.set({ left: body.left });
+                }
+            }
+
+            const anchorLeft = body?.left ?? 0;
+            const anchorTop = body?.top ?? 0;
+            group.set({
+                left: canvasX - anchorLeft,
+                top: canvasY - anchorTop,
+                originX: 'center',
+                originY: 'center',
+            });
+            group.setCoords();
+        }
+
+        buildIconLabelText(label, fontSize, placement, bodyHalfW, bodyHalfH, labelGap = TacticsCanvas.ICON_LABEL_GAP) {
+            const gap = labelGap;
+            const base = {
+                fontSize,
+                fill: '#f0f0f0',
+                fontFamily: TacticsCanvas.ICON_LABEL_FONT,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                textAlign: 'center',
+            };
+
+            if (placement === 'top') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'center',
+                    originY: 'bottom',
+                    top: -(bodyHalfH + gap),
+                });
+            }
+            if (placement === 'bottom-right') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'left',
+                    originY: 'top',
+                    left: bodyHalfW + gap,
+                    top: bodyHalfH + gap,
+                });
+            }
+            if (placement === 'bottom-left') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'right',
+                    originY: 'top',
+                    left: -(bodyHalfW + gap),
+                    top: bodyHalfH + gap,
+                });
+            }
+            if (placement === 'top-right') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'left',
+                    originY: 'bottom',
+                    left: bodyHalfW + gap,
+                    top: -(bodyHalfH + gap),
+                });
+            }
+            if (placement === 'top-left') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'right',
+                    originY: 'bottom',
+                    left: -(bodyHalfW + gap),
+                    top: -(bodyHalfH + gap),
+                });
+            }
+            if (placement === 'left') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'right',
+                    originY: 'center',
+                    left: -(bodyHalfW + gap),
+                });
+            }
+            if (placement === 'right') {
+                return new fabric.Text(label, {
+                    ...base,
+                    originX: 'left',
+                    originY: 'center',
+                    left: bodyHalfW + gap,
+                });
+            }
+            return new fabric.Text(label, {
+                ...base,
+                originX: 'center',
+                originY: 'top',
+                top: bodyHalfH + gap,
+            });
+        }
+
+        insertIconAt(x, y) {
+            if (!this.fabric || !this.drawEnabled) return;
+
+            const settings = this.getToolSettings();
+            const iconsApi = window.AbsTacticsIcons;
+            const markerKey = settings.iconMarker || null;
+            const iconKey = settings.iconId || null;
+            const markerDef = markerKey ? iconsApi?.MARKERS?.[markerKey] : null;
+            const iconDef = iconKey
+                ? iconsApi?.ICONS?.find((item) => item.id === iconKey)
+                : null;
+            if (!markerDef && !iconDef) return;
+
+            const color = this.getStrokeColor();
+            const parts = [];
+
+            const iconSize = Math.round((this.getToolSettings().iconSize ?? TacticsCanvas.DEFAULT_ICON_SIZE));
+            const onMarker = Boolean(markerDef);
+            const markerScale = this.getIconMarkerScale(markerDef, iconSize);
+            const glyphSize = this.getIconGlyphSize(iconSize, onMarker);
+            let bodyPart = null;
+
+            if (markerDef) {
+                bodyPart = new fabric.Path(markerDef.path, {
+                    fill: color,
+                    stroke: color,
+                    strokeWidth: 0.5,
+                    originX: 'center',
+                    originY: 'center',
+                    scaleX: markerScale,
+                    scaleY: markerScale,
+                });
+                parts.push(bodyPart);
+            }
+
+            if (iconDef) {
+                const glyph = iconsApi.getGlyph(iconDef.fa);
+                if (glyph) {
+                    const glyphPart = new fabric.Text(glyph, {
+                        fontFamily: '"Font Awesome 6 Free", "Font Awesome 6 Pro", FontAwesome',
+                        fontWeight: '900',
+                        fontSize: glyphSize,
+                        fill: '#ffffff',
+                        originX: 'center',
+                        originY: 'center',
+                        top: markerDef ? -1 : 0,
+                    });
+                    parts.push(glyphPart);
+                    if (!bodyPart) bodyPart = glyphPart;
+                }
+            }
+
+            if (!parts.length) return;
+
+            const bodyExtents = this.measurePartLabelExtents(bodyPart);
+            const labelGap = this.getIconLabelGap(bodyPart);
+            const label = String(settings.iconLabel || '').trim();
+            const labelFontSize = Math.max(8, Math.min(24, settings.iconLabelSize ?? TacticsCanvas.DEFAULT_ICON_LABEL_SIZE));
+            let labelPlacement = 'bottom';
+            if (label) {
+                const labelSize = this.measureIconLabelSize(label, labelFontSize);
+                labelPlacement = this.resolveIconLabelPlacement(
+                    x,
+                    y,
+                    labelSize,
+                    bodyExtents.halfW,
+                    bodyExtents.halfH,
+                    labelGap,
+                );
+                parts.push(this.buildIconLabelText(
+                    label,
+                    labelFontSize,
+                    labelPlacement,
+                    bodyExtents.halfW,
+                    bodyExtents.halfH,
+                    labelGap,
+                ));
+            }
+
+            const group = new fabric.Group(parts, {
+                selectable: false,
+                evented: false,
+            });
+            this.positionIconGroup(group, x, y, labelPlacement);
+            group.set('tacticsType', 'icon');
+            group.set('tacticsIconId', iconDef?.id || '');
+            group.set('tacticsIconMarker', markerKey || '');
+            group.set('tacticsIconLabel', label);
+            group.set('tacticsIconLabelSize', label ? labelFontSize : 0);
+            group.set('tacticsIconLabelPlacement', label ? labelPlacement : '');
+            group.set('tacticsIconSize', iconSize);
+            this.ensureTacticsId(group);
+
+            this.isRemote = true;
+            this.fabric.add(group);
+            this.isRemote = false;
+            this.pushHistory();
+            this.onChange();
+            if (this.slideId) {
+                this.onOp({
+                    op: 'full',
+                    slideId: this.slideId,
+                    payload: this.exportDrawingsJson(),
+                });
+            }
+        }
+
         handleMouseDown(opt) {
             if (!this.fabric || this.isRemote) return;
+            if (opt.e?.button === 2) return;
             const pointer = this.fabric.getPointer(opt.e);
 
-            if (this.eyedropperActive && opt.e) {
-                const ctx = this.fabric.getContext();
-                const vpt = this.fabric.viewportTransform;
-                const x = Math.round(pointer.x * (vpt?.[0] || 1) + (vpt?.[4] || 0));
-                const y = Math.round(pointer.y * (vpt?.[3] || 1) + (vpt?.[5] || 0));
-                try {
-                    const data = ctx.getImageData(x, y, 1, 1).data;
-                    const hex = '#' + [data[0], data[1], data[2]]
-                        .map((n) => n.toString(16).padStart(2, '0')).join('');
-                    if (this.strokeColorEl) {
-                        this.strokeColorEl.value = hex;
-                        this.syncBrushFromColor();
-                        this.updatePaletteSwatches();
-                        this.saveToolPrefs();
-                    }
-                } catch (e) {
-                    // cross-origin or unavailable
+            if (this.eyedropperActive && !this.supportsScreenEyeDropper() && opt.e) {
+                const hex = this.sampleColorAtPointer(pointer, opt.e);
+                if (hex) {
+                    this.applyStrokeColor(hex, { selectCustom: true });
                 }
-                this.eyedropperActive = false;
-                document.getElementById('tacticsEyedropperBtn')?.classList.remove('is-active');
+                this.setEyedropperActive(false);
                 return;
             }
 
@@ -1859,6 +3160,11 @@
 
             if (this.tool === 'ping') {
                 this.startPingHold(pointer);
+                return;
+            }
+
+            if (this.tool === 'cell') {
+                this.fireCellFlashAtPointer(pointer);
                 return;
             }
 
@@ -1878,21 +3184,65 @@
             if (!this.drawEnabled) return;
 
             if (this.tool === 'text') {
-                const text = new fabric.IText('Text', {
+                const existingText = this.fabric.findTarget(opt.e, false);
+                if (this.isTextObject(existingText)) {
+                    this.fabric.setActiveObject(existingText);
+                    this.syncInteractionState();
+                    if (existingText.enterEditing) {
+                        existingText.enterEditing(opt.e);
+                    }
+                    return;
+                }
+
+                const settings = this.getToolSettings();
+                const fontSize = settings.fontSize || 16;
+                const textAlign = settings.textAlign || 'left';
+                const color = this.getStrokeColor();
+                const baseOpts = {
                     left: pointer.x,
                     top: pointer.y,
-                    fill: this.getStrokeColor(),
-                    fontSize: 18,
+                    fill: color,
+                    fontSize,
                     fontFamily: 'Segoe UI, sans-serif',
-                });
+                    textAlign,
+                };
+                let text;
+                if (settings.textType === 'label') {
+                    text = new fabric.Textbox('Text', {
+                        ...baseOpts,
+                        backgroundColor: 'rgba(0,0,0,0.55)',
+                        padding: 4,
+                        width: 80,
+                    });
+                } else if (settings.textType === 'callout') {
+                    text = new fabric.Textbox('Text', {
+                        ...baseOpts,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        padding: 6,
+                        width: 90,
+                        borderColor: color,
+                        borderWidth: 1,
+                    });
+                } else {
+                    text = new fabric.IText('Text', baseOpts);
+                }
+                text.set('tacticsType', 'text');
+                this.ensureTacticsId(text);
                 this.fabric.add(text);
                 this.syncInteractionState();
                 this.fabric.setActiveObject(text);
-                text.enterEditing();
+                if (text.enterEditing) {
+                    text.enterEditing();
+                }
                 return;
             }
 
-            if (this.tool === 'line' || this.tool === 'arrow') {
+            if (this.tool === 'image') {
+                this.insertIconAt(pointer.x, pointer.y);
+                return;
+            }
+
+            if (this.tool === 'line') {
                 this.startLinePreview(pointer.x, pointer.y);
                 return;
             }
@@ -1903,14 +3253,19 @@
             }
 
             if (this.tool === 'polygon') {
+                if (opt.e?.detail >= 2 && this.polygonPoints.length >= 3) {
+                    this.finishPolygon();
+                    return;
+                }
                 if (this.polygonPoints.length >= 3) {
                     const first = this.polygonPoints[0];
-                    if (Math.hypot(pointer.x - first.x, pointer.y - first.y) < 10) {
+                    if (Math.hypot(pointer.x - first.x, pointer.y - first.y) < 14) {
                         this.finishPolygon();
                         return;
                     }
                 }
                 this.polygonPoints.push({ x: pointer.x, y: pointer.y });
+                this.updatePolygonPreview(pointer.x, pointer.y);
                 return;
             }
         }
@@ -1936,8 +3291,13 @@
                 return;
             }
 
+            if (this.tool === 'polygon' && this.polygonPoints.length) {
+                this.updatePolygonPreview(pointer.x, pointer.y);
+                return;
+            }
+
             if (!this.drawEnabled || !this.lineStart) return;
-            if (this.tool !== 'line' && this.tool !== 'arrow') return;
+            if (this.tool !== 'line') return;
 
             this.updateLinePreview(pointer.x, pointer.y);
         }
@@ -1977,7 +3337,7 @@
                 return;
             }
 
-            if (this.tool !== 'line' && this.tool !== 'arrow') return;
+            if (this.tool !== 'line') return;
             if (!this.lineStart) return;
 
             this.finishLineDraw(pointer.x, pointer.y);
@@ -2027,23 +3387,22 @@
             this.history.push(json);
             if (this.history.length > 40) {
                 this.history.shift();
-            } else {
-                this.historyIndex += 1;
             }
+            this.historyIndex = this.history.length - 1;
         }
 
-        undo() {
+        async undo() {
             if (!this.drawEnabled || this.historyIndex <= 0 || !this.fabric) return;
             this.historyIndex -= 1;
-            this.loadJson(this.history[this.historyIndex], true);
+            await this.loadJson(this.history[this.historyIndex], true);
             this.onChange();
             this.broadcastFull();
         }
 
-        redo() {
+        async redo() {
             if (!this.drawEnabled || this.historyIndex >= this.history.length - 1 || !this.fabric) return;
             this.historyIndex += 1;
-            this.loadJson(this.history[this.historyIndex], true);
+            await this.loadJson(this.history[this.historyIndex], true);
             this.onChange();
             this.broadcastFull();
         }
@@ -2089,7 +3448,7 @@
 
             const linesById = new Map();
             this.fabric.getObjects().forEach((obj) => {
-                if (obj.type === 'line' && obj.tacticsType === 'arrow') {
+                if (obj.type === 'line' && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow')) {
                     this.ensureTacticsId(obj);
                     linesById.set(obj.tacticsId, obj);
                 }
@@ -2138,6 +3497,9 @@
 
         showBackgroundImage(img) {
             if (!img || !this.fabric) return;
+            if (this.getSquareSize()) {
+                this.resize();
+            }
             this.bgImageEl = img;
             this.fitBackground();
             this.syncGridOverlay();
@@ -2147,53 +3509,61 @@
         async loadSlide(slide, mapUrl) {
             this.initFabric();
             if (!this.fabric || !slide) return;
-            this.stopPingHold();
-            this.clearRemoteCursors();
-            this.clearRemoteStrokes();
-            this.clearPings();
-            this.clearRuler();
-            this.slideId = slide.id;
-            this.mapCode = slide.map_code || 'cliff';
-            await this.refreshMapScaleInfo(slide);
 
-            this.isRemote = true;
-            this.fabric.clear();
-            this.bgImageEl = null;
-            this.bgLayout = null;
-            this.isRemote = false;
+            this.setMapViewportLoading(true);
+            try {
+                this.stopPingHold();
+                this.clearRemoteCursors();
+                this.clearRemoteStrokes();
+                this.clearPings();
+                this.clearCellFlashes();
+                this.clearRuler();
+                this.slideId = slide.id;
+                this.mapCode = slide.map_code || 'cliff';
+                await this.refreshMapScaleInfo(slide);
+                await this.ensureCanvasLayout();
 
-            const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
-            const resolvedUrl = mapUrl || maps().slideMapUrl(slide, publicId);
-            const cached = maps().getCachedImage(resolvedUrl);
-            if (cached) {
-                this.showBackgroundImage(cached);
-            }
+                this.isRemote = true;
+                this.fabric.clear();
+                this.bgImageEl = null;
+                this.bgLayout = null;
+                this.isRemote = false;
 
-            const imgPromise = maps().loadMapImage(
-                this.mapCode,
-                slide.game,
-                slide.battle_mode,
-                resolvedUrl,
-                slide,
-                publicId,
-            );
-            const jsonPromise = slide.canvas ? this.loadJson(slide.canvas, true) : Promise.resolve();
+                const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
+                const resolvedUrl = mapUrl || maps().slideMapUrl(slide, publicId);
+                const cached = maps().getCachedImage(resolvedUrl);
 
-            const img = await imgPromise;
-            if (img && img !== this.bgImageEl) {
-                this.showBackgroundImage(img);
-            }
+                const imgPromise = maps().loadMapImage(
+                    this.mapCode,
+                    slide.game,
+                    slide.battle_mode,
+                    resolvedUrl,
+                    slide,
+                    publicId,
+                );
+                const jsonPromise = slide.canvas ? this.loadJson(slide.canvas, true) : Promise.resolve();
 
-            await jsonPromise;
+                if (cached) {
+                    this.showBackgroundImage(cached);
+                }
 
-            this.history = [this.exportJson()];
-            this.historyIndex = 0;
-            requestAnimationFrame(() => {
+                const img = await imgPromise;
+                if (img && img !== this.bgImageEl) {
+                    this.showBackgroundImage(img);
+                }
+
+                await jsonPromise;
+                await this.ensureCanvasLayout();
+
+                this.history = [this.exportJson()];
+                this.historyIndex = 0;
                 this.scheduleResize();
                 this.updateGridToggleBtn();
                 this.syncInteractionState();
                 this.fabric.requestRenderAll();
-            });
+            } finally {
+                this.setMapViewportLoading(false);
+            }
         }
 
         stripBackground(json) {
@@ -2213,6 +3583,9 @@
                 if (!json) {
                     resolve();
                     return;
+                }
+                if (this.getSquareSize()) {
+                    this.resize();
                 }
                 const cleaned = this.stripBackground(json);
                 this.isRemote = !!silent;
@@ -2262,7 +3635,12 @@
                     });
                 } else if (msg.op === 'ping' && msg.payload) {
                     const p = msg.payload;
-                    this.playPing(p.x, p.y, p.color, p.width);
+                    this.playPing(p.x, p.y, p.color, p.width, p.stroke);
+                } else if (msg.op === 'cell' && msg.payload) {
+                    const p = msg.payload;
+                    const col = Math.min(9, Math.max(0, parseInt(p.col, 10) || 0));
+                    const row = Math.min(9, Math.max(0, parseInt(p.row, 10) || 0));
+                    this.playCellFlash(col, row, p.color);
                 } else if (msg.op === 'stroke_start' || msg.op === 'stroke_point' || msg.op === 'stroke_end') {
                     this.applyRemoteStrokeOp(msg);
                 }
@@ -2279,6 +3657,19 @@
 
         getCanvasState() {
             return this.exportDrawingsJson();
+        }
+
+        exportScreenshot() {
+            if (!this.fabric) return null;
+            try {
+                const w = this.fabric.getWidth();
+                const mult = this.bgImageEl && this.bgImageEl.naturalWidth > w
+                    ? this.bgImageEl.naturalWidth / w
+                    : 2;
+                return this.fabric.toDataURL({ format: 'png', multiplier: mult });
+            } catch (e) {
+                return null;
+            }
         }
     }
 

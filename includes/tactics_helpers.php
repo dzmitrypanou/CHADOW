@@ -1006,10 +1006,8 @@ function tactics_room_slides_have_mixed_games(array $roomData): bool {
 }
 
 function tactics_validate_create_input(array $input, string $lang = 'ru'): array {
-    $title = trim((string) ($input['title'] ?? ''));
-    if ($title === '') {
-        $title = $lang === 'en' ? 'Untitled' : 'Без названия';
-    }
+    $rawTitle = trim((string) ($input['title'] ?? ''));
+    $title = $rawTitle === '' ? ($lang === 'en' ? 'Untitled' : 'Без названия') : $rawTitle;
     if (function_exists('mb_strlen') ? mb_strlen($title) > TACTICS_TITLE_MAX_LEN : strlen($title) > TACTICS_TITLE_MAX_LEN) {
         return ['ok' => false, 'error' => $lang === 'en' ? 'Title too long' : 'Слишком длинное название'];
     }
@@ -1043,6 +1041,8 @@ function tactics_validate_create_input(array $input, string $lang = 'ru'): array
         $clientId = 'c' . bin2hex(random_bytes(8));
     }
 
+    $roomData = tactics_default_room_data($mapCode, $game, $battleMode);
+
     return [
         'ok' => true,
         'data' => [
@@ -1054,7 +1054,7 @@ function tactics_validate_create_input(array $input, string $lang = 'ru'): array
             'password_hash' => $passwordHash,
             'nickname' => $nickname,
             'client_id' => $clientId,
-            'room_data' => tactics_default_room_data($mapCode, $game, $battleMode),
+            'room_data' => $roomData,
         ],
     ];
 }
@@ -1979,7 +1979,7 @@ function tactics_chat_rate_limit_ok($db, string $publicId, string $clientId): bo
     $stmt = $db->getConnection()->prepare(
         'SELECT id FROM tactics_room_chat
          WHERE public_id = ? AND client_id = ?
-           AND created_at >= (CURRENT_TIMESTAMP(3) - INTERVAL 500 MILLISECOND)
+           AND created_at >= (NOW(3) - INTERVAL 1 SECOND)
          ORDER BY id DESC
          LIMIT 1'
     );

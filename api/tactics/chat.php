@@ -37,11 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
     }
 
-    $messages = tactics_fetch_room_chat($userDb, $publicId, $sinceId, 100);
-    echo json_encode([
-        'success' => true,
-        'messages' => $messages,
-    ], JSON_UNESCAPED_UNICODE);
+    try {
+        $messages = tactics_fetch_room_chat($userDb, $publicId, $sinceId, 100);
+        echo json_encode([
+            'success' => true,
+            'messages' => $messages,
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        tactics_json_error($lang === 'en' ? 'Server error' : 'Ошибка сервера', 500);
+    }
     exit();
 }
 
@@ -80,16 +84,17 @@ if (!$row) {
     tactics_json_error($lang === 'en' ? 'Room not found' : 'Комната не найдена', 404);
 }
 
-if (!tactics_chat_rate_limit_ok($userDb, $publicId, $clientId)) {
-    tactics_json_error($lang === 'en' ? 'Too fast' : 'Слишком часто', 429);
-}
-
 try {
+    if (!tactics_chat_rate_limit_ok($userDb, $publicId, $clientId)) {
+        tactics_json_error($lang === 'en' ? 'Too fast' : 'Слишком часто', 429);
+    }
+
     $messageId = tactics_insert_room_chat($userDb, $publicId, $clientId, $nickname, $message);
     if ($messageId <= 0) {
         tactics_json_error($lang === 'en' ? 'Empty message' : 'Пустое сообщение');
     }
 
+    $createdAt = (new DateTimeImmutable('now'))->format('Y-m-d H:i:s');
     echo json_encode([
         'success' => true,
         'message' => [
@@ -97,7 +102,7 @@ try {
             'clientId' => $clientId,
             'nickname' => $nickname,
             'message' => tactics_sanitize_chat_message($message),
-            'createdAt' => date('Y-m-d H:i:s.v'),
+            'createdAt' => $createdAt,
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {

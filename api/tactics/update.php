@@ -93,6 +93,19 @@ try {
         }
     }
 
+    if (array_key_exists('title', $input)) {
+        if (!$isOwner) {
+            tactics_json_error($lang === 'en' ? 'Only the room creator can change title' : 'Менять название может только создатель комнаты', 403);
+        }
+        $rawTitle = trim((string) $input['title']);
+        $title = $rawTitle === '' ? ($lang === 'en' ? 'Untitled' : 'Без названия') : $rawTitle;
+        if (function_exists('mb_strlen') ? mb_strlen($title) > TACTICS_TITLE_MAX_LEN : strlen($title) > TACTICS_TITLE_MAX_LEN) {
+            tactics_json_error($lang === 'en' ? 'Title too long' : 'Слишком длинное название');
+        }
+        $sets[] = 'title = ?';
+        $params[] = $title;
+    }
+
     if (isset($input['password']) && trim((string) $input['password']) !== '') {
         $password = (string) $input['password'];
         if (strlen($password) > TACTICS_PASSWORD_MAX_LEN) {

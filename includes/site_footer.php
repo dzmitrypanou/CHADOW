@@ -56,6 +56,7 @@ try {
 $footerLangRuHref = abs_build_lang_href('ru', $sitePublicPath);
 $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
 ?>
+<?php if (empty($tacticsRoomShell)): ?>
         <div class="page-bottom-spacer" aria-hidden="true"></div>
         <footer>
             <div class="footer-axis" aria-hidden="true">
@@ -146,8 +147,11 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
                 Ezekiel 34:26 (NKJV)
             </div>
         </footer>
+<?php endif; ?>
         <script src="/js/datetime-local.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+        <?php if (empty($tacticsRoomShell)): ?>
         <script src="/js/background-ambient.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+        <?php endif; ?>
         <?php
         $isLandingPage = isset($bodyClass) && strpos((string) $bodyClass, 'page-landing') !== false;
         if ($isLandingPage):
@@ -181,7 +185,9 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
         <?php if ($isRecruitingPage): ?>
         <script src="/js/services/recruiting/board.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
         <?php endif; ?>
+<?php if (empty($tacticsRoomShell)): ?>
     </div>
+<?php endif; ?>
 <?php
 chadow_perf_finish('public_page');
 ?>

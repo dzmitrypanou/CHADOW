@@ -207,6 +207,7 @@ $GLOBALS['__chadow_auth_ready'] = true;
     </script>
 </head>
 <body<?php echo $bodyClass !== '' ? ' class="' . htmlspecialchars($bodyClass) . '"' : ''; ?>>
+<?php if (empty($tacticsRoomShell)): ?>
     <div class="ambient-bg" id="ambientBg" aria-hidden="true"></div>
     <div class="container">
         <div class="header">
@@ -320,3 +321,4 @@ $GLOBALS['__chadow_auth_ready'] = true;
                 </div>
             </div>
         </div>
+<?php endif; ?>

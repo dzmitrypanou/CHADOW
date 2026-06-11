@@ -24,21 +24,43 @@
 
     class TacticsMapPicker {
         constructor(options) {
+            this.modalEl = options.modalId
+                ? document.getElementById(options.modalId)
+                : null;
             this.root = typeof options.root === 'string'
                 ? document.getElementById(options.root)
                 : options.root;
             this.selectEl = options.selectEl
                 || this.root?.querySelector('select[data-tactics-map-select]')
                 || this.root?.querySelector('select');
-            this.gameTabsEl = this.root?.querySelector('[data-tactics-game-tabs]');
+            const queryRoot = this.modalEl || this.root;
+            this.gameTabsEl = queryRoot?.querySelector('[data-tactics-game-tabs]');
             this.modeTabsEl = this.root?.querySelector('[data-tactics-mode-tabs]');
             this.modeFieldLabelEl = this.root?.querySelector('[data-tactics-mode-field-label]');
             this.mapFieldEl = this.root?.querySelector('[data-tactics-map-field]');
+            this.modalPreviewEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview]');
+            this.modalPreviewPlaceholderEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview-placeholder]');
+            this.modalSearchEl = this.modalEl?.querySelector('[data-tactics-map-modal-search]');
+            this.modalListEl = this.modalEl?.querySelector('[data-tactics-map-modal-list]');
+            this.modalModeEl = this.modalEl?.querySelector('[data-tactics-map-modal-mode]');
+            this.modalMapsColEl = this.modalEl?.querySelector('[data-tactics-map-modal-maps-col]');
+            this.modalGameFieldEl = this.modalEl?.querySelector('[data-tactics-map-modal-game-field]');
+            this.modalConfirmBtn = this.modalEl?.querySelector('[data-tactics-map-modal-confirm]');
+            this.modalConfirmCallback = null;
             this.game = options.game || 'wot';
             this.battleMode = options.battleMode || 'random';
             this.lockGame = options.lockGame || null;
             this.catalog = null;
             this.onChange = options.onChange || (() => {});
+            this.onModalUpdate = options.onModalUpdate || (() => {});
+            this.modalCloseCallback = null;
+            if (this.modalEl) {
+                this.bindModal();
+            }
+        }
+
+        notifyModalUpdate() {
+            this.onModalUpdate();
         }
 
         usesMapTypeField(gameId) {
@@ -97,7 +119,7 @@
         buildGameTabs() {
             if (!this.gameTabsEl) return;
 
-            const gameField = this.root?.querySelector('[data-tactics-game-field]');
+            const gameField = (this.modalEl || this.root)?.querySelector('[data-tactics-game-field]');
             if (this.lockGame) {
                 this.game = this.lockGame;
                 this.gameTabsEl.innerHTML = '';
@@ -105,11 +127,17 @@
                 if (gameField) {
                     gameField.hidden = true;
                 }
+                if (this.modalGameFieldEl) {
+                    this.modalGameFieldEl.hidden = true;
+                }
                 return;
             }
 
             if (gameField) {
                 gameField.hidden = false;
+            }
+            if (this.modalGameFieldEl) {
+                this.modalGameFieldEl.hidden = false;
             }
             this.gameTabsEl.hidden = false;
 
@@ -144,6 +172,14 @@
         }
 
         buildModeTabs() {
+            if (this.modalEl && this.modalModeEl) {
+                this.buildModalModeSelect();
+                if (this.modeTabsEl) {
+                    this.modeTabsEl.innerHTML = '';
+                    this.modeTabsEl.hidden = true;
+                }
+                return;
+            }
             if (!this.modeTabsEl) return;
             const catalog = this.catalog || {};
             const gameMeta = catalog.games?.[this.game] || {};
@@ -176,6 +212,185 @@
                     ? i18n().t('fieldMapType')
                     : i18n().t('fieldBattleMode');
             }
+            this.buildModalModeSelect();
+        }
+
+        buildModalModeSelect() {
+            if (!this.modalModeEl) return;
+            const catalog = this.catalog || {};
+            const gameMeta = catalog.games?.[this.game] || {};
+            const modeIds = gameMeta.mode_ids || Object.keys(gameMeta.modes || {});
+            if (!modeIds.length) {
+                this.modalModeEl.innerHTML = '';
+                return;
+            }
+            if (!modeIds.includes(this.battleMode)) {
+                this.battleMode = gameMeta.default_mode || modeIds[0];
+            }
+            this.modalModeEl.innerHTML = modeIds.map((modeId) => {
+                const selected = modeId === this.battleMode ? ' selected' : '';
+                return `<option value="${modeId}"${selected}>${this.modeLabel(modeId, this.game)}</option>`;
+            }).join('');
+        }
+
+        bindModal() {
+            if (!this.modalEl || this.modalEl.dataset.modalBound) return;
+            this.modalEl.dataset.modalBound = '1';
+
+            this.modalEl.querySelectorAll('[data-tactics-map-modal-close]').forEach((el) => {
+                el.addEventListener('click', () => this.closeModal());
+            });
+
+            this.modalConfirmBtn?.addEventListener('click', () => {
+                const pick = this.getValue();
+                if (!pick.map_code && !this.shouldHideMapSelect()) return;
+                if (this.modalConfirmCallback) {
+                    this.modalConfirmCallback(pick);
+                }
+                this.closeModal();
+            });
+
+            this.modalSearchEl?.addEventListener('input', () => this.renderModalMapList());
+            this.modalModeEl?.addEventListener('change', () => {
+                const mode = this.modalModeEl.value;
+                if (mode && mode !== this.battleMode) {
+                    this.setBattleMode(mode);
+                } else {
+                    this.notifyModalUpdate();
+                }
+            });
+
+            this.modalKeydownHandler = (ev) => {
+                if (ev.key === 'Escape' && this.modalEl && !this.modalEl.hidden) {
+                    this.closeModal();
+                }
+            };
+            document.addEventListener('keydown', this.modalKeydownHandler);
+        }
+
+        openModal(onConfirm, options) {
+            if (!this.modalEl) return Promise.resolve();
+            const opts = options && typeof options === 'object' ? options : {};
+            const initialValue = opts.initialValue || null;
+            this.modalConfirmCallback = typeof onConfirm === 'function' ? onConfirm : null;
+            this.modalCloseCallback = typeof opts.onClose === 'function' ? opts.onClose : null;
+            return this.init().then(() => {
+                if (initialValue) {
+                    this.setValue(initialValue);
+                }
+                if (this.modalSearchEl) {
+                    this.modalSearchEl.value = '';
+                }
+                this.updateModalVisibility();
+                this.renderModalMapList();
+                this.updateModalPreview();
+                this.modalEl.hidden = false;
+                document.body.classList.add('tactics-map-modal-open');
+                this.notifyModalUpdate();
+                (this.modalSearchEl || this.modalConfirmBtn)?.focus();
+            });
+        }
+
+        closeModal() {
+            if (!this.modalEl) return;
+            this.modalEl.hidden = true;
+            document.body.classList.remove('tactics-map-modal-open');
+            this.modalConfirmCallback = null;
+            const closeCb = this.modalCloseCallback;
+            this.modalCloseCallback = null;
+            this.notifyModalUpdate();
+            if (closeCb) closeCb();
+        }
+
+        updateModalVisibility() {
+            const hideMaps = this.shouldHideMapSelect();
+            if (this.modalMapsColEl) {
+                this.modalMapsColEl.hidden = hideMaps;
+            }
+        }
+
+        selectMapCode(mapCode) {
+            if (!mapCode || !this.selectEl) return;
+            this.selectEl.value = mapCode;
+            this.renderModalMapList();
+            this.updateModalPreview();
+            this.onChange(this.getValue());
+            this.notifyModalUpdate();
+        }
+
+        renderModalMapList() {
+            if (!this.modalListEl) return;
+            const lang = i18n().getLang();
+            const query = String(this.modalSearchEl?.value || '').trim().toLowerCase();
+            const rows = this.getMapRows();
+            const selected = this.resolveMapCode(this.selectEl?.value || '');
+
+            const filtered = query
+                ? rows.filter((map) => {
+                    const name = i18n().mapDisplayName(map, lang).toLowerCase();
+                    const code = String(map.map_code || '').toLowerCase();
+                    return name.includes(query) || code.includes(query);
+                })
+                : rows;
+
+            if (!filtered.length) {
+                this.modalListEl.innerHTML = `<li class="tactics-map-modal__empty">${i18n().t('noMapsForMode')}</li>`;
+                return;
+            }
+
+            this.modalListEl.innerHTML = filtered.map((map) => {
+                const code = map.map_code;
+                const name = i18n().mapDisplayName(map, lang);
+                const active = code === selected;
+                return `<li class="tactics-map-modal__item-wrap" role="presentation">`
+                    + `<button type="button" class="tactics-map-modal__item${active ? ' is-active' : ''}" role="option" aria-selected="${active ? 'true' : 'false'}" data-map-code="${code}">${name}</button>`
+                    + '</li>';
+            }).join('');
+
+            this.modalListEl.querySelectorAll('[data-map-code]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    this.selectMapCode(btn.getAttribute('data-map-code'));
+                });
+            });
+        }
+
+        setModalPreviewVisible(hasImage) {
+            if (this.modalPreviewEl) {
+                this.modalPreviewEl.hidden = !hasImage;
+                if (!hasImage) {
+                    this.modalPreviewEl.removeAttribute('src');
+                }
+            }
+            if (this.modalPreviewPlaceholderEl) {
+                this.modalPreviewPlaceholderEl.hidden = !!hasImage;
+            }
+        }
+
+        bindModalPreviewImage() {
+            if (!this.modalPreviewEl || this.modalPreviewEl.dataset.previewBound) return;
+            this.modalPreviewEl.dataset.previewBound = '1';
+            this.modalPreviewEl.addEventListener('error', () => {
+                this.setModalPreviewVisible(false);
+            });
+        }
+
+        updateModalPreview() {
+            if (!this.modalPreviewEl) return;
+            this.bindModalPreviewImage();
+            const code = this.resolveMapCode(this.selectEl?.value || '');
+            if (!code) {
+                this.setModalPreviewVisible(false);
+                return;
+            }
+            maps().loadMapImage(code, this.game, this.battleMode).then((img) => {
+                if (!this.modalPreviewEl) return;
+                if (img?.src) {
+                    this.modalPreviewEl.src = img.src;
+                    this.setModalPreviewVisible(true);
+                    return;
+                }
+                this.setModalPreviewVisible(false);
+            });
         }
 
         async loadCatalog(forceReload) {
@@ -212,12 +427,17 @@
             if (code && this.selectEl.value !== code) {
                 this.selectEl.value = code;
             }
-            if (window.recruitingRefreshSelect && this.selectEl.dataset.recruitingSelectEnhanced === '1') {
-                window.recruitingRefreshSelect(this.selectEl);
-            } else if (window.recruitingEnhanceSelect) {
-                window.recruitingEnhanceSelect(this.selectEl);
+            if (!this.modalEl) {
+                if (window.recruitingRefreshSelect && this.selectEl.dataset.recruitingSelectEnhanced === '1') {
+                    window.recruitingRefreshSelect(this.selectEl);
+                } else if (window.recruitingEnhanceSelect) {
+                    window.recruitingEnhanceSelect(this.selectEl);
+                }
             }
             this.updateMapFieldVisibility();
+            this.updateModalVisibility();
+            this.renderModalMapList();
+            this.updateModalPreview();
         }
 
         setGame(game) {
@@ -241,6 +461,7 @@
             this.buildModeTabs();
             this.renderSelect();
             this.onChange(this.getValue());
+            this.notifyModalUpdate();
         }
 
         async init(selectedCode) {
@@ -281,10 +502,15 @@
         }
 
         async relocalize() {
-            if (!this.root) return;
+            if (!this.root && !this.modalEl) return;
             this.catalog = null;
             await this.loadCatalog(true);
-            i18n().relocalizeDom(this.root);
+            if (this.root) {
+                i18n().relocalizeDom(this.root);
+            }
+            if (this.modalEl) {
+                i18n().relocalizeDom(this.modalEl);
+            }
             this.buildGameTabs();
             this.buildModeTabs();
             const selected = this.selectEl?.value || '';

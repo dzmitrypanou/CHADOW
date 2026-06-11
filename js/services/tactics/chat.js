@@ -11,29 +11,53 @@
             this.getWsToken = options.getWsToken || (() => '');
             this.onSendWs = options.onSendWs || (() => false);
             this.apiUrl = options.apiUrl || window.ABS_TACTICS_CHAT_API || '/api/tactics/chat.php';
+            this.dockEl = options.dockEl || document.getElementById('tacticsChatDock');
             this.panelEl = options.panelEl || document.getElementById('tacticsChatPanel');
             this.toggleEl = options.toggleEl || document.getElementById('tacticsChatToggle');
             this.bodyEl = options.bodyEl || document.getElementById('tacticsChatBody');
             this.listEl = options.listEl || document.getElementById('tacticsChatMessages');
+            this.emptyEl = options.emptyEl || document.getElementById('tacticsChatEmpty');
+            this.errorEl = options.errorEl || document.getElementById('tacticsChatError');
             this.formEl = options.formEl || document.getElementById('tacticsChatForm');
             this.inputEl = options.inputEl || document.getElementById('tacticsChatInput');
             this.lastId = 0;
             this.pollTimer = null;
+            this.sending = false;
             this.storageKey = `abs_tactics_chat_collapsed_${this.publicId}`;
             this.bindEvents();
+            this.resetDockPosition();
             this.restoreCollapsed();
+            this.updateEmptyState();
             this.loadHistory();
             this.startPolling();
+        }
+
+        setInputEnabled(enabled) {
+            const on = !!enabled;
+            if (this.inputEl) {
+                this.inputEl.disabled = !on;
+            }
+            const sendBtn = this.formEl?.querySelector('.tactics-chat-send');
+            if (sendBtn) {
+                sendBtn.disabled = !on;
+            }
+            this.formEl?.classList.toggle('is-disabled', !on);
         }
 
         bindEvents() {
             this.toggleEl?.addEventListener('click', () => {
                 const collapsed = this.panelEl?.classList.toggle('is-collapsed');
-                this.toggleEl?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                const isCollapsed = !!collapsed;
+                this.toggleEl?.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
                 try {
-                    sessionStorage.setItem(this.storageKey, collapsed ? '1' : '0');
+                    sessionStorage.setItem(this.storageKey, isCollapsed ? '1' : '0');
                 } catch (e) {
                     // ignore
+                }
+                if (!isCollapsed) {
+                    this.clearError();
+                    this.inputEl?.focus();
+                    this.scrollMessagesToEnd();
                 }
             });
 
@@ -41,6 +65,19 @@
                 ev.preventDefault();
                 this.sendMessage();
             });
+        }
+
+        resetDockPosition() {
+            if (!this.dockEl) return;
+            this.dockEl.classList.remove('is-floating');
+            this.dockEl.style.removeProperty('left');
+            this.dockEl.style.removeProperty('top');
+            this.dockEl.style.removeProperty('bottom');
+            try {
+                sessionStorage.removeItem(`abs_tactics_chat_pos_${this.publicId}`);
+            } catch (e) {
+                // ignore
+            }
         }
 
         restoreCollapsed() {
@@ -55,11 +92,32 @@
             }
         }
 
-        formatTime(createdAt) {
-            if (!createdAt) return '';
-            const d = new Date(createdAt);
-            if (Number.isNaN(d.getTime())) return '';
-            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        clearError() {
+            if (!this.errorEl) return;
+            this.errorEl.hidden = true;
+            this.errorEl.textContent = '';
+        }
+
+        showError(message) {
+            if (!this.errorEl) return;
+            const text = String(message || '').trim();
+            if (!text) {
+                this.clearError();
+                return;
+            }
+            this.errorEl.textContent = text;
+            this.errorEl.hidden = false;
+        }
+
+        updateEmptyState() {
+            if (!this.emptyEl || !this.listEl) return;
+            const hasMessages = this.listEl.children.length > 0;
+            this.emptyEl.hidden = hasMessages;
+        }
+
+        scrollMessagesToEnd() {
+            if (!this.listEl) return;
+            this.listEl.scrollTop = this.listEl.scrollHeight;
         }
 
         renderMessage(msg) {
@@ -81,14 +139,11 @@
             nick.className = 'tactics-chat-message__nick';
             nick.textContent = String(msg.nickname || 'Guest') + ':';
             const text = document.createTextNode(' ' + String(msg.message || ''));
-            const time = document.createElement('span');
-            time.className = 'tactics-chat-message__time';
-            time.textContent = this.formatTime(msg.createdAt);
             li.appendChild(nick);
             li.appendChild(text);
-            li.appendChild(time);
             this.listEl.appendChild(li);
-            this.listEl.scrollTop = this.listEl.scrollHeight;
+            this.updateEmptyState();
+            this.scrollMessagesToEnd();
         }
 
         renderMessages(messages) {
@@ -108,7 +163,10 @@
             try {
                 const res = await fetch(url, { credentials: 'same-origin' });
                 const data = await res.json();
-                if (data?.success && Array.isArray(data.messages)) {
+                if (!res.ok || !data?.success) {
+                    return;
+                }
+                if (Array.isArray(data.messages)) {
                     this.renderMessages(data.messages);
                 }
             } catch (e) {
@@ -119,9 +177,7 @@
         startPolling() {
             this.stopPolling();
             this.pollTimer = setInterval(() => {
-                if (this.lastId > 0) {
-                    this.loadHistory(this.lastId);
-                }
+                this.loadHistory(this.lastId);
             }, 3000);
         }
 
@@ -132,23 +188,44 @@
             }
         }
 
+        normalizeRemoteMessage(msg) {
+            if (!msg || typeof msg !== 'object') return null;
+            const src = (msg.payload && typeof msg.payload === 'object')
+                ? msg.payload
+                : msg;
+            return {
+                id: src.id ?? msg.id,
+                nickname: src.nickname ?? msg.nickname,
+                message: typeof src.message === 'string'
+                    ? src.message
+                    : (typeof msg.message === 'string' ? msg.message : ''),
+                createdAt: src.createdAt || src.created_at || msg.createdAt || msg.created_at,
+                clientId: src.clientId || src.client_id || msg.clientId || msg.from,
+            };
+        }
+
         applyRemote(msg) {
-            if (!msg) return;
-            this.renderMessage({
-                id: msg.id,
-                nickname: msg.nickname,
-                message: msg.message,
-                createdAt: msg.createdAt,
-                clientId: msg.clientId || msg.from,
-            });
+            const normalized = this.normalizeRemoteMessage(msg);
+            if (!normalized) return;
+            this.renderMessage(normalized);
+        }
+
+        getCsrfToken() {
+            return window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '';
         }
 
         async sendMessage() {
             const text = String(this.inputEl?.value || '').trim();
-            if (!text) return;
+            if (!text || this.sending) return;
 
             const token = this.getWsToken();
-            if (!token) return;
+            if (!token) {
+                this.showError(i18n()?.t('chatErrorNoToken') || 'Нет доступа к чату');
+                return;
+            }
+
+            this.sending = true;
+            this.clearError();
 
             try {
                 const res = await fetch(this.apiUrl, {
@@ -156,24 +233,30 @@
                     credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-Token': window.ABS_TACTICS_CSRF || '',
+                        'X-CSRF-Token': this.getCsrfToken(),
                     },
                     body: JSON.stringify({
                         public_id: this.publicId,
                         message: text,
                         ws_token: token,
+                        csrf_token: this.getCsrfToken(),
                     }),
                 });
-                const data = await res.json();
-                if (data?.success && data.message) {
-                    this.renderMessage(data.message);
-                    if (this.inputEl) {
-                        this.inputEl.value = '';
-                    }
-                    this.onSendWs(data.message);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data?.success || !data.message) {
+                    const err = data?.error || i18n()?.t('chatErrorSend') || 'Не удалось отправить';
+                    this.showError(err);
+                    return;
                 }
+                this.renderMessage(data.message);
+                if (this.inputEl) {
+                    this.inputEl.value = '';
+                }
+                this.onSendWs(data.message);
             } catch (e) {
-                // ignore
+                this.showError(i18n()?.t('chatErrorSend') || 'Не удалось отправить');
+            } finally {
+                this.sending = false;
             }
         }
 
