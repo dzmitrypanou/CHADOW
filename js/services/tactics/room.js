@@ -44,6 +44,10 @@
     const WS_AUTH_MAX_RETRIES = 3;
     let sinceEventId = 0;
     let lastCursorPostKey = '';
+    let pendingSessionPromise = null;
+    let saveInFlight = false;
+    let save403Attempts = 0;
+    const SAVE_403_MAX_ATTEMPTS = 2;
 
     function isGuestNickname(nick) {
         return /^(?:Guest|Гость)(?:\s+\d+)?$/u.test(String(nick || '').trim());
@@ -418,21 +422,72 @@
 
     let copyLinkResetTimer = null;
 
+    function resetCopyBtnSizeLock(btn) {
+        if (!btn) return;
+        delete btn.dataset.copySizeLocked;
+        btn.style.minWidth = '';
+    }
+
     function ensureCopyBtnSizeLocked(btn) {
         if (!btn || btn.dataset.copySizeLocked) return;
 
-        const textWrap = btn.querySelector('.tactics-room-code-btn__text');
         const btnWidth = btn.getBoundingClientRect().width;
         if (btnWidth > 0) {
             btn.style.minWidth = Math.ceil(btnWidth) + 'px';
         }
-        if (textWrap) {
-            const textWidth = textWrap.getBoundingClientRect().width;
-            if (textWidth > 0) {
-                textWrap.style.minWidth = Math.ceil(textWidth) + 'px';
-            }
-        }
         btn.dataset.copySizeLocked = '1';
+    }
+
+    function restoreCopyBtnDefault() {
+        const btn = document.getElementById('tacticsCopyLinkBtn');
+        if (!btn) return;
+
+        const textWrap = btn.querySelector('.tactics-room-code-btn__text');
+        const icon = btn.querySelector('.tactics-room-code-btn__icon');
+        if (!textWrap) return;
+
+        const publicId = window.ABS_TACTICS_PUBLIC_ID || '';
+        textWrap.innerHTML = '<span class="tactics-room-code-btn__label">'
+            + '<span data-tactics-i18n="roomCode">' + escapeHtml(i18n().t('roomCode')) + '</span>:'
+            + '</span>'
+            + '<span class="tactics-room-code-btn__value">' + escapeHtml(publicId) + '</span>';
+        if (icon) {
+            icon.className = 'fas fa-link tactics-room-code-btn__icon';
+        }
+        btn.classList.remove('is-copied', 'is-copy-error');
+    }
+
+    function relocalizeCopyLinkBtn() {
+        const btn = document.getElementById('tacticsCopyLinkBtn');
+        if (!btn) return;
+
+        if (copyLinkResetTimer) {
+            clearTimeout(copyLinkResetTimer);
+            copyLinkResetTimer = null;
+        }
+
+        const textWrap = btn.querySelector('.tactics-room-code-btn__text');
+        const icon = btn.querySelector('.tactics-room-code-btn__icon');
+        if (!textWrap) return;
+
+        if (btn.classList.contains('is-copy-error')) {
+            textWrap.innerHTML = '<span class="tactics-room-code-btn__copied tactics-room-code-btn__copied--error">'
+                + escapeHtml(i18n().t('copyLinkFail'))
+                + '</span>';
+            return;
+        }
+
+        if (btn.classList.contains('is-copied')) {
+            if (icon) {
+                icon.className = 'fas fa-check tactics-room-code-btn__icon';
+            }
+            textWrap.innerHTML = '<span class="tactics-room-code-btn__copied">'
+                + escapeHtml(i18n().t('copyLinkDone'))
+                + '</span>';
+            return;
+        }
+
+        restoreCopyBtnDefault();
     }
 
     function showCopyLinkFeedback(ok) {
@@ -450,26 +505,20 @@
             copyLinkResetTimer = null;
         }
 
-        if (!btn.dataset.copyDefaultHtml) {
-            btn.dataset.copyDefaultHtml = textWrap.innerHTML;
-            if (icon) {
-                btn.dataset.copyDefaultIcon = icon.className;
-            }
-        }
-
         if (!ok) {
+            btn.classList.remove('is-copied');
             btn.classList.add('is-copy-error');
             textWrap.innerHTML = '<span class="tactics-room-code-btn__copied tactics-room-code-btn__copied--error">'
                 + escapeHtml(i18n().t('copyLinkFail'))
                 + '</span>';
             copyLinkResetTimer = setTimeout(() => {
-                textWrap.innerHTML = btn.dataset.copyDefaultHtml;
-                btn.classList.remove('is-copy-error');
+                restoreCopyBtnDefault();
                 copyLinkResetTimer = null;
             }, 2000);
             return;
         }
 
+        btn.classList.remove('is-copy-error');
         btn.classList.add('is-copied');
         if (icon) {
             icon.className = 'fas fa-check tactics-room-code-btn__icon';
@@ -479,11 +528,7 @@
             + '</span>';
 
         copyLinkResetTimer = setTimeout(() => {
-            textWrap.innerHTML = btn.dataset.copyDefaultHtml;
-            if (icon && btn.dataset.copyDefaultIcon) {
-                icon.className = btn.dataset.copyDefaultIcon;
-            }
-            btn.classList.remove('is-copied');
+            restoreCopyBtnDefault();
             copyLinkResetTimer = null;
         }, 1500);
     }
@@ -516,12 +561,89 @@
     }
 
     function canEditNickname() {
-        return !window.ABS_TACTICS_IS_LOGGED_IN;
+        return !canManage;
+    }
+
+    function getNicknameEditInput() {
+        return document.querySelector('.tactics-participant-name-input')
+            || document.getElementById('tacticsMobileNicknameInput');
+    }
+
+    function syncMobileNicknameEditUi() {
+        const titleRow = document.querySelector('.page-tactics-room .tactics-editor-topbar__title-row');
+        const titleEl = document.getElementById('tacticsRoomTitle');
+        if (!titleRow || !titleEl) return;
+
+        const mobile = isMobileLayout();
+        const editable = canEditNickname();
+        let penBtn = document.getElementById('tacticsMobileNicknameBtn');
+        let editWrap = document.getElementById('tacticsMobileNicknameWrap');
+
+        if (!mobile || !editable) {
+            penBtn?.remove();
+            editWrap?.remove();
+            titleEl.hidden = false;
+            return;
+        }
+
+        if (nicknameEditing) {
+            penBtn?.remove();
+            titleEl.hidden = true;
+            if (!editWrap) {
+                editWrap = document.createElement('div');
+                editWrap.id = 'tacticsMobileNicknameWrap';
+                editWrap.className = 'tactics-mobile-nickname-wrap';
+                editWrap.innerHTML = ''
+                    + '<input type="text" class="tactics-mobile-nickname-input" id="tacticsMobileNicknameInput"'
+                    + ' maxlength="32" autocomplete="nickname">'
+                    + '<button type="button" class="tactics-mobile-nickname-btn tactics-mobile-nickname-btn--save"'
+                    + ' id="tacticsMobileNicknameSave" title="' + escapeHtml(i18n().t('saveNickname')) + '">'
+                    + '<i class="fas fa-check" aria-hidden="true"></i></button>'
+                    + '<button type="button" class="tactics-mobile-nickname-btn tactics-mobile-nickname-btn--cancel"'
+                    + ' id="tacticsMobileNicknameCancel" title="'
+                    + escapeHtml(i18n().getLang() === 'en' ? 'Cancel' : 'Отмена')
+                    + '"><i class="fas fa-times" aria-hidden="true"></i></button>';
+                titleRow.appendChild(editWrap);
+                editWrap.querySelector('#tacticsMobileNicknameSave')
+                    ?.addEventListener('click', () => saveNickname());
+                editWrap.querySelector('#tacticsMobileNicknameCancel')
+                    ?.addEventListener('click', () => cancelNicknameEdit());
+            }
+            const input = document.getElementById('tacticsMobileNicknameInput');
+            if (input && input.value !== nickname) {
+                input.value = nickname;
+            }
+            return;
+        }
+
+        editWrap?.remove();
+        titleEl.hidden = false;
+        if (!penBtn) {
+            penBtn = document.createElement('button');
+            penBtn.type = 'button';
+            penBtn.id = 'tacticsMobileNicknameBtn';
+            penBtn.className = 'tactics-editor-topbar__btn tactics-mobile-nickname-btn';
+            penBtn.title = i18n().t('editNickname');
+            penBtn.setAttribute('aria-label', penBtn.title);
+            penBtn.innerHTML = '<i class="fas fa-pen" aria-hidden="true"></i>';
+            penBtn.addEventListener('click', () => startNicknameEdit());
+            titleRow.appendChild(penBtn);
+        }
     }
 
     function startNicknameEdit() {
         if (!canEditNickname()) return;
         nicknameEditing = true;
+        if (isMobileLayout()) {
+            syncMobileNicknameEditUi();
+            const input = document.getElementById('tacticsMobileNicknameInput');
+            if (!input) return;
+            input.value = nickname;
+            input.focus();
+            input.select();
+            input.addEventListener('keydown', onNicknameInputKeydown);
+            return;
+        }
         renderParticipants(participantsList);
         const input = document.querySelector('.tactics-participant-name-input');
         if (!input) return;
@@ -532,6 +654,7 @@
 
     function cancelNicknameEdit() {
         nicknameEditing = false;
+        syncMobileNicknameEditUi();
         renderParticipants(participantsList);
     }
 
@@ -548,12 +671,13 @@
 
     async function saveNickname() {
         if (!canEditNickname()) return;
-        const input = document.querySelector('.tactics-participant-name-input');
+        const input = getNicknameEditInput();
         const next = (input?.value || '').trim()
             || window.ABS_TACTICS_DEFAULT_NICK
             || 'Guest';
         if (next === nickname) {
             nicknameEditing = false;
+            syncMobileNicknameEditUi();
             renderParticipants(participantsList);
             return;
         }
@@ -565,6 +689,7 @@
         const payload = await refreshSession('');
         if (!payload) {
             nickname = prev;
+            syncMobileNicknameEditUi();
             renderParticipants(participantsList);
             return;
         }
@@ -572,14 +697,29 @@
         accessToken = payload.access_token;
         wsToken = payload.ws_token;
         wsUrl = payload.ws_url;
+        if (payload.nickname) {
+            nickname = payload.nickname;
+        }
 
         if (wsClient) {
             wsClient.nickname = nickname;
-            wsClient.reconnectWithToken(wsToken);
+            if (wsToken) {
+                wsClient.reconnectWithToken(wsToken);
+            } else {
+                wsClient.updateNickname(nickname);
+            }
         }
 
         nicknameLockedByUser = true;
+        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
+            access_token: accessToken,
+            ws_token: wsToken,
+            nickname,
+            client_id: clientId,
+            is_owner: canManage,
+        });
         updateLocalParticipantNickname(nickname);
+        syncMobileNicknameEditUi();
         renderParticipants(participantsList);
     }
 
@@ -612,17 +752,58 @@
 
     function getDrawSettingsPayload() {
         const settings = getDrawSettings();
-        return {
+        const payload = {
             draw_mode: settings.draw_mode === 'open' ? 'open' : 'restricted',
             cursors_mode: settings.cursors_mode === 'off' ? 'off' : 'open',
             editors: Array.isArray(settings.editors) ? [...settings.editors] : [],
             show_grid: settings.show_grid !== false,
             presentation_mode: settings.presentation_mode === true,
         };
+        if (payload.presentation_mode && roomState?.room_data) {
+            const hostId = String(settings.presentation_host_id || clientId || '').trim();
+            if (hostId) {
+                payload.presentation_host_id = hostId;
+            }
+            const activeId = roomState.room_data.active_slide_id
+                || slidesCtrl?.getActiveSlideId?.()
+                || null;
+            if (activeId) {
+                payload.active_slide_id = activeId;
+            }
+        }
+        return payload;
     }
 
     function isPresentationMode() {
         return getDrawSettings().presentation_mode === true;
+    }
+
+    function computeHasDrawRights() {
+        if (canManage) return true;
+        const settings = getDrawSettings();
+        if (settings.draw_mode === 'open') return true;
+        const editors = Array.isArray(settings.editors) ? settings.editors : [];
+        return editors.includes(String(clientId || ''));
+    }
+
+    function isPresentationHost() {
+        if (!isPresentationMode()) return false;
+        const hostId = String(getDrawSettings().presentation_host_id || '').trim();
+        if (!hostId) {
+            return canManage;
+        }
+        return hostId === String(clientId || '');
+    }
+
+    function canControlPresentation() {
+        if (!computeHasDrawRights()) return false;
+        if (!isPresentationMode()) return true;
+        return isPresentationHost() || canManage;
+    }
+
+    function syncViewerToPresentationSlide() {
+        if (!isPresentationMode() || isPresentationHost() || !slidesCtrl) return;
+        slidesCtrl.syncToPresentationSlide(roomState?.room_data?.active_slide_id);
     }
 
     function broadcastDrawSettings() {
@@ -630,12 +811,9 @@
     }
 
     async function saveDrawSettingsNow() {
-        if (!canManage || !roomState || !accessToken) return;
+        if (!computeHasDrawRights() || !roomState || !accessToken) return;
 
-        const slide = slidesCtrl?.getActiveSlide();
-        if (slide && canvasCtrl) {
-            slidesCtrl.updateSlideCanvas(slide.id, canvasCtrl.getCanvasState());
-        }
+        persistCanvasToSlide();
 
         const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
             public_id: roomState.public_id,
@@ -655,10 +833,7 @@
     async function saveGridSettingNow() {
         if (!canDraw || !roomState || !accessToken) return;
 
-        const slide = slidesCtrl?.getActiveSlide();
-        if (slide && canvasCtrl) {
-            slidesCtrl.updateSlideCanvas(slide.id, canvasCtrl.getCanvasState());
-        }
+        persistCanvasToSlide();
 
         const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
             public_id: roomState.public_id,
@@ -702,12 +877,8 @@
     }
 
     function computeCanDraw() {
-        if (isPresentationMode() && !canManage) return false;
-        if (canManage) return true;
-        const settings = getDrawSettings();
-        if (settings.draw_mode === 'open') return true;
-        const editors = Array.isArray(settings.editors) ? settings.editors : [];
-        return editors.includes(String(clientId || ''));
+        if (isPresentationMode() && !isPresentationHost()) return false;
+        return computeHasDrawRights();
     }
 
     function computeCanShareCursor() {
@@ -716,10 +887,21 @@
     }
 
     function applyDrawPermissions() {
-        canDraw = computeCanDraw();
-        const viewerLocked = isPresentationMode() && !canManage;
-        canvasCtrl?.setDrawEnabled(canDraw);
-        canvasCtrl?.setInteractionLocked(viewerLocked);
+        const mobileView = isMobileView();
+        let viewerLocked;
+
+        viewerLocked = isPresentationMode() && !isPresentationHost();
+
+        if (mobileView) {
+            canDraw = false;
+            canvasCtrl?.setDrawEnabled(false);
+            canvasCtrl?.setInteractionLocked(viewerLocked);
+        } else {
+            canDraw = computeCanDraw();
+            canvasCtrl?.setDrawEnabled(canDraw);
+            canvasCtrl?.setInteractionLocked(viewerLocked);
+        }
+
         updateDrawLockBtn();
         updatePresentBtn();
         applyCursorPermissions();
@@ -728,7 +910,7 @@
             gridBtn.disabled = viewerLocked;
             gridBtn.classList.toggle('is-disabled', viewerLocked);
         }
-        const canEditSlides = (canManage || canDraw) && !viewerLocked;
+        const canEditSlides = !mobileView && (canManage || canDraw) && !viewerLocked;
         slidesCtrl?.setCanManage(canManage);
         slidesCtrl?.setCanAddSlides(canEditSlides);
         slidesCtrl?.setSlidesLocked(viewerLocked);
@@ -736,11 +918,13 @@
         if (mapsPanel) {
             mapsPanel.classList.toggle('is-disabled', !canEditSlides);
         }
-        chatCtrl?.setInputEnabled(!isPresentationMode());
+        chatCtrl?.setInputEnabled(!isPresentationMode() && !mobileView);
         updateRoomTitle();
         syncMapModalCustomUploadUi();
         syncDotaPickUi(slidesCtrl?.getActiveSlide());
         renderParticipants(participantsList);
+        updateMobileSlideNav();
+        syncMobileNicknameEditUi();
     }
 
     function applyCursorPermissions() {
@@ -888,9 +1072,6 @@
         if (row && groupEl) {
             groupEl.classList.add('is-title-editing');
             row.classList.add('is-editing');
-            const rowRect = row.getBoundingClientRect();
-            const groupRect = groupEl.getBoundingClientRect();
-            row.style.left = `${rowRect.left - groupRect.left}px`;
         }
 
         const finish = async (cancel) => {
@@ -903,7 +1084,6 @@
 
             if (row) {
                 row.classList.remove('is-editing');
-                row.style.left = '';
             }
             groupEl?.classList.remove('is-title-editing');
 
@@ -979,12 +1159,14 @@
         if (!btn) return;
 
         const active = isPresentationMode();
-        const viewerStatus = active && !canManage;
-        btn.hidden = !canManage && !viewerStatus;
-        btn.classList.toggle('is-active', active && canManage);
+        const host = isPresentationHost();
+        const canToggle = canControlPresentation();
+        const viewerStatus = active && !host && !canToggle;
+        btn.hidden = !computeHasDrawRights() && !(active && !host);
+        btn.classList.toggle('is-active', active && host);
         btn.classList.toggle('is-viewer-status', viewerStatus);
-        btn.disabled = false;
-        btn.setAttribute('aria-disabled', viewerStatus ? 'true' : 'false');
+        btn.disabled = !canToggle;
+        btn.setAttribute('aria-disabled', canToggle ? 'false' : 'true');
 
         const icon = btn.querySelector('i');
         if (icon) {
@@ -1012,7 +1194,7 @@
     }
 
     function togglePresentationMode() {
-        if (!canManage) return;
+        if (!canControlPresentation()) return;
         const settings = getDrawSettings();
         const enabling = !isPresentationMode();
 
@@ -1026,6 +1208,9 @@
                     activeSlideId: slideId,
                 });
             }
+            settings.presentation_host_id = String(clientId || '');
+        } else {
+            delete settings.presentation_host_id;
         }
 
         settings.presentation_mode = enabling;
@@ -1146,6 +1331,11 @@
             return;
         }
 
+        if (window.innerWidth <= COMPACT_LAYOUT_MAX) {
+            rightInner?.style.removeProperty('--tactics-right-users-height');
+            return;
+        }
+
         const innerRect = rightInner.getBoundingClientRect();
         const contextRect = toolContext.getBoundingClientRect();
         const offset = Math.max(96, Math.round(contextRect.top - innerRect.top));
@@ -1176,9 +1366,28 @@
     }
 
     const SIDEBAR_AUTO_COLLAPSE_LEFT = 1340;
+    const COMPACT_LAYOUT_MAX = 1340;
+    const MOBILE_LAYOUT_MAX = 500;
     let sidebarPreferLeft = null;
     let sidebarPreferRight = null;
     let sidebarResponsiveBound = false;
+
+    function isMobileLayout() {
+        return window.innerWidth <= MOBILE_LAYOUT_MAX;
+    }
+
+    function isCompactLayout() {
+        const width = window.innerWidth;
+        return width > MOBILE_LAYOUT_MAX && width <= COMPACT_LAYOUT_MAX;
+    }
+
+    function isMobileView() {
+        return isMobileLayout();
+    }
+
+    function canUseMobileSlideNav() {
+        return isMobileLayout() && !(isPresentationMode() && !isPresentationHost());
+    }
 
     function syncEditorBodyLayoutClasses() {
         const editorBody = document.querySelector('.page-tactics-room .tactics-editor-body');
@@ -1209,11 +1418,99 @@
         return width < SIDEBAR_AUTO_COLLAPSE_LEFT;
     }
 
+    function updateMobileSlideNav() {
+        const bar = document.getElementById('tacticsMobileBar');
+        const labelEl = document.getElementById('tacticsMobileSlideLabel');
+        const prevBtn = document.getElementById('tacticsMobileSlidePrev');
+        const nextBtn = document.getElementById('tacticsMobileSlideNext');
+        if (!bar || !labelEl || !prevBtn || !nextBtn) return;
+
+        const showBar = canUseMobileSlideNav();
+        bar.hidden = !showBar;
+        if (!showBar) return;
+
+        const slides = slidesCtrl?.getSlides?.() || [];
+        const activeId = slidesCtrl?.getActiveSlideId?.();
+        const index = slides.findIndex((slide) => slide.id === activeId);
+        const total = slides.length;
+        const activeSlide = index >= 0 ? slides[index] : null;
+        const slideName = activeSlide
+            ? (slidesCtrl?.getSlideDisplayName?.(activeSlide) || String(index + 1))
+            : '—';
+
+        labelEl.textContent = total > 0
+            ? (index >= 0 ? (index + 1) + ' / ' + total + ' · ' + slideName : slideName)
+            : '—';
+
+        const canSwitch = total > 1;
+        prevBtn.disabled = false;
+        nextBtn.disabled = false;
+        prevBtn.classList.toggle('is-disabled', !canSwitch);
+        nextBtn.classList.toggle('is-disabled', !canSwitch);
+    }
+
+    function bindMobileSlideNav() {
+        const prevBtn = document.getElementById('tacticsMobileSlidePrev');
+        const nextBtn = document.getElementById('tacticsMobileSlideNext');
+        if (!prevBtn || !nextBtn || prevBtn.dataset.bound) return;
+        prevBtn.dataset.bound = '1';
+        nextBtn.dataset.bound = '1';
+
+        const step = (delta) => {
+            if (!canUseMobileSlideNav()) return;
+            const slides = slidesCtrl?.getSlides?.() || [];
+            if (slides.length < 2) return;
+            const activeId = slidesCtrl?.getActiveSlideId?.();
+            const index = slides.findIndex((slide) => slide.id === activeId);
+            const start = index >= 0 ? index : 0;
+            const next = slides[(start + delta + slides.length) % slides.length];
+            if (next?.id) {
+                slidesCtrl.switchSlide(next.id);
+            }
+        };
+
+        const onStep = (delta) => (ev) => {
+            ev.preventDefault();
+            step(delta);
+        };
+
+        prevBtn.addEventListener('click', onStep(-1));
+        nextBtn.addEventListener('click', onStep(1));
+    }
+
     function applyResponsiveSidebars() {
         const width = window.innerWidth;
-        const leftCollapsed = shouldAutoCollapseLeft(width);
-        setSidebarCollapsed('left', leftCollapsed);
+        const mobile = width <= MOBILE_LAYOUT_MAX;
+        const compact = isCompactLayout();
+        document.getElementById('tacticsRoomWorkspace')?.classList.toggle('is-mobile-view', mobile);
+        document.getElementById('tacticsRoomWorkspace')?.classList.toggle('is-compact-view', compact);
+        document.body.classList.toggle('is-tactics-mobile', mobile);
+        document.body.classList.toggle('is-tactics-compact', compact);
+
+        if (mobile) {
+            setSidebarCollapsed('left', true);
+            setSidebarCollapsed('right', true);
+            chatCtrl?.setCollapsed?.(true);
+        } else if (compact) {
+            setSidebarCollapsed('left', true);
+            setSidebarCollapsed('right', false);
+            chatCtrl?.setCollapsed?.(true);
+        } else {
+            const leftCollapsed = shouldAutoCollapseLeft(width);
+            setSidebarCollapsed('left', leftCollapsed);
+            if (sidebarPreferRight !== null) {
+                setSidebarCollapsed('right', !sidebarPreferRight);
+            }
+        }
+
+        applyDrawPermissions();
+        updateMobileSlideNav();
+        syncMobileNicknameEditUi();
+        slidesCtrl?.syncCarouselLayout?.();
         canvasCtrl?.scheduleResize?.();
+        if (mobile || compact) {
+            void canvasCtrl?.ensureCanvasLayout?.();
+        }
         scheduleRightSidebarLayoutSync();
     }
 
@@ -1222,14 +1519,18 @@
         sidebarResponsiveBound = true;
 
         let lastWidth = window.innerWidth;
-        window.addEventListener('resize', () => {
+        const onViewportChange = () => {
             const width = window.innerWidth;
             if (width >= SIDEBAR_AUTO_COLLAPSE_LEFT && lastWidth < SIDEBAR_AUTO_COLLAPSE_LEFT) {
                 sidebarPreferLeft = null;
             }
             lastWidth = width;
             applyResponsiveSidebars();
-        }, { passive: true });
+        };
+
+        window.addEventListener('resize', onViewportChange, { passive: true });
+        window.visualViewport?.addEventListener('resize', onViewportChange, { passive: true });
+        window.visualViewport?.addEventListener('scroll', onViewportChange, { passive: true });
 
         applyResponsiveSidebars();
     }
@@ -1257,6 +1558,7 @@
         });
 
         bindResponsiveSidebars();
+        bindMobileSlideNav();
     }
 
     function toggleParticipantEditor(targetClientId) {
@@ -1301,10 +1603,20 @@
             local.presentation_mode = settings.presentation_mode;
         }
 
+        if (typeof settings.presentation_host_id === 'string' && settings.presentation_host_id) {
+            local.presentation_host_id = settings.presentation_host_id;
+        } else if (settings.presentation_mode === false) {
+            delete local.presentation_host_id;
+        }
+
+        if (typeof settings.active_slide_id === 'string' && settings.active_slide_id) {
+            roomState.room_data.active_slide_id = settings.active_slide_id;
+        }
+
         applyDrawPermissions();
 
-        if (local.presentation_mode && !wasPresentation && !canManage && slidesCtrl) {
-            slidesCtrl.syncToPresentationSlide(roomState.room_data.active_slide_id);
+        if (local.presentation_mode && !wasPresentation) {
+            syncViewerToPresentationSlide();
         }
     }
 
@@ -1417,44 +1729,110 @@
         saveTimer = setTimeout(saveRoom, SAVE_MS);
     }
 
-    async function saveRoom() {
-        if (!dirty || !roomState || !accessToken) return;
-        dirty = false;
-        setSaveStatus('saving');
+    function canvasStateHasObjects(canvas) {
+        return Array.isArray(canvas?.objects) && canvas.objects.length > 0;
+    }
 
-        const slide = slidesCtrl?.getActiveSlide();
-        if (slide && canvasCtrl) {
-            slidesCtrl.updateSlideCanvas(slide.id, canvasCtrl.getCanvasState());
-        }
+    function flushCanvasToRoomData() {
+        persistCanvasToSlide();
+    }
 
-        const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
-            public_id: roomState.public_id,
-            room_data: roomState.room_data,
-            revision,
+    function canPersistRoomChanges() {
+        return computeHasDrawRights() || canManage;
+    }
+
+    function hasSaveAuth() {
+        if (accessToken) return true;
+        return !!(canManage && window.ABS_TACTICS_IS_LOGGED_IN);
+    }
+
+    async function refreshSaveSession() {
+        const payload = await refreshSession('');
+        if (!payload) return false;
+        applySessionTokens(payload);
+        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
             access_token: accessToken,
-        }, accessToken);
+            ws_token: wsToken,
+            nickname,
+            client_id: clientId,
+            is_owner: canManage,
+        });
+        applyDrawPermissions();
+        if (wsClient && wsToken) {
+            wsClient.reconnectWithToken(wsToken);
+        }
+        return true;
+    }
 
-        if (isRoomGoneResponse(res)) {
-            redirectRoomNotFound();
+    async function saveRoom() {
+        if (!dirty || !roomState || saveInFlight) return;
+        if (!canPersistRoomChanges()) return;
+        if (!hasSaveAuth()) {
+            scheduleSave();
+            return;
+        }
+        if (canvasCtrl?.isSlideLoading) {
+            scheduleSave();
             return;
         }
 
-        if (res.ok && res.data.success) {
-            revision = res.data.data.revision || revision + 1;
-            roomState.revision = revision;
-            setSaveStatus(wsConnected ? 'connected' : 'saved');
-            if (!wsConnected) {
-                setTimeout(() => setSaveStatus(''), 2000);
+        saveInFlight = true;
+        try {
+            setSaveStatus('saving');
+            flushCanvasToRoomData();
+
+            const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
+                public_id: roomState.public_id,
+                room_data: roomState.room_data,
+                revision,
+                access_token: accessToken,
+            }, accessToken);
+
+            if (isRoomGoneResponse(res)) {
+                redirectRoomNotFound();
+                return;
             }
-        } else {
+
+            if (res.ok && res.data.success) {
+                dirty = false;
+                save403Attempts = 0;
+                revision = res.data.data.revision || revision + 1;
+                roomState.revision = revision;
+                setSaveStatus(wsConnected ? 'connected' : 'saved');
+                if (!wsConnected) {
+                    setTimeout(() => setSaveStatus(''), 2000);
+                }
+                return;
+            }
+
             dirty = true;
             setSaveStatus('saveError');
+
+            const errorText = String(res.data?.error || '');
+            const isCsrf = /токен безопасности|security token/i.test(errorText);
+
             if (res.status === 403) {
-                await resyncRoom(true);
+                if (!isCsrf && save403Attempts < SAVE_403_MAX_ATTEMPTS) {
+                    save403Attempts += 1;
+                    const refreshed = await refreshSaveSession();
+                    if (refreshed && hasSaveAuth() && canPersistRoomChanges()) {
+                        saveInFlight = false;
+                        return saveRoom();
+                    }
+                }
+                save403Attempts = 0;
                 applyDrawPermissions();
-            } else if (res.status === 409) {
-                await resyncRoom(true);
+                return;
             }
+
+            if (res.status === 409) {
+                await resyncRoom(true);
+                scheduleSave();
+            } else {
+                scheduleSave();
+            }
+        } finally {
+            saveInFlight = false;
         }
     }
 
@@ -1532,10 +1910,50 @@
         });
     }
 
+    function persistCanvasToSlide() {
+        if (!slidesCtrl || !canvasCtrl || canvasCtrl.isSlideLoading) return;
+        const slideId = canvasCtrl.slideId;
+        if (!slideId) return;
+        slidesCtrl.updateSlideCanvas(slideId, canvasCtrl.getCanvasState());
+    }
+
+    async function applyServerCanvasForActiveSlide() {
+        if (!slidesCtrl || !canvasCtrl || canvasCtrl.isSlideLoading || dirty) return;
+        const slide = slidesCtrl.getActiveSlide();
+        if (!slide?.canvas || !canvasStateHasObjects(slide.canvas)) return;
+        const live = canvasCtrl.getCanvasState();
+        if (canvasStateHasObjects(live)) return;
+        if (String(canvasCtrl.slideId || '') !== String(slide.id)) return;
+        await canvasCtrl.applyCanvasState(slide.canvas);
+    }
+
+    function mergeLocalCanvasRoomData(localRoomData, incomingRoomData) {
+        if (!localRoomData?.slides || !incomingRoomData?.slides) {
+            return incomingRoomData;
+        }
+
+        const localSlides = localRoomData.slides;
+        const mergedSlides = incomingRoomData.slides.map((nextSlide) => {
+            const localSlide = localSlides.find((s) => s.id === nextSlide.id);
+            if (!localSlide) {
+                return nextSlide;
+            }
+            if (canvasStateHasObjects(localSlide.canvas)) {
+                return { ...nextSlide, canvas: localSlide.canvas };
+            }
+            return nextSlide;
+        });
+
+        return {
+            ...incomingRoomData,
+            slides: mergedSlides,
+        };
+    }
+
     function syncStoredSlideCanvas(slideId) {
         if (!slideId || !slidesCtrl || !canvasCtrl) return;
-        if (String(slidesCtrl.getActiveSlideId() || '') !== String(slideId)) return;
-        slidesCtrl.updateSlideCanvas(slideId, canvasCtrl.getCanvasState());
+        if (String(canvasCtrl.slideId || '') !== String(slideId)) return;
+        persistCanvasToSlide();
     }
 
     function preserveRealtimeCanvasRoomData(previousRoomData, incomingRoomData, activeSlideId) {
@@ -1561,6 +1979,43 @@
         };
     }
 
+    function mergeRemoteObjectIntoSlideCanvas(slideId, payload, mode) {
+        if (!slidesCtrl || !slideId || !payload) return;
+        const slide = slidesCtrl.getSlides().find((s) => s.id === slideId);
+        if (!slide) return;
+
+        const current = slide.canvas || {
+            version: canvasCtrl?.fabric?.version || '5.3.0',
+            objects: [],
+        };
+        const objects = Array.isArray(current.objects) ? [...current.objects] : [];
+
+        if (mode === 'add') {
+            const next = { ...payload };
+            delete next.tacticsLiveStrokeId;
+            objects.push(next);
+        } else if (mode === 'modify') {
+            const index = objects.findIndex((obj) => obj.type === payload.type
+                && Math.round(obj.left) === Math.round(payload.left)
+                && Math.round(obj.top) === Math.round(payload.top));
+            if (index >= 0) {
+                objects[index] = { ...objects[index], ...payload };
+            }
+        } else if (mode === 'remove') {
+            const index = objects.findIndex((obj) => obj.type === payload.type
+                && Math.round(obj.left) === Math.round(payload.left)
+                && Math.round(obj.top) === Math.round(payload.top));
+            if (index >= 0) {
+                objects.splice(index, 1);
+            }
+        }
+
+        slidesCtrl.updateSlideCanvas(slideId, {
+            ...current,
+            objects,
+        });
+    }
+
     async function applyRemoteCanvasOp(msg) {
         if (!canvasCtrl || !msg) return;
 
@@ -1571,6 +2026,7 @@
 
         if (msg.op === 'full' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
             slidesCtrl?.updateSlideCanvas(msgSlideId, msg.payload);
+            if (canDraw) markDirty();
             return;
         }
 
@@ -1579,13 +2035,33 @@
                 version: canvasCtrl.fabric?.version || '5.3.0',
                 objects: [],
             });
+            if (canDraw) markDirty();
+            return;
+        }
+
+        if (msg.op === 'add' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
+            mergeRemoteObjectIntoSlideCanvas(msgSlideId, msg.payload, 'add');
+            if (canDraw) markDirty();
+            return;
+        }
+
+        if (msg.op === 'modify' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
+            mergeRemoteObjectIntoSlideCanvas(msgSlideId, msg.payload, 'modify');
+            if (canDraw) markDirty();
+            return;
+        }
+
+        if (msg.op === 'remove' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
+            mergeRemoteObjectIntoSlideCanvas(msgSlideId, msg.payload, 'remove');
+            if (canDraw) markDirty();
             return;
         }
 
         await canvasCtrl.applyRemoteOp(msg);
 
         if (canvasMutatingOps.includes(msg.op) && msgSlideId === activeIdStr) {
-            syncStoredSlideCanvas(activeId);
+            persistCanvasToSlide();
+            if (canDraw) markDirty();
         }
     }
 
@@ -1812,8 +2288,13 @@
         applyDrawPermissions();
 
         if (nextSlide && canvasCtrl && !dirty) {
-            if (wsConnected) {
-                syncStoredSlideCanvas(activeId);
+            const live = canvasCtrl.getCanvasState();
+            const liveEmpty = !canvasStateHasObjects(live);
+            const serverHas = canvasStateHasObjects(nextSlide.canvas);
+            if (liveEmpty && serverHas) {
+                await canvasCtrl.applyCanvasState(nextSlide.canvas);
+            } else if (!liveEmpty) {
+                persistCanvasToSlide();
             } else {
                 const prevJson = JSON.stringify(prevSlide?.canvas || null);
                 const nextJson = JSON.stringify(nextSlide?.canvas || null);
@@ -1904,6 +2385,9 @@
         if (!editor || editor.hasAttribute('hidden')) return;
         editor.classList.remove('is-booting');
         editor.classList.add('is-ready');
+        applyResponsiveSidebars();
+        updateMobileSlideNav();
+        canvasCtrl?.scheduleResize?.();
     }
 
     function buildMapUrls(roomData, serverUrls) {
@@ -2189,10 +2673,7 @@
         settingsSaving = true;
         setSaveStatus('saving');
 
-        const slide = slidesCtrl?.getActiveSlide();
-        if (slide && canvasCtrl) {
-            slidesCtrl.updateSlideCanvas(slide.id, canvasCtrl.getCanvasState());
-        }
+        persistCanvasToSlide();
 
         const body = {
             public_id: roomState.public_id,
@@ -2250,7 +2731,8 @@
             }
         }
 
-        const res = await store().postJson(window.ABS_TACTICS_JOIN_API, body, null);
+        const joinToken = body.access_token || accessToken || null;
+        const res = await store().postJson(window.ABS_TACTICS_JOIN_API, body, joinToken);
         if (isRoomGoneResponse(res)) {
             const fallback = buildBootstrapPayload(stored);
             if (fallback) return fallback;
@@ -2351,11 +2833,18 @@
         maps().preloadMapUrls(Object.values(window.ABS_TACTICS_MAP_URLS));
     }
 
-    function mergeSessionUpdate(payload) {
+    async function mergeSessionUpdate(payload) {
         if (!payload) return;
+        const previousRoomData = roomState?.room_data;
         applySessionTokens(payload);
         if (payload.room?.room_data && slidesCtrl) {
-            slidesCtrl.setRoomData(payload.room.room_data);
+            const mergedRoomData = mergeLocalCanvasRoomData(
+                previousRoomData,
+                payload.room.room_data,
+            );
+            roomState.room_data = mergedRoomData;
+            slidesCtrl.setRoomData(mergedRoomData);
+            await applyServerCanvasForActiveSlide();
         }
         updateSettingsPanel();
         syncVisibilityUi(roomState?.visibility);
@@ -2367,6 +2856,7 @@
             is_owner: canManage,
         });
         applyDrawPermissions();
+        syncViewerToPresentationSlide();
         if (!wsToken) return;
         if (wsClient) {
             wsClient.reconnectWithToken(wsToken);
@@ -2524,18 +3014,25 @@
             roomGame,
             canManage,
             canAddSlides: canManage || canDraw,
+            getCanvasSlideId: () => canvasCtrl?.slideId || null,
+            getLiveCanvasState: () => canvasCtrl?.getCanvasState() || null,
             onSwitch: async (slideId, prevSlideId) => {
-                if (prevSlideId && canvasCtrl) {
+                if (prevSlideId && canvasCtrl?.slideId
+                    && String(canvasCtrl.slideId) === String(prevSlideId)) {
                     saveSlideCursorPrefs(prevSlideId);
                     slidesCtrl.updateSlideCanvas(prevSlideId, canvasCtrl.getCanvasState());
                 }
-                const slide = slidesCtrl.getActiveSlide();
+                const slide = slidesCtrl.getSlides().find((s) => s.id === slideId)
+                    || slidesCtrl.getActiveSlide();
                 if (slide) {
+                    slidesCtrl.pinViewSlide(slide.id);
                     syncDotaPickUi(slide);
                     await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
                     applySlideViewPrefs(slide);
                     await applyGameNicknameForSlide(slide);
+                    if (dirty) scheduleSave();
                 }
+                updateMobileSlideNav();
             },
             onChange: () => markDirty(),
             onRenamed: () => {},
@@ -2558,8 +3055,8 @@
             onBroadcast: (data) => {
                 wsClient?.sendSlide(data.action, data);
             },
-            shouldBroadcastSlideSwitch: () => isPresentationMode() && canManage,
-            shouldFollowRemoteSlideSwitch: () => isPresentationMode() && !canManage,
+            shouldBroadcastSlideSwitch: () => isPresentationMode() && isPresentationHost(),
+            shouldFollowRemoteSlideSwitch: () => isPresentationMode() && !isPresentationHost(),
             onDelete: () => markDirty(),
             onDuplicate: async (sourceSlide, copySlide) => {
                 if (!sourceSlide || !copySlide) return;
@@ -2575,6 +3072,12 @@
                 await duplicateCustomMapFile(sourceSlide.id, copySlide.id);
             },
         });
+
+        const slidesRender = slidesCtrl.render.bind(slidesCtrl);
+        slidesCtrl.render = function renderSlidesWithMobileNav() {
+            slidesRender();
+            updateMobileSlideNav();
+        };
 
         const activeSlideForView = slidesCtrl?.getActiveSlide()
             || roomState.room_data?.slides?.find((s) => s.id === roomState.room_data?.active_slide_id)
@@ -2606,9 +3109,9 @@
                 pushGridChange(visible);
             },
             onChange: () => {
-                if (canDraw) markDirty();
-                if (wsConnected) {
-                    syncStoredSlideCanvas(slidesCtrl?.getActiveSlideId());
+                if (canDraw) {
+                    persistCanvasToSlide();
+                    markDirty();
                 }
             },
             onOp: (msg) => {
@@ -2624,7 +3127,11 @@
                     wsClient?.sendOp(msg.slideId, msg.op, msg.payload);
                     return;
                 }
+                const persistOps = ['add', 'remove', 'modify', 'full', 'clear'];
                 if (wsClient?.sendOp(msg.slideId, msg.op, msg.payload)) {
+                    if (persistOps.includes(msg.op) && canDraw) {
+                        markDirty();
+                    }
                     return;
                 }
                 scheduleSave();
@@ -2671,13 +3178,30 @@
         renderParticipants([{ clientId: String(clientId || ''), nickname: String(nickname || '') }]);
 
         const slideLoadPromise = (async () => {
+            if (pendingSessionPromise) {
+                try {
+                    const sessionPayload = await pendingSessionPromise;
+                    if (sessionPayload) {
+                        await mergeSessionUpdate(sessionPayload);
+                    }
+                } catch (err) {
+                    console.warn('[tactics] session refresh before slide load failed', err);
+                }
+            }
+            syncViewerToPresentationSlide();
             const slide = slidesCtrl.getActiveSlide();
             syncMapModalCustomUploadUi();
             syncDotaPickUi(slide);
             if (slide) {
                 await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
+                await applyServerCanvasForActiveSlide();
+                slidesCtrl.pinViewSlide(slide.id);
                 applySlideViewPrefs(slide);
                 updateRoomTitle();
+                await canvasCtrl.ensureCanvasLayout?.();
+                updateMobileSlideNav();
+                canvasCtrl.scheduleResize?.();
+                if (dirty) scheduleSave();
             }
         })();
 
@@ -2685,7 +3209,7 @@
         startPollingFallback();
         restartPresencePolling();
 
-        if (window.TacticsChat) {
+        if (!chatCtrl && window.TacticsChat) {
             chatCtrl = new window.TacticsChat({
                 publicId: roomPublicId(),
                 clientId,
@@ -2793,15 +3317,28 @@
             maps().preloadMapUrls(Object.values(window.ABS_TACTICS_MAP_URLS));
         }
 
-        const sessionPromise = refreshSession('');
+        pendingSessionPromise = refreshSession('');
+        const sessionPromise = pendingSessionPromise;
 
         if (hasEmbeddedRoom()) {
             const bootstrap = buildBootstrapPayload(stored);
             if (bootstrap) {
                 await applySession(bootstrap);
-                sessionPromise.then((payload) => {
-                    mergeSessionUpdate(payload);
-                });
+                try {
+                    const sessionPayload = await pendingSessionPromise;
+                    if (sessionPayload) {
+                        applySessionTokens(sessionPayload);
+                        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
+                            access_token: accessToken,
+                            ws_token: wsToken,
+                            nickname,
+                            client_id: clientId,
+                            is_owner: canManage,
+                        });
+                    }
+                } catch (err) {
+                    console.warn('[tactics] session refresh after bootstrap failed', err);
+                }
                 window.addEventListener('tactics:catalog-updated', () => {
                     addMapPicker?.relocalize();
                     const activeSlide = slidesCtrl?.getActiveSlide();
@@ -2841,6 +3378,9 @@
         i18n().relocalizeDom(document.getElementById('tacticsPasswordGate') || document);
         i18n().relocalizeDom(document.getElementById('tacticsRoomWorkspace') || document);
         i18n().relocalizeDom(document.querySelector('.tactics-room-gone') || document);
+        relocalizeCopyLinkBtn();
+        resetCopyBtnSizeLock(document.getElementById('tacticsCopyLinkBtn'));
+        requestAnimationFrame(() => ensureCopyBtnSizeLocked(document.getElementById('tacticsCopyLinkBtn')));
         slidesCtrl?.setLang(i18n().getLang());
         slidesCtrl?.relocalizeNames();
         updateRoomTitle();
@@ -2862,7 +3402,27 @@
     window.AbsTacticsRoom = { relocalizeView, ensureDeferredModules: finishDeferredModules };
 
     window.addEventListener('beforeunload', () => {
-        if (dirty) saveRoom();
+        if (dirty && roomState && accessToken) {
+            flushCanvasToRoomData();
+            const body = JSON.stringify({
+                public_id: roomState.public_id,
+                room_data: roomState.room_data,
+                revision,
+                access_token: accessToken,
+                csrf_token: window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '',
+            });
+            const headers = {
+                type: 'application/json',
+                'X-CSRF-Token': window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '',
+                'X-Tactics-Token': accessToken,
+            };
+            if (navigator.sendBeacon) {
+                const blob = new Blob([body], headers);
+                navigator.sendBeacon(window.ABS_TACTICS_UPDATE_API, blob);
+            } else {
+                void saveRoom();
+            }
+        }
         stopPresencePolling();
         wsClient?.disconnect();
     });

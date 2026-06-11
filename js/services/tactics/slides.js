@@ -27,6 +27,8 @@
             this.onMapModalClose = options.onMapModalClose || (() => {});
             this.shouldBroadcastSlideSwitch = options.shouldBroadcastSlideSwitch || (() => false);
             this.shouldFollowRemoteSlideSwitch = options.shouldFollowRemoteSlideSwitch || (() => false);
+            this.getCanvasSlideId = options.getCanvasSlideId || (() => null);
+            this.getLiveCanvasState = options.getLiveCanvasState || (() => null);
             this.lang = options.lang || 'ru';
             this.publicId = options.publicId || window.ABS_TACTICS_PUBLIC_ID || '';
             this.roomGame = options.roomGame || null;
@@ -39,6 +41,11 @@
             }
             this.viewToggleBtn = document.getElementById('tacticsSlidesViewToggle');
             this.viewToggleIcon = document.getElementById('tacticsSlidesViewToggleIcon');
+            this.carouselViewport = document.getElementById('tacticsSlidesCarouselViewport');
+            this.carouselPrevBtn = document.getElementById('tacticsSlidesCarouselPrev');
+            this.carouselNextBtn = document.getElementById('tacticsSlidesCarouselNext');
+            this.carouselStripWrap = document.getElementById('tacticsSlidesStripWrap');
+            this.carouselResizeBound = false;
             this.viewMode = this.loadViewMode();
             this.viewSlideId = this.loadViewSlideId();
             this.pendingPresentationSlideId = null;
@@ -70,6 +77,12 @@
             }
         }
 
+        pinViewSlide(slideId) {
+            if (!slideId || !this.getSlides().some((s) => s.id === slideId)) return;
+            this.viewSlideId = slideId;
+            this.persistViewSlideId();
+        }
+
         getViewModeStorageKey() {
             return 'abs_tactics_slides_view_' + (this.publicId || 'default');
         }
@@ -91,8 +104,24 @@
             }
         }
 
+        isCarouselLayout() {
+            return window.innerWidth > 500 && window.innerWidth <= 1340;
+        }
+
         applyViewModeClasses() {
             if (!this.listEl) return;
+            if (this.isCarouselLayout()) {
+                this.listEl.classList.remove(
+                    'tactics-slides-list--list',
+                    'tactics-slides-list--strip',
+                    'tactics-slides-list--grid',
+                );
+                this.listEl.classList.add('tactics-slides-list--carousel');
+                const wrap = this.carouselStripWrap || this.listEl.closest('.tactics-slides-strip-wrap');
+                wrap?.classList.remove('tactics-slides-strip-wrap--list', 'tactics-slides-strip-wrap--grid');
+                this.updateViewToggleUi();
+                return;
+            }
             const isList = this.viewMode === 'list';
             this.listEl.classList.toggle('tactics-slides-list--grid', !isList);
             this.listEl.classList.toggle('tactics-slides-list--list', isList);
@@ -101,6 +130,72 @@
             wrap?.classList.toggle('tactics-slides-strip-wrap--grid', !isList);
             wrap?.classList.toggle('tactics-slides-strip-wrap--list', isList);
             this.updateViewToggleUi();
+        }
+
+        applyCarouselMode() {
+            if (!this.listEl) return;
+            const carousel = this.isCarouselLayout();
+            const wrap = this.carouselStripWrap || this.listEl.closest('.tactics-slides-strip-wrap');
+            wrap?.classList.toggle('tactics-slides-strip-wrap--carousel', carousel);
+            this.listEl.classList.toggle('tactics-slides-list--carousel', carousel);
+            this.applyViewModeClasses();
+            this.updateCarouselControls();
+            if (!this.carouselResizeBound) {
+                this.carouselResizeBound = true;
+                window.addEventListener('resize', () => {
+                    this.applyCarouselMode();
+                    this.syncCarouselScroll('auto');
+                }, { passive: true });
+            }
+        }
+
+        updateCarouselControls() {
+            const carousel = this.isCarouselLayout();
+            const slides = this.getSlides();
+            const canStep = carousel && slides.length > 1;
+            [this.carouselPrevBtn, this.carouselNextBtn].forEach((btn) => {
+                if (!btn) return;
+                btn.hidden = !carousel;
+                btn.classList.toggle('is-disabled', !canStep);
+                btn.disabled = !canStep;
+            });
+        }
+
+        syncCarouselScroll(behavior = 'smooth') {
+            if (!this.isCarouselLayout() || !this.carouselViewport || !this.listEl) return;
+
+            const viewport = this.carouselViewport;
+            const fits = viewport.clientWidth > 0 && this.listEl.scrollWidth <= viewport.clientWidth;
+            viewport.style.justifyContent = fits ? 'center' : 'flex-start';
+
+            const activeCard = this.listEl.querySelector('.tactics-slide-card.is-active');
+            const item = activeCard?.closest('.tactics-slide-item');
+            if (!item) return;
+            if (fits) return;
+
+            const scrollBehavior = behavior === 'auto' ? 'auto' : 'smooth';
+            if (typeof item.scrollIntoView === 'function') {
+                item.scrollIntoView({
+                    behavior: scrollBehavior,
+                    block: 'nearest',
+                    inline: 'center',
+                });
+                return;
+            }
+            const viewportRect = viewport.getBoundingClientRect();
+            const itemRect = item.getBoundingClientRect();
+            const itemCenter = (itemRect.left - viewportRect.left) + viewport.scrollLeft + (itemRect.width / 2);
+            const targetLeft = itemCenter - (viewport.clientWidth / 2);
+            const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+            viewport.scrollTo({
+                left: Math.min(maxScroll, Math.max(0, targetLeft)),
+                behavior: scrollBehavior,
+            });
+        }
+
+        syncCarouselLayout() {
+            this.applyCarouselMode();
+            requestAnimationFrame(() => this.syncCarouselScroll('auto'));
         }
 
         setViewMode(mode) {
@@ -210,12 +305,31 @@
 
         updatePreviewScales() {
             if (!this.listEl) return;
-            this.listEl.querySelectorAll('.tactics-slide-preview__scale').forEach((el) => {
-                const slideId = el.getAttribute('data-slide-id');
-                const slide = this.getSlides().find((s) => s.id === slideId);
+
+            const applyScale = (el, slide) => {
                 const label = this.getSlideScaleLabel(slide);
                 el.textContent = label;
                 el.hidden = !label;
+            };
+
+            this.listEl.querySelectorAll('.tactics-slide-preview__scale').forEach((el) => {
+                const slideId = el.getAttribute('data-slide-id');
+                const slide = this.getSlides().find((s) => s.id === slideId);
+                applyScale(el, slide);
+            });
+
+            if (this.viewMode === 'list') return;
+
+            this.getSlides().forEach((slide) => {
+                const card = this.listEl.querySelector('.tactics-slide-card[data-slide-id="' + slide.id + '"]');
+                const thumbBtn = card?.querySelector('.tactics-slide-thumb-btn');
+                if (!thumbBtn || thumbBtn.querySelector('.tactics-slide-preview__scale')) return;
+
+                const span = document.createElement('span');
+                span.className = 'tactics-slide-preview__scale';
+                span.setAttribute('data-slide-id', slide.id);
+                applyScale(span, slide);
+                thumbBtn.appendChild(span);
             });
         }
 
@@ -277,8 +391,8 @@
 
         renderSlideScaleBar(slide) {
             const label = this.getSlideScaleLabel(slide);
-            if (!label) return '';
-            return '<span class="tactics-slide-preview__scale" data-slide-id="' + slide.id + '">' + escapeHtml(label) + '</span>';
+            const hiddenAttr = label ? '' : ' hidden';
+            return '<span class="tactics-slide-preview__scale"' + hiddenAttr + ' data-slide-id="' + slide.id + '">' + escapeHtml(label) + '</span>';
         }
 
         bindEvents() {
@@ -290,6 +404,8 @@
             document.getElementById('tacticsSlidesScrollRight')?.addEventListener('click', () => {
                 this.goToAdjacentSlide(1);
             });
+            this.carouselPrevBtn?.addEventListener('click', () => this.goToAdjacentSlide(-1));
+            this.carouselNextBtn?.addEventListener('click', () => this.goToAdjacentSlide(1));
             this.viewToggleBtn?.addEventListener('click', () => this.toggleViewMode());
         }
 
@@ -392,10 +508,35 @@
         }
 
         getActiveSlideId() {
-            if (this.viewSlideId && this.getSlides().some((s) => s.id === this.viewSlideId)) {
+            const slides = this.getSlides();
+            const canvasSlideId = this.getCanvasSlideId?.();
+            if (canvasSlideId && slides.some((s) => s.id === canvasSlideId)) {
+                return canvasSlideId;
+            }
+            if (this.viewSlideId && slides.some((s) => s.id === this.viewSlideId)) {
                 return this.viewSlideId;
             }
-            return this.roomData.active_slide_id || (this.getSlides()[0]?.id || null);
+            return this.roomData.active_slide_id || (slides[0]?.id || null);
+        }
+
+        getViewSlideId() {
+            const slides = this.getSlides();
+            if (this.viewSlideId && slides.some((s) => s.id === this.viewSlideId)) {
+                return this.viewSlideId;
+            }
+            return this.getActiveSlideId();
+        }
+
+        syncLiveCanvasToSlide(slideId) {
+            if (!slideId || !this.getLiveCanvasState) return;
+            const canvasSlideId = this.getCanvasSlideId?.();
+            if (!canvasSlideId || String(canvasSlideId) !== String(slideId)) return;
+            const live = this.getLiveCanvasState();
+            if (!live) return;
+            const slide = this.getSlides().find((s) => s.id === slideId);
+            if (slide) {
+                slide.canvas = live;
+            }
         }
 
         getActiveSlide() {
@@ -435,7 +576,61 @@
                 window.ABS_TACTICS_MAP_URLS = {};
             }
             window.ABS_TACTICS_MAP_URLS[slide.id] = url;
+            maps().preloadMapUrls([url]);
             return url;
+        }
+
+        hydrateSlideThumb(img, slide) {
+            if (!img || !slide?.id) return;
+
+            const placeholder = maps().placeholderUrl();
+            const preferred = this.mapUrls[slide.id] || img.getAttribute('src') || '';
+            void maps().loadMapImage(
+                slide.map_code,
+                slide.game,
+                slide.battle_mode,
+                preferred && preferred !== placeholder ? preferred : '',
+                slide,
+                this.publicId,
+            ).then((loaded) => {
+                if (!loaded?.src || !img.isConnected) return;
+                const url = loaded.src;
+                this.mapUrls[slide.id] = url;
+                if (!window.ABS_TACTICS_MAP_URLS) {
+                    window.ABS_TACTICS_MAP_URLS = {};
+                }
+                window.ABS_TACTICS_MAP_URLS[slide.id] = url;
+                if (img.getAttribute('src') !== url) {
+                    img.src = url;
+                }
+            });
+        }
+
+        refreshSlideThumbs() {
+            if (!this.listEl || this.viewMode === 'list') return;
+
+            const placeholder = maps().placeholderUrl();
+            this.listEl.querySelectorAll('.tactics-slide-thumb').forEach((img) => {
+                const slideId = img.closest('[data-slide-id]')?.getAttribute('data-slide-id');
+                const slide = this.getSlides().find((s) => s.id === slideId);
+                if (!slide) return;
+
+                const thumbSrc = img.getAttribute('src') || '';
+                const needsHydrate = !thumbSrc
+                    || thumbSrc === placeholder
+                    || thumbSrc.endsWith('/placeholder.svg');
+
+                if (!needsHydrate && img.complete && img.naturalWidth > 0) {
+                    return;
+                }
+
+                if (!needsHydrate && !img.complete) {
+                    img.addEventListener('error', () => this.hydrateSlideThumb(img, slide), { once: true });
+                    return;
+                }
+
+                this.hydrateSlideThumb(img, slide);
+            });
         }
 
         renderSlideItem(slide, activeId, canDelete, canDuplicate, deleteTitle, duplicateTitle, renameHint, changeMapTitle) {
@@ -482,7 +677,7 @@
         render() {
             if (!this.listEl) return;
             const slides = this.getSlides();
-            const activeId = this.getActiveSlideId();
+            const activeId = this.getViewSlideId();
             const canDelete = (this.canManage || this.canAddSlides) && slides.length > 1;
             const canDuplicate = this.canAddSlides;
             const deleteTitle = i18n().t('deleteSlide');
@@ -538,10 +733,10 @@
                 });
             });
 
-            const activeCard = this.listEl.querySelector('.tactics-slide-card.is-active');
-            if (activeCard) {
-                activeCard.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-            }
+            this.refreshSlideThumbs();
+            this.updatePreviewScales();
+            this.applyCarouselMode();
+            requestAnimationFrame(() => this.syncCarouselScroll('smooth'));
         }
 
         startSlideRename(slideId, nameEl) {
@@ -605,7 +800,7 @@
             }
         }
 
-        switchSlide(slideId, skipBroadcast) {
+        async switchSlide(slideId, skipBroadcast) {
             if (this.slidesLocked && !skipBroadcast) return;
             const prevSlideId = this.getActiveSlideId();
             if (slideId === prevSlideId) return;
@@ -621,7 +816,7 @@
             }
 
             this.render();
-            this.onSwitch(slideId, prevSlideId);
+            await Promise.resolve(this.onSwitch(slideId, prevSlideId));
             this.onChange();
 
             if (presenterBroadcast) {
@@ -741,7 +936,10 @@
                     this.setSlidePreviewUrl(slide, { resetKnown: true, allowCustomPath: true, extHint: extMatch?.[1] || 'webp' });
                 }
             } else {
-                this.setSlidePreviewUrl(slide, { resetKnown: true });
+                this.setSlidePreviewUrl(slide, {
+                    resetKnown: !source,
+                    inheritFromSlide: source || null,
+                });
             }
 
             this.roomData.active_slide_id = slide.id;
@@ -768,13 +966,9 @@
             if (index < 0) return;
 
             const source = slides[index];
+            this.syncLiveCanvasToSlide(slideId);
             const copy = this.cloneSlideData(source);
-            slides.splice(index + 1, 0, copy);
-
-            const prevActiveId = this.getActiveSlideId();
-            this.roomData.active_slide_id = copy.id;
-            this.viewSlideId = copy.id;
-            this.persistViewSlideId();
+            slides.push(copy);
 
             const needsMapCopy = maps().needsCustomMapFileCopy?.(
                 source,
@@ -803,11 +997,13 @@
                     this.setSlidePreviewUrl(copy, { resetKnown: true, allowCustomPath: true, extHint });
                 }
             } else {
-                this.setSlidePreviewUrl(copy, { resetKnown: true });
+                this.setSlidePreviewUrl(copy, {
+                    resetKnown: false,
+                    inheritFromSlide: source,
+                });
             }
 
             this.render();
-            this.onSwitch(copy.id, prevActiveId);
             this.onChange();
 
             if (!skipBroadcast) {
@@ -815,7 +1011,6 @@
                     action: 'duplicate',
                     slide: copy,
                     sourceSlideId: slideId,
-                    activeSlideId: copy.id,
                     mapUrl: this.mapUrls[copy.id],
                 });
             }
@@ -874,7 +1069,9 @@
         }
 
         syncToPresentationSlide(slideId) {
-            const id = slideId || this.pendingPresentationSlideId || this.roomData.active_slide_id;
+            const id = this.pendingPresentationSlideId
+                || slideId
+                || this.roomData.active_slide_id;
             this.pendingPresentationSlideId = null;
             if (id && this.getSlides().some((s) => s.id === id)) {
                 this.switchSlide(id, true);
@@ -883,10 +1080,12 @@
 
         applyRemote(action, data) {
             if (action === 'switch' && data.slideId) {
+                const targetId = data.activeSlideId || data.slideId;
                 if (this.shouldFollowRemoteSlideSwitch()) {
-                    this.switchSlide(data.slideId, true);
+                    this.switchSlide(targetId, true);
                 } else {
-                    this.pendingPresentationSlideId = data.slideId;
+                    this.pendingPresentationSlideId = targetId;
+                    this.roomData.active_slide_id = targetId;
                 }
                 return;
             }
@@ -908,17 +1107,17 @@
                             this.publicId,
                             this.mapUrls
                         );
-                        if (needsMapCopy && source) {
+                        if (needsMapCopy && source && !data.mapUrl) {
                             await Promise.resolve(this.onDuplicate(source, data.slide));
                         }
                         this.setSlidePreviewUrl(data.slide, {
                             preferredUrl: data.mapUrl || this.mapUrls[data.slide.id] || undefined,
                             resetKnown: !data.mapUrl,
+                            inheritFromSlide: data.sourceSlideId
+                                ? this.getSlides().find((s) => s.id === data.sourceSlideId)
+                                : null,
                             allowCustomPath: maps().isCustomRoomSlide(data.slide) && !!data.mapUrl,
                         });
-                    }
-                    if (data.activeSlideId) {
-                        this.roomData.active_slide_id = data.activeSlideId;
                     }
                     this.render();
                     if (this.shouldFollowRemoteSlideSwitch() && data.activeSlideId) {
@@ -965,14 +1164,7 @@
                 const exists = this.roomData.slides.some((s) => s.id === data.slide.id);
                 const insertRemoteDuplicate = async () => {
                     if (!exists) {
-                        const sourceIndex = data.sourceSlideId
-                            ? this.roomData.slides.findIndex((s) => s.id === data.sourceSlideId)
-                            : -1;
-                        if (sourceIndex >= 0) {
-                            this.roomData.slides.splice(sourceIndex + 1, 0, data.slide);
-                        } else {
-                            this.roomData.slides.push(data.slide);
-                        }
+                        this.roomData.slides.push(data.slide);
                         maps().normalizeCustomRoomSlide?.(data.slide);
                         const source = data.sourceSlideId
                             ? this.getSlides().find((s) => s.id === data.sourceSlideId)
@@ -983,17 +1175,17 @@
                             this.publicId,
                             this.mapUrls
                         );
-                        if (needsMapCopy && source) {
+                        if (needsMapCopy && source && !data.mapUrl) {
                             await Promise.resolve(this.onDuplicate(source, data.slide));
                         }
-                        this.mapUrls[data.slide.id] = this.mapUrls[data.slide.id]
-                            || data.mapUrl
-                            || maps().slideMapUrl(data.slide, this.publicId, this.mapUrls);
-                    }
-                    if (data.activeSlideId) {
-                        this.roomData.active_slide_id = data.activeSlideId;
-                        this.viewSlideId = data.activeSlideId;
-                        this.persistViewSlideId();
+                        this.setSlidePreviewUrl(data.slide, {
+                            preferredUrl: data.mapUrl || this.mapUrls[data.slide.id] || undefined,
+                            resetKnown: !data.mapUrl,
+                            inheritFromSlide: data.sourceSlideId
+                                ? this.getSlides().find((s) => s.id === data.sourceSlideId)
+                                : null,
+                            allowCustomPath: maps().isCustomRoomSlide(data.slide) && !!data.mapUrl,
+                        });
                     }
                     this.render();
                     if (this.shouldFollowRemoteSlideSwitch() && data.activeSlideId) {

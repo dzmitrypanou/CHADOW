@@ -43,24 +43,6 @@ try {
 
     tactics_touch_room($userDb, $publicId);
 
-    if ($userId !== null) {
-        $roomData = json_decode((string) ($row['room_data'] ?? ''), true);
-        if (!is_array($roomData)) {
-            $roomData = [];
-        }
-        $roomGame = tactics_room_primary_game($roomData);
-        $profile = user_login_row($userDb, $userId);
-        $nickname = tactics_resolve_user_nickname(
-            $profile,
-            $lang,
-            $roomGame,
-            (string) ($input['nickname'] ?? ''),
-            true
-        );
-    } elseif (tactics_is_generic_guest_nickname($nickname)) {
-        $nickname = tactics_allocate_guest_nickname($userDb, $publicId, $clientId, $lang);
-    }
-
     $isOwner = $userId !== null && isset($row['user_id']) && (int) $row['user_id'] === $userId;
     if (!$isOwner) {
         $existingToken = tactics_resolve_access_token($input);
@@ -69,6 +51,36 @@ try {
             if ($tokenPayload !== null && ($tokenPayload['role'] ?? '') === 'owner') {
                 $isOwner = true;
             }
+        }
+    }
+
+    $inputNickname = tactics_sanitize_nickname((string) ($input['nickname'] ?? ''));
+    if ($userId !== null) {
+        $roomData = json_decode((string) ($row['room_data'] ?? ''), true);
+        if (!is_array($roomData)) {
+            $roomData = [];
+        }
+        $roomGame = tactics_room_primary_game($roomData);
+        $profile = user_login_row($userDb, $userId);
+        if (!$isOwner && !tactics_is_generic_guest_nickname($inputNickname)) {
+            $nickname = $inputNickname;
+        } else {
+            $nickname = tactics_resolve_user_nickname(
+                $profile,
+                $lang,
+                $roomGame,
+                (string) ($input['nickname'] ?? ''),
+                true
+            );
+        }
+    } elseif (!tactics_is_generic_guest_nickname($inputNickname)) {
+        $nickname = $inputNickname;
+    } else {
+        $existingNickname = tactics_fetch_presence_nickname($userDb, $publicId, $clientId);
+        if ($existingNickname !== null && !tactics_is_generic_guest_nickname($existingNickname)) {
+            $nickname = $existingNickname;
+        } else {
+            $nickname = tactics_allocate_guest_nickname($userDb, $publicId, $clientId, $lang);
         }
     }
 

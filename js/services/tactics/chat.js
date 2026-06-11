@@ -32,6 +32,17 @@
             this.startPolling();
         }
 
+        setCollapsed(collapsed) {
+            const isCollapsed = !!collapsed;
+            this.panelEl?.classList.toggle('is-collapsed', isCollapsed);
+            this.toggleEl?.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+            try {
+                sessionStorage.setItem(this.storageKey, isCollapsed ? '1' : '0');
+            } catch (e) {
+                // ignore
+            }
+        }
+
         setInputEnabled(enabled) {
             const on = !!enabled;
             if (this.inputEl) {
@@ -81,14 +92,17 @@
         }
 
         restoreCollapsed() {
+            let collapsed = false;
             try {
-                const collapsed = sessionStorage.getItem(this.storageKey) === '1';
-                if (collapsed) {
-                    this.panelEl?.classList.add('is-collapsed');
-                    this.toggleEl?.setAttribute('aria-expanded', 'false');
+                if (sessionStorage.getItem(this.storageKey) === '1') {
+                    collapsed = true;
                 }
             } catch (e) {
-                // ignore
+                collapsed = false;
+            }
+            this.setCollapsed(collapsed);
+            if (!collapsed) {
+                this.scrollMessagesToEnd();
             }
         }
 

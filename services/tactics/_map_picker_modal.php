@@ -27,24 +27,31 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
                         <img class="tactics-map-modal__preview" data-tactics-map-modal-preview alt="" width="320" height="320" decoding="async" hidden>
                     </div>
                 </div>
+                <label class="tactics-map-modal__field tactics-map-modal__field--mode">
+                    <span class="tactics-map-modal__field-label tactics-map-modal__field-label--sr" data-tactics-map-modal-mode-label data-tactics-i18n="fieldBattleMode"><?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?></span>
+                    <select class="tactics-map-modal__mode-select" data-tactics-map-modal-mode data-recruiting-select-skip="1" aria-label="<?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?>"></select>
+                </label>
                 <div class="tactics-map-modal__game" data-tactics-map-modal-game-field data-tactics-game-field hidden>
                     <div class="tactics-map-picker-tabs recruiting-realm-tabs tactics-map-picker-tabs--game" data-tactics-game-tabs role="tablist"></div>
                 </div>
             </div>
             <div class="tactics-map-modal__right">
                 <div class="tactics-map-modal__controls">
-                    <div class="tactics-map-modal__section">
-                        <div class="tactics-map-modal__section-head" data-tactics-i18n="changeMapSettings"><?php echo $lang === 'en' ? 'Map settings' : 'Настройки карты'; ?></div>
-                        <label class="tactics-map-modal__field">
-                            <span class="tactics-map-modal__field-label" data-tactics-map-modal-mode-label data-tactics-i18n="fieldBattleMode"><?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?></span>
-                            <select class="recruiting-select tactics-map-modal__mode-select" data-tactics-map-modal-mode aria-label="<?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?>"></select>
-                        </label>
-                        <label class="tactics-map-modal__field" data-tactics-map-modal-map-field data-tactics-map-field>
-                            <span class="tactics-map-modal__field-label" data-tactics-i18n="fieldMap"><?php echo $lang === 'en' ? 'Map' : 'Карта'; ?></span>
-                            <select id="<?php echo htmlspecialchars($mapSelectId, ENT_QUOTES, 'UTF-8'); ?>" class="recruiting-select" data-tactics-map-select>
-                                <option value="" disabled selected data-tactics-i18n="loadingMaps"><?php echo $lang === 'en' ? 'Loading maps…' : 'Загрузка карт…'; ?></option>
-                            </select>
-                        </label>
+                    <div class="tactics-map-modal__maps-panel" data-tactics-map-modal-maps-panel data-tactics-map-modal-map-field data-tactics-map-field>
+                        <input
+                            type="search"
+                            class="tactics-map-modal__search"
+                            data-tactics-map-modal-search
+                            data-tactics-i18n-placeholder="searchMaps"
+                            placeholder="<?php echo $lang === 'en' ? 'Search…' : 'Поиск…'; ?>"
+                            autocomplete="off"
+                            spellcheck="false"
+                            aria-label="<?php echo $lang === 'en' ? 'Search maps' : 'Поиск карт'; ?>"
+                        >
+                        <div class="tactics-map-modal__map-list" data-tactics-map-modal-map-list role="listbox" aria-label="<?php echo $lang === 'en' ? 'Maps' : 'Карты'; ?>"></div>
+                        <select id="<?php echo htmlspecialchars($mapSelectId, ENT_QUOTES, 'UTF-8'); ?>" class="tactics-map-modal__select-hidden" data-tactics-map-select data-recruiting-select-skip="1" hidden aria-hidden="true" tabindex="-1">
+                            <option value="" disabled selected data-tactics-i18n="loadingMaps"><?php echo $lang === 'en' ? 'Loading maps…' : 'Загрузка карт…'; ?></option>
+                        </select>
                     </div>
                     <div class="tactics-map-modal__section tactics-map-modal__section--custom" id="tacticsCustomMapPanel" hidden>
                         <div class="tactics-map-modal__section-head" data-tactics-i18n="customMapScaleTitle"><?php echo $lang === 'en' ? 'Map scale' : 'Масштаб карты'; ?></div>

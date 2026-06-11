@@ -87,6 +87,7 @@
                 });
             });
             mapsCache = all;
+            window.dispatchEvent(new CustomEvent('tactics:catalog-updated'));
             return mapsCache;
         })();
 
@@ -132,7 +133,6 @@
             mapsCache = null;
             mapsPromise = null;
             await loadMaps();
-            window.dispatchEvent(new CustomEvent('tactics:catalog-updated'));
             return catalogCache;
         })().finally(() => {
             catalogRefreshPromise = null;
@@ -414,7 +414,7 @@
         }
 
         const code = (slide.map_code || '').toLowerCase();
-        if (!code || !mapsCache) return null;
+        if (!code || !catalogCache) return null;
 
         const game = slide.game || 'wot';
         const mode = slide.battle_mode || 'random';
@@ -502,6 +502,19 @@
         }
     }
 
+    function previewUrlFromSlide(source, mapUrls = {}) {
+        if (!source) return '';
+        const known = knownSlideMapUrl(source, mapUrls);
+        if (known && known !== placeholderUrl()) {
+            if (known.includes('/custom/rooms/') && source.id && known.includes(source.id)) {
+                return '';
+            }
+            return known;
+        }
+        if (isCustomRoomSlide(source)) return '';
+        return mapUrl(source.map_code, source.game, source.battle_mode);
+    }
+
     function refreshSlidePreviewUrl(slide, publicId, mapUrls = {}, opts = {}) {
         if (!slide?.id) return placeholderUrl();
         normalizeCustomRoomSlide(slide);
@@ -512,6 +525,18 @@
 
         if (opts.resetKnown !== false) {
             clearStoredSlideMapUrl(slide.id, mapUrls);
+        }
+
+        if (opts.inheritFromSlide) {
+            const inherited = previewUrlFromSlide(opts.inheritFromSlide, mapUrls);
+            if (inherited) {
+                return inherited;
+            }
+        }
+
+        const known = knownSlideMapUrl(slide, mapUrls);
+        if (known && known !== placeholderUrl()) {
+            return known;
         }
 
         if (isCustomRoomSlide(slide)) {
@@ -557,6 +582,7 @@
         swapCustomMapSlideId,
         resolveCustomMapUrlAfterCopy,
         clearStoredSlideMapUrl,
+        previewUrlFromSlide,
         refreshSlidePreviewUrl,
     };
 })();

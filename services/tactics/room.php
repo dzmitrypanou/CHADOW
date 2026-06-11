@@ -407,8 +407,8 @@ require __DIR__ . '/../../includes/site_header.php';
                     </section>
                     </div>
                     <div class="tactics-chat-dock" id="tacticsChatDock">
-                        <section class="tactics-chat-panel is-collapsed" id="tacticsChatPanel">
-                            <button type="button" class="tactics-menu-section-head tactics-chat-toggle" id="tacticsChatToggle" aria-expanded="false" aria-controls="tacticsChatBody">
+                        <section class="tactics-chat-panel" id="tacticsChatPanel">
+                            <button type="button" class="tactics-menu-section-head tactics-chat-toggle" id="tacticsChatToggle" aria-expanded="true" aria-controls="tacticsChatBody">
                                 <span class="tactics-menu-section-head__title" data-tactics-i18n="chatTitle"><?php echo $lang === 'en' ? 'Chat' : 'Чат'; ?></span>
                                 <i class="fas fa-chevron-up tactics-chat-toggle__icon" aria-hidden="true"></i>
                             </button>
@@ -486,13 +486,22 @@ require __DIR__ . '/../../includes/site_header.php';
                                 </button>
                             </div>
                         </div>
-                        <div class="tactics-slides-strip-wrap tactics-slides-strip-wrap--grid">
-                            <ul id="tacticsSlidesList" class="tactics-slides-list tactics-slides-list--grid"></ul>
+                        <div class="tactics-slides-strip-wrap tactics-slides-strip-wrap--grid" id="tacticsSlidesStripWrap">
+                            <button type="button" class="tactics-slides-carousel-btn tactics-slides-carousel-btn--prev" id="tacticsSlidesCarouselPrev" data-tactics-i18n-title="slidesPrev" title="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>" hidden><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                            <div class="tactics-slides-carousel-viewport" id="tacticsSlidesCarouselViewport">
+                                <ul id="tacticsSlidesList" class="tactics-slides-list tactics-slides-list--grid"></ul>
+                            </div>
+                            <button type="button" class="tactics-slides-carousel-btn tactics-slides-carousel-btn--next" id="tacticsSlidesCarouselNext" data-tactics-i18n-title="slidesNext" title="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>" hidden><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
                         </div>
                     </section>
                     </div>
                 </aside>
                 </div>
+                <nav class="tactics-mobile-bar" id="tacticsMobileBar" aria-label="<?php echo $lang === 'en' ? 'Slides' : 'Слайды'; ?>">
+                    <button type="button" class="tactics-mobile-bar__btn" id="tacticsMobileSlidePrev" data-tactics-i18n-title="slidesPrev" title="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Previous slide' : 'Предыдущий слайд'; ?>"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                    <span class="tactics-mobile-bar__label" id="tacticsMobileSlideLabel" aria-live="polite">—</span>
+                    <button type="button" class="tactics-mobile-bar__btn" id="tacticsMobileSlideNext" data-tactics-i18n-title="slidesNext" title="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>" aria-label="<?php echo $lang === 'en' ? 'Next slide' : 'Следующий слайд'; ?>"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                </nav>
                 <span class="tactics-editor-build" aria-hidden="true"><?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
 

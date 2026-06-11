@@ -12,7 +12,7 @@ const AppState = {
     enemyStats: new Map(),
     availableMaps: new Set(),
     isNewFilesLoaded: false,
-    version: '3.2.2 dialog',
+    version: '3.2.2 go home',
     userSettings: {
         battleType: 'all',
         map: 'all',

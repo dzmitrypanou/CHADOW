@@ -8,6 +8,23 @@
             return null;
         }
         return new (fabric.util.createClass(fabric.PencilBrush, {
+            onMouseDown(pointer, options) {
+                if (canvasCtrl?.shouldIgnorePenDown?.(pointer)) {
+                    canvasCtrl.penStrokeSuppressed = true;
+                    this._isCurrentlyDrawing = false;
+                    canvasCtrl.cancelPenStroke?.();
+                    return;
+                }
+                canvasCtrl.penStrokeSuppressed = false;
+                this.callSuper('onMouseDown', pointer, options);
+            },
+
+            onMouseUp(pointer) {
+                const result = this.callSuper('onMouseUp', pointer);
+                canvasCtrl?.onPenBrushMouseUp?.();
+                return result;
+            },
+
             _reset() {
                 this.callSuper('_reset');
                 this._smoothPoint = null;
@@ -54,7 +71,8 @@
 
             needsFullRender() {
                 const endType = canvasCtrl?.getEndType?.() || 'none';
-                if (endType === 'arrow' || endType === 'bar') {
+                const lineType = canvasCtrl?.getToolSettings?.()?.lineType || 'solid';
+                if (endType === 'arrow' || endType === 'bar' || lineType !== 'solid') {
                     return true;
                 }
                 return this.callSuper('needsFullRender');
@@ -63,15 +81,19 @@
             _render(ctx) {
                 ctx = ctx || this.canvas.contextTop;
                 const endType = canvasCtrl?.getEndType?.() || 'none';
+                const lineType = canvasCtrl?.getToolSettings?.()?.lineType || 'solid';
                 if ((endType === 'arrow' || endType === 'bar')
                     && canvasCtrl?.renderPenBrushLivePreview?.(ctx, this, endType)) {
                     return;
                 }
-                this._setBrushStyles(ctx);
-                if (canvasCtrl?.shouldForceButtCapForEnd?.(endType)) {
-                    ctx.lineCap = 'butt';
-                } else if (endType === 'arrow') {
-                    ctx.lineCap = 'butt';
+                if (lineType !== 'solid'
+                    && canvasCtrl?.renderPenBrushBodyPreview?.(ctx, this)) {
+                    return;
+                }
+                if (canvasCtrl?.applyPenBrushStrokeStyles) {
+                    canvasCtrl.applyPenBrushStrokeStyles(ctx, this);
+                } else {
+                    this._setBrushStyles(ctx);
                 }
                 this.callSuper('_render', ctx);
             },
@@ -98,7 +120,13 @@
             this.history = [];
             this.historyIndex = -1;
             this.penLivePointer = null;
+            this.penLastDownAt = 0;
+            this.penLastDownPoint = null;
+            this.penStrokeSuppressed = false;
+            this.penMouseUpCleanupRaf = 0;
             this.bgImageEl = null;
+            this.layoutCanvasSize = null;
+            this.suppressCanvasScale = false;
             this.resizeObserver = null;
             this.showGrid = options.showGrid !== false;
             this.drawEnabled = options.drawEnabled !== false;
@@ -134,6 +162,8 @@
             this.localStrokeId = null;
             this.localStrokePoints = [];
             this.strokeBroadcastTimer = null;
+            this.loadSlideGeneration = 0;
+            this.isSlideLoading = false;
             this.shapeStart = null;
             this.shapePreview = null;
             this.polygonPoints = [];
@@ -167,6 +197,9 @@
         /** Доля смещения к курсору за один sample (меньше — плавнее, больше — отзывчивее). */
         static PEN_SMOOTHING = 0.3;
         static PEN_MIN_POINT_DIST = 1.25;
+        static PEN_MIN_STROKE_LENGTH = 1.5;
+        static PEN_DOUBLE_CLICK_MS = 320;
+        static PEN_DOUBLE_CLICK_DIST = 5;
         static PEN_DECIMATE_FACTOR = 0.5;
         static CLIPBOARD_PASTE_STEP = 18;
 
@@ -355,6 +388,10 @@
                 selection: true,
                 preserveObjectStacking: true,
             });
+            const ref = TacticsCanvas.COORD_SPACE;
+            this.fabric.setWidth(ref);
+            this.fabric.setHeight(ref);
+            this.layoutCanvasSize = ref;
             this.scheduleResize();
             const observeTargets = [
                 this.canvasEl.closest('.tactics-map-column'),
@@ -386,9 +423,25 @@
             this.fabric.on('object:moving', (e) => this.guardObjectTransform(e));
             this.fabric.on('object:scaling', (e) => this.guardObjectTransform(e));
             this.fabric.on('object:rotating', (e) => this.guardObjectTransform(e));
+            this.fabric.on('mouse:dblclick', () => {
+                if (this.tool === 'pen') {
+                    this.cancelPenStroke();
+                }
+            });
             this.fabric.on('path:created', (e) => {
                 const path = e.path;
                 if (path && this.tool === 'pen') {
+                    if (!this.isValidPenPath(path)) {
+                        this.isRemote = true;
+                        this.fabric.remove(path);
+                        this.isRemote = false;
+                        this.penLivePointer = null;
+                        this.finishLocalStrokeBroadcast();
+                        this.fabric.discardActiveObject();
+                        this.syncInteractionState();
+                        this.fabric.requestRenderAll();
+                        return;
+                    }
                     const endType = this.getEndType();
                     path.set('tacticsType', 'pen');
                     path.set('tacticsEndType', endType);
@@ -405,6 +458,10 @@
                         this.fabric.discardActiveObject();
                         this.syncInteractionState();
                         this.fabric.requestRenderAll();
+                    }
+                    if (this.penMouseUpCleanupRaf) {
+                        cancelAnimationFrame(this.penMouseUpCleanupRaf);
+                        this.penMouseUpCleanupRaf = 0;
                     }
                     this.handleLocalChange('add', { target: path });
                     this.finishLocalStrokeBroadcast();
@@ -508,6 +565,8 @@
         }
 
         static GRID_DIVISIONS = 10;
+        static COORD_SPACE = 1000;
+        static LEGACY_COORD_OVERFLOW_RATIO = 1.02;
         static DEFAULT_CELL_FLASH_MS = 2000;
 
         getGridCanvasSize() {
@@ -1497,26 +1556,209 @@
             return this.canvasEl?.closest('.tactics-map-grid');
         }
 
-        getSquareSize() {
-            const mapColumn = this.canvasEl?.closest('.tactics-map-column')
-                || this.canvasEl?.closest('.tactics-canvas-panel');
-            if (!mapColumn) return 640;
+        isCompactMapLayout() {
+            const workspace = document.getElementById('tacticsRoomWorkspace');
+            return window.innerWidth <= 1340
+                || !!workspace?.classList.contains('is-mobile-view')
+                || !!workspace?.classList.contains('is-compact-view');
+        }
 
-            const columnRect = mapColumn.getBoundingClientRect();
+        getSquareSize() {
+            const compact = this.isCompactMapLayout();
+            const mapColumn = this.canvasEl?.closest('.tactics-map-column');
+            const canvasPanel = this.canvasEl?.closest('.tactics-canvas-panel');
+            const measureEl = compact ? canvasPanel : (mapColumn || canvasPanel);
+            if (!measureEl) return 640;
+
+            const columnRect = measureEl.getBoundingClientRect();
             const measureWidth = columnRect?.width || 0;
             const measureHeight = columnRect?.height || 0;
             if (measureWidth <= 0 || measureHeight <= 0) return null;
 
-            const labelsW = TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP;
-            const labelsH = TacticsCanvas.LABEL_TOP + TacticsCanvas.LABEL_GAP;
+            const labelsW = compact ? 0 : TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP;
+            const labelsH = compact ? 0 : TacticsCanvas.LABEL_TOP + TacticsCanvas.LABEL_GAP;
             const scaleEl = document.getElementById('tacticsMapScale');
             const scaleExtra = (scaleEl && !scaleEl.hidden) ? scaleEl.offsetHeight + 6 : 0;
 
             const maxW = measureWidth - labelsW;
             const maxH = measureHeight - labelsH - scaleExtra;
             const size = Math.floor(Math.min(maxW, maxH));
-            if (size < 80) return null;
+            const minSize = compact ? 48 : 80;
+            if (size < minSize) return null;
             return size;
+        }
+
+        isScalableCanvasObject(obj) {
+            return !!obj
+                && !obj.isBackground
+                && !obj.isGridLine
+                && !obj.isDrawingPreview
+                && !obj.tacticsArrowHead
+                && !obj.tacticsBarEnd;
+        }
+
+        getContentCoordExtent() {
+            if (!this.fabric) return 0;
+            let max = 0;
+            this.fabric.getObjects().forEach((obj) => {
+                if (!this.isScalableCanvasObject(obj)) return;
+                const rect = obj.getBoundingRect(true, true);
+                if (!rect) return;
+                max = Math.max(max, rect.left + rect.width, rect.top + rect.height);
+            });
+            return Math.ceil(max);
+        }
+
+        scaleObjectGeometry(obj, ratio) {
+            if (!obj || !Number.isFinite(ratio) || Math.abs(ratio - 1) < 0.001) return;
+
+            const type = obj.type;
+            const strokeWidth = obj.strokeWidth ? obj.strokeWidth * ratio : obj.strokeWidth;
+
+            if (type === 'line') {
+                obj.set({
+                    left: (obj.left || 0) * ratio,
+                    top: (obj.top || 0) * ratio,
+                    x1: (obj.x1 || 0) * ratio,
+                    y1: (obj.y1 || 0) * ratio,
+                    x2: (obj.x2 || 0) * ratio,
+                    y2: (obj.y2 || 0) * ratio,
+                    strokeWidth,
+                });
+                obj.setCoords();
+                return;
+            }
+
+            if ((type === 'polygon' || type === 'polyline') && Array.isArray(obj.points)) {
+                obj.set({
+                    left: (obj.left || 0) * ratio,
+                    top: (obj.top || 0) * ratio,
+                    points: obj.points.map((point) => ({
+                        x: (point.x || 0) * ratio,
+                        y: (point.y || 0) * ratio,
+                    })),
+                    strokeWidth,
+                });
+                obj.setCoords();
+                return;
+            }
+
+            if (type === 'rect') {
+                obj.set({
+                    left: (obj.left || 0) * ratio,
+                    top: (obj.top || 0) * ratio,
+                    width: (obj.width || 0) * ratio,
+                    height: (obj.height || 0) * ratio,
+                    strokeWidth,
+                });
+                obj.setCoords();
+                return;
+            }
+
+            if (type === 'circle') {
+                obj.set({
+                    left: (obj.left || 0) * ratio,
+                    top: (obj.top || 0) * ratio,
+                    radius: (obj.radius || 0) * ratio,
+                    strokeWidth,
+                });
+                obj.setCoords();
+                return;
+            }
+
+            if (type === 'i-text' || type === 'text' || type === 'textbox') {
+                obj.set({
+                    left: (obj.left || 0) * ratio,
+                    top: (obj.top || 0) * ratio,
+                });
+                if (obj.fontSize) {
+                    obj.set({ fontSize: obj.fontSize * ratio });
+                }
+                obj.setCoords();
+                return;
+            }
+
+            obj.set({
+                left: (obj.left || 0) * ratio,
+                top: (obj.top || 0) * ratio,
+                scaleX: (obj.scaleX || 1) * ratio,
+                scaleY: (obj.scaleY || 1) * ratio,
+                strokeWidth,
+            });
+            obj.setCoords();
+        }
+
+        scaleCanvasContent(fromSize, toSize) {
+            if (!this.fabric || !fromSize || !toSize) return false;
+            const ratio = toSize / fromSize;
+            if (!Number.isFinite(ratio) || Math.abs(ratio - 1) < 0.001) return false;
+
+            const wasRemote = this.isRemote;
+            this.isRemote = true;
+
+            this.fabric.getObjects().forEach((obj) => {
+                if (!this.isScalableCanvasObject(obj)) return;
+                this.scaleObjectGeometry(obj, ratio);
+            });
+
+            this.relinkArrowHeads();
+            this.isRemote = wasRemote;
+            return true;
+        }
+
+        withExportCoordSpace(run) {
+            if (!this.fabric || typeof run !== 'function') return null;
+            return run(TacticsCanvas.COORD_SPACE);
+        }
+
+        applyCoordSpaceScale(json) {
+            if (!this.fabric || !json) return;
+            const target = TacticsCanvas.COORD_SPACE;
+
+            let fromSize = Number(json.coordSpace) || 0;
+            if (!fromSize) {
+                const extent = this.getContentCoordExtent();
+                if (extent > target * TacticsCanvas.LEGACY_COORD_OVERFLOW_RATIO) {
+                    fromSize = extent;
+                } else {
+                    return;
+                }
+            }
+
+            if (Math.abs(fromSize - target) < 0.5) return;
+            this.scaleCanvasContent(fromSize, target);
+            this.layoutCanvasSize = target;
+        }
+
+        ensureLogicalCoordSpace() {
+            if (!this.fabric) return;
+            const ref = TacticsCanvas.COORD_SPACE;
+            const current = this.fabric.getWidth() || 0;
+            if (Math.abs(current - ref) < 0.5) {
+                this.layoutCanvasSize = ref;
+                return;
+            }
+
+            if (current > 0
+                && !this.isSlideLoading
+                && !this.suppressCanvasScale
+                && this.fabric.getObjects().some((obj) => this.isScalableCanvasObject(obj))) {
+                this.scaleCanvasContent(current, ref);
+            }
+
+            this.fabric.setWidth(ref);
+            this.fabric.setHeight(ref);
+            this.layoutCanvasSize = ref;
+        }
+
+        applyDisplayZoom(displaySize) {
+            if (!this.fabric || !displaySize) return;
+            const ref = TacticsCanvas.COORD_SPACE;
+            const zoom = displaySize / ref;
+            this.fabric.setZoom(zoom);
+            if (typeof this.fabric.setDimensions === 'function') {
+                this.fabric.setDimensions({ width: displaySize, height: displaySize }, { cssOnly: true });
+            }
         }
 
         scheduleResize() {
@@ -1568,8 +1810,13 @@
             }
 
             if (grid) {
-                grid.style.width = (TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP + size) + 'px';
-                grid.style.height = (TacticsCanvas.LABEL_TOP + TacticsCanvas.LABEL_GAP + size) + 'px';
+                if (this.isCompactMapLayout()) {
+                    grid.style.width = size + 'px';
+                    grid.style.height = size + 'px';
+                } else {
+                    grid.style.width = (TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP + size) + 'px';
+                    grid.style.height = (TacticsCanvas.LABEL_TOP + TacticsCanvas.LABEL_GAP + size) + 'px';
+                }
             }
         }
 
@@ -1577,8 +1824,9 @@
             if (!this.fabric) return;
             const size = this.getSquareSize();
             if (!size) return;
-            this.fabric.setWidth(size);
-            this.fabric.setHeight(size);
+
+            this.ensureLogicalCoordSpace();
+            this.applyDisplayZoom(size);
             this.syncFabricContainer(size);
             this.fitBackground();
             this.syncGridOverlay();
@@ -1587,6 +1835,7 @@
             this.ensureRulerLayer();
             this.repositionRemoteCursors();
             this.refreshRulerOverlay();
+            this.refreshRemoteStrokes();
             this.fabric.renderAll();
         }
 
@@ -2147,6 +2396,9 @@
         resolveStrokeLineCap(obj) {
             const endType = obj?.tacticsEndType;
             const lineType = this.getObjectLineType(obj);
+            if (lineType === 'dotted') {
+                return 'round';
+            }
             if (endType === 'bar') {
                 return 'butt';
             }
@@ -2177,6 +2429,7 @@
             const lineType = this.getToolSettings().lineType || 'solid';
             const endType = this.getEndType();
             const useButtEndCap = this.tool === 'pen'
+                && lineType !== 'dotted'
                 && (this.shouldForceButtCapForEnd(endType) || endType === 'arrow');
             brush.color = this.getStrokeColor();
             brush.width = this.getStrokeWidth();
@@ -2232,6 +2485,76 @@
             return { x: pointer.x / w, y: pointer.y / h };
         }
 
+        shouldIgnorePenDown(pointer) {
+            const now = Date.now();
+            const pt = { x: pointer.x, y: pointer.y };
+            const prevAt = this.penLastDownAt;
+            const prevPt = this.penLastDownPoint;
+            const isDouble = prevAt
+                && now - prevAt < TacticsCanvas.PEN_DOUBLE_CLICK_MS
+                && prevPt
+                && Math.hypot(pt.x - prevPt.x, pt.y - prevPt.y) < TacticsCanvas.PEN_DOUBLE_CLICK_DIST;
+
+            this.penLastDownAt = now;
+            this.penLastDownPoint = { x: pt.x, y: pt.y };
+            return isDouble;
+        }
+
+        getPenPathTravel(path) {
+            if (!path?.path?.length || !fabric.util?.getPathSegmentsInfo) return 0;
+            try {
+                const segments = fabric.util.getPathSegmentsInfo(path.path);
+                return segments.length ? segments[segments.length - 1].length : 0;
+            } catch (err) {
+                return 0;
+            }
+        }
+
+        isValidPenPath(path) {
+            if (!path || path.type !== 'path') return false;
+            if (this.getPenPathTravel(path) >= TacticsCanvas.PEN_MIN_STROKE_LENGTH) {
+                return true;
+            }
+            const bounds = typeof path.getBoundingRect === 'function'
+                ? path.getBoundingRect(true, true)
+                : null;
+            return !!(bounds && (bounds.width > 0.75 || bounds.height > 0.75));
+        }
+
+        cancelPenStroke() {
+            this.penLivePointer = null;
+            if (this.strokeBroadcastTimer) {
+                clearTimeout(this.strokeBroadcastTimer);
+                this.strokeBroadcastTimer = null;
+            }
+            if (this.localStrokeId) {
+                this.finishLocalStrokeBroadcast();
+            }
+            const brush = this.fabric?.freeDrawingBrush;
+            if (brush) {
+                brush._isCurrentlyDrawing = false;
+                if (typeof brush._reset === 'function') {
+                    brush._reset();
+                }
+            }
+            if (this.fabric?.contextTop && typeof this.fabric.clearContext === 'function') {
+                this.fabric.clearContext(this.fabric.contextTop);
+            }
+            this.fabric?.requestRenderAll();
+        }
+
+        onPenBrushMouseUp() {
+            this.penLivePointer = null;
+            if (this.penMouseUpCleanupRaf) {
+                cancelAnimationFrame(this.penMouseUpCleanupRaf);
+            }
+            this.penMouseUpCleanupRaf = requestAnimationFrame(() => {
+                this.penMouseUpCleanupRaf = 0;
+                if (!this.localStrokeId) return;
+                this.finishLocalStrokeBroadcast();
+            });
+        }
+
         startLocalStrokeBroadcast(pointer) {
             if (!this.slideId) return;
             if (this.localStrokeId) {
@@ -2257,6 +2580,15 @@
         queueStrokePointBroadcast(pointer) {
             if (!this.localStrokeId || !this.slideId) return;
             const pt = this.normalizePoint(pointer);
+            const last = this.localStrokePoints[this.localStrokePoints.length - 1];
+            if (last) {
+                const w = this.fabric?.getWidth() || 1;
+                const h = this.fabric?.getHeight() || 1;
+                const minNorm = TacticsCanvas.PEN_MIN_POINT_DIST / Math.min(w, h);
+                if (Math.hypot(pt.x - last.x, pt.y - last.y) < minNorm) {
+                    return;
+                }
+            }
             this.localStrokePoints.push(pt);
             if (this.strokeBroadcastTimer) return;
             this.strokeBroadcastTimer = setTimeout(() => {
@@ -2293,6 +2625,30 @@
             return `${clientId || ''}:${strokeId || ''}`;
         }
 
+        removeRemoteStroke(clientId, strokeId) {
+            const key = this.getRemoteStrokeKey(clientId, strokeId);
+            const entry = this.remoteStrokes.get(key);
+            if (!entry) return;
+            if (entry.renderRaf) {
+                cancelAnimationFrame(entry.renderRaf);
+                entry.renderRaf = 0;
+            }
+            entry.el?.remove();
+            this.remoteStrokes.delete(key);
+        }
+
+        scheduleRemoteStrokeRender(entry) {
+            if (!entry || entry.renderRaf) return;
+            entry.renderRaf = requestAnimationFrame(() => {
+                entry.renderRaf = 0;
+                this.renderRemoteStrokePath(entry);
+            });
+        }
+
+        refreshRemoteStrokes() {
+            this.remoteStrokes.forEach((entry) => this.scheduleRemoteStrokeRender(entry));
+        }
+
         getSvgStrokeDashAttr(lineType, strokeWidth) {
             const dash = window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, strokeWidth);
             if (!dash?.length) return '';
@@ -2300,6 +2656,9 @@
         }
 
         resolveRemoteStrokeLineCap(endType, lineType, isLine) {
+            if (lineType === 'dotted') {
+                return 'round';
+            }
             if (endType === 'bar') {
                 return 'butt';
             }
@@ -2307,10 +2666,8 @@
                 || (isLine ? 'butt' : 'round');
         }
 
-        renderRemoteStrokePath(entry) {
-            if (!entry?.el || !entry.points?.length) return;
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
-            if (overlayW <= 0 || overlayH <= 0) return;
+        buildRemoteStrokeSvgParts(entry, overlayW, overlayH) {
+            if (!entry?.points?.length || overlayW <= 0 || overlayH <= 0) return [];
 
             const toCanvas = (p) => ({
                 x: (p.x || 0) * overlayW,
@@ -2324,7 +2681,17 @@
             const endType = entry.endType || 'none';
             const lineCap = this.resolveRemoteStrokeLineCap(endType, lineType, isLine);
             const lineJoin = window.AbsTacticsToolSettings?.getStrokeLineJoin?.(lineType) || 'round';
-            const dashAttr = this.getSvgStrokeDashAttr(lineType, strokeWidth);
+            const dash = window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, strokeWidth);
+            const strokeAttrs = {
+                stroke: color,
+                'stroke-width': strokeWidth,
+                'stroke-linecap': lineCap,
+                'stroke-linejoin': lineJoin,
+                opacity: '0.85',
+            };
+            if (dash?.length) {
+                strokeAttrs['stroke-dasharray'] = dash.join(',');
+            }
             const parts = [];
 
             if (isLine && entry.points.length >= 2) {
@@ -2341,7 +2708,16 @@
                     );
                     end = { x: geom.bodyX2, y: geom.bodyY2 };
                 }
-                parts.push(`<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="${lineCap}" stroke-linejoin="${lineJoin}"${dashAttr} opacity="0.85"/>`);
+                parts.push({
+                    tag: 'line',
+                    attrs: {
+                        x1: start.x,
+                        y1: start.y,
+                        x2: end.x,
+                        y2: end.y,
+                        ...strokeAttrs,
+                    },
+                });
             } else if (entry.points.length) {
                 const canvasPts = entry.points.map((p) => toCanvas(p));
                 if ((endType === 'arrow' || endType === 'bar') && canvasPts.length >= 2) {
@@ -2364,8 +2740,14 @@
                         }
                     }
                 }
-                const pts = canvasPts.map((pt) => `${pt.x},${pt.y}`).join(' ');
-                parts.push(`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="${lineCap}" stroke-linejoin="${lineJoin}"${dashAttr} opacity="0.85"/>`);
+                parts.push({
+                    tag: 'polyline',
+                    attrs: {
+                        points: canvasPts.map((pt) => `${pt.x},${pt.y}`).join(' '),
+                        fill: 'none',
+                        ...strokeAttrs,
+                    },
+                });
             }
 
             if ((endType === 'arrow' || endType === 'bar') && entry.points.length >= 2) {
@@ -2395,7 +2777,18 @@
                         );
                         const polyAttr = this.arrowChevronToPolylineAttr(arrow?.triangle);
                         if (polyAttr) {
-                            parts.push(`<polyline points="${polyAttr}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>`);
+                            parts.push({
+                                tag: 'polyline',
+                                attrs: {
+                                    points: polyAttr,
+                                    fill: 'none',
+                                    stroke: color,
+                                    'stroke-width': strokeWidth,
+                                    'stroke-linecap': 'round',
+                                    'stroke-linejoin': 'round',
+                                    opacity: '0.85',
+                                },
+                            });
                         }
                     }
                 } else {
@@ -2407,18 +2800,82 @@
                         const y1 = geom.tipY - half * Math.sin(perp);
                         const x2 = geom.tipX + half * Math.cos(perp);
                         const y2 = geom.tipY + half * Math.sin(perp);
-                        parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="butt" opacity="0.85"/>`);
+                        parts.push({
+                            tag: 'line',
+                            attrs: {
+                                x1,
+                                y1,
+                                x2,
+                                y2,
+                                stroke: color,
+                                'stroke-width': strokeWidth,
+                                'stroke-linecap': 'butt',
+                                opacity: '0.85',
+                            },
+                        });
                     }
                 }
             }
 
-            entry.el.innerHTML = `<svg width="${overlayW}" height="${overlayH}" style="position:absolute;left:0;top:0;overflow:visible">${parts.join('')}</svg>`;
+            return parts;
+        }
+
+        renderRemoteStrokePath(entry) {
+            if (!entry?.el || !entry.points?.length) return;
+            const { width: overlayW, height: overlayH } = this.getOverlaySize();
+            const parts = this.buildRemoteStrokeSvgParts(entry, overlayW, overlayH);
+            if (!parts.length) return;
+
+            let svg = entry.svgEl;
+            if (!svg || !svg.isConnected) {
+                entry.el.textContent = '';
+                svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.position = 'absolute';
+                svg.style.left = '0';
+                svg.style.top = '0';
+                svg.style.overflow = 'visible';
+                entry.el.appendChild(svg);
+                entry.svgEl = svg;
+                entry.shapeEls = [];
+            }
+            svg.setAttribute('width', String(overlayW));
+            svg.setAttribute('height', String(overlayH));
+
+            if (!Array.isArray(entry.shapeEls)) {
+                entry.shapeEls = [];
+            }
+
+            while (entry.shapeEls.length < parts.length) {
+                const el = document.createElementNS('http://www.w3.org/2000/svg', parts[entry.shapeEls.length].tag);
+                svg.appendChild(el);
+                entry.shapeEls.push(el);
+            }
+            while (entry.shapeEls.length > parts.length) {
+                entry.shapeEls.pop()?.remove();
+            }
+
+            parts.forEach((part, index) => {
+                let el = entry.shapeEls[index];
+                if (el.tagName.toLowerCase() !== part.tag) {
+                    const next = document.createElementNS('http://www.w3.org/2000/svg', part.tag);
+                    el.replaceWith(next);
+                    entry.shapeEls[index] = next;
+                    el = next;
+                }
+                Object.entries(part.attrs).forEach(([name, value]) => {
+                    el.setAttribute(name, String(value));
+                });
+            });
         }
 
         removeRemoteStrokesFromClient(clientId) {
             const prefix = `${clientId}:`;
             for (const [key, entry] of this.remoteStrokes.entries()) {
                 if (!key.startsWith(prefix)) continue;
+                if (entry.renderRaf) {
+                    cancelAnimationFrame(entry.renderRaf);
+                    entry.renderRaf = 0;
+                }
                 entry.el?.remove();
                 this.remoteStrokes.delete(key);
             }
@@ -2435,10 +2892,8 @@
             let entry = this.remoteStrokes.get(key);
 
             if (msg.op === 'stroke_start') {
-                this.removeRemoteStrokesFromClient(from);
                 if (entry) {
-                    entry.el?.remove();
-                    this.remoteStrokes.delete(key);
+                    this.removeRemoteStroke(from, p.strokeId);
                 }
                 const el = document.createElement('div');
                 el.className = 'tactics-remote-stroke';
@@ -2451,9 +2906,12 @@
                     width: p.width,
                     endType: p.endType || 'none',
                     lineType: p.lineType || 'solid',
+                    svgEl: null,
+                    shapeEls: [],
+                    renderRaf: 0,
                 };
                 this.remoteStrokes.set(key, entry);
-                this.renderRemoteStrokePath(entry);
+                this.scheduleRemoteStrokeRender(entry);
                 return;
             }
 
@@ -2467,20 +2925,23 @@
                 } else {
                     entry.points = p.points.slice();
                 }
-                this.renderRemoteStrokePath(entry);
+                this.scheduleRemoteStrokeRender(entry);
                 return;
             }
 
             if (msg.op === 'stroke_end') {
-                if (entry) {
-                    entry.pendingFinalize = true;
-                }
-                return;
+                entry.pendingFinalize = true;
+                this.scheduleRemoteStrokeRender(entry);
             }
         }
 
         clearRemoteStrokes() {
-            this.remoteStrokes.forEach((entry) => entry.el?.remove());
+            this.remoteStrokes.forEach((entry) => {
+                if (entry.renderRaf) {
+                    cancelAnimationFrame(entry.renderRaf);
+                }
+                entry.el?.remove();
+            });
             this.remoteStrokes.clear();
             if (this.remoteStrokesLayerEl) {
                 this.remoteStrokesLayerEl.innerHTML = '';
@@ -2521,9 +2982,28 @@
             reader.readAsDataURL(file);
         }
 
+        getPaletteControlElements() {
+            return document.querySelectorAll(
+                '.tactics-palette-swatch, .tactics-palette-action-btn, .tactics-hue-slider, '
+                + '#tacticsStrokeWidth, #tacticsStrokeWidthShape, #tacticsFontSize, #tacticsShapeFilled, '
+                + '#tacticsShapeFillOpacity, #tacticsIconLabel, #tacticsIconSize, #tacticsIconLabelSize, '
+                + '#tacticsPingSize, #tacticsPingStrokeWidth, #tacticsCellFlashDuration, .tactics-option-btn, '
+                + '.tactics-icon-grid__btn',
+            );
+        }
+
+        syncPaletteControlsEnabled() {
+            const disabled = this.interactionLocked;
+            this.getPaletteControlElements().forEach((el) => {
+                el.disabled = disabled;
+                el.classList.toggle('is-disabled', disabled);
+            });
+        }
+
         setInteractionLocked(locked) {
             this.interactionLocked = !!locked;
             if (!this.interactionLocked) {
+                this.syncPaletteControlsEnabled();
                 this.setDrawEnabled(this.drawEnabled);
                 return;
             }
@@ -2533,11 +3013,7 @@
                 btn.disabled = strictDisabled;
                 btn.classList.toggle('is-disabled', strictDisabled);
             });
-            document.querySelectorAll('.tactics-palette-swatch, .tactics-palette-action-btn, .tactics-hue-slider, #tacticsStrokeWidth, #tacticsStrokeWidthShape, #tacticsFontSize, #tacticsShapeFilled, #tacticsShapeFillOpacity, #tacticsIconLabel, #tacticsIconSize, #tacticsIconLabelSize, #tacticsPingSize, #tacticsPingStrokeWidth, #tacticsCellFlashDuration, .tactics-option-btn, .tactics-icon-grid__btn')
-                .forEach((el) => {
-                    el.disabled = strictDisabled;
-                    el.classList.toggle('is-disabled', strictDisabled);
-                });
+            this.syncPaletteControlsEnabled();
             ['tacticsUndoBtn', 'tacticsRedoBtn', 'tacticsClearBtn'].forEach((id) => {
                 const btn = document.getElementById(id);
                 if (!btn) return;
@@ -2582,12 +3058,15 @@
 
             if (!this.fabric) return;
 
-            this.fabric.isDrawingMode = false;
             if (disabled) {
+                this.cancelPenStroke();
+                this.fabric.isDrawingMode = false;
                 this.fabric.discardActiveObject();
                 if (this.tool !== 'select' && this.tool !== 'cell' && this.tool !== 'ping' && this.tool !== 'ruler') {
                     this.setTool('select');
                 }
+            } else {
+                this.setTool(this.tool || 'select');
             }
             this.syncInteractionState();
             this.fabric.requestRenderAll();
@@ -2607,6 +3086,9 @@
             this.clearPolygonPreview();
             this.shapeStart = null;
             this.polygonPoints = [];
+            if (this.tool === 'pen' && tool !== 'pen') {
+                this.cancelPenStroke();
+            }
             this.penLivePointer = null;
             this.tool = tool || 'select';
             this.toolbar?.querySelectorAll('[data-tool]').forEach((btn) => {
@@ -3390,9 +3872,14 @@
             if (typeof brush._setShadow === 'function') {
                 brush._setShadow();
             }
+            const lineType = this.getToolSettings().lineType || 'solid';
             const endType = this.getEndType();
-            if (this.shouldForceButtCapForEnd(endType) || endType === 'arrow') {
+            if (lineType === 'dotted') {
+                ctx.lineCap = 'round';
+            } else if (this.shouldForceButtCapForEnd(endType) || endType === 'arrow') {
                 ctx.lineCap = 'butt';
+            } else {
+                ctx.lineCap = this.getStrokeLineCap();
             }
             const dash = this.getStrokeDashArray();
             if (dash?.length) {
@@ -3436,6 +3923,21 @@
                 n = next;
             }
             ctx.stroke();
+        }
+
+        renderPenBrushBodyPreview(ctx, brush) {
+            if (!ctx || !brush) return false;
+            if (this.tool !== 'pen' || !this.drawEnabled || !this.fabric?.isDrawingMode) return false;
+
+            const points = this.collectPenBrushLivePoints(brush);
+            if (!points || points.length < 2) return false;
+
+            if (typeof brush._saveAndTransform === 'function') {
+                brush._saveAndTransform(ctx);
+            }
+            this.drawPencilBrushPointsOnCtx(ctx, points, brush);
+            ctx.restore();
+            return true;
         }
 
         renderPenBrushLivePreview(ctx, brush, endType) {
@@ -3529,9 +4031,6 @@
                 tacticsCapTipX: tipLocal.x,
                 tacticsCapTipY: tipLocal.y,
             });
-            if (endType === 'bar') {
-                path.set({ strokeLineCap: 'butt' });
-            }
             return true;
         }
 
@@ -3549,9 +4048,6 @@
             }
 
             this.applyStrokeStyle(path);
-            if (endType === 'bar') {
-                path.set({ strokeLineCap: 'butt' });
-            }
             this.installWtEndCapRenderer(path);
         }
 
@@ -4276,6 +4772,11 @@
             }
 
             if (this.tool === 'pen' && this.drawEnabled && this.fabric.isDrawingMode) {
+                if (this.penStrokeSuppressed) {
+                    this.penStrokeSuppressed = false;
+                    this.cancelPenStroke();
+                    return;
+                }
                 this.penLivePointer = pointer;
                 this.startLocalStrokeBroadcast(pointer);
                 return;
@@ -4426,6 +4927,11 @@
                 return;
             }
 
+            if (this.tool === 'pen' && this.drawEnabled) {
+                this.onPenBrushMouseUp();
+                return;
+            }
+
             if (!this.drawEnabled) return;
 
             const pointer = this.fabric.getPointer(opt.e);
@@ -4434,6 +4940,10 @@
                 this.finishShapeDraw(pointer.x, pointer.y);
                 return;
             }
+        }
+
+        getOpCoordSpace() {
+            return TacticsCanvas.COORD_SPACE;
         }
 
         handleLocalChange(type, e) {
@@ -4445,6 +4955,21 @@
             this.onChange();
 
             if (!this.slideId) return;
+            const coordSpace = this.getOpCoordSpace();
+
+            if (obj.type === 'path' && (this.tool === 'pen' || obj.tacticsType === 'pen')) {
+                const payload = obj.toObject(TacticsCanvas.EXPORT_PROPS);
+                if (this.localStrokeId) {
+                    payload.tacticsLiveStrokeId = this.localStrokeId;
+                }
+                this.onOp({
+                    op: 'add',
+                    slideId: this.slideId,
+                    coordSpace,
+                    payload,
+                });
+                return;
+            }
 
             if (obj.type === 'path' || type === 'add') {
                 this.onOp({
@@ -4458,24 +4983,28 @@
             this.onOp({
                 op: type,
                 slideId: this.slideId,
+                coordSpace,
                 payload: obj.toObject(TacticsCanvas.EXPORT_PROPS),
             });
         }
 
         exportDrawingsJson() {
-            if (!this.fabric) return null;
-            const objects = this.fabric.getObjects()
-                .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !o.isGridLine
-                    && !o.tacticsArrowHead && !o.tacticsBarEnd)
-                .map((o) => {
-                    const data = o.toObject(TacticsCanvas.EXPORT_PROPS);
-                    delete data.tacticsParent;
-                    return data;
-                });
-            return {
-                version: this.fabric.version || '5.3.0',
-                objects,
-            };
+            return this.withExportCoordSpace((coordSpace) => {
+                if (!this.fabric) return null;
+                const objects = this.fabric.getObjects()
+                    .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !o.isGridLine
+                        && !o.tacticsArrowHead && !o.tacticsBarEnd)
+                    .map((o) => {
+                        const data = o.toObject(TacticsCanvas.EXPORT_PROPS);
+                        delete data.tacticsParent;
+                        return data;
+                    });
+                return {
+                    version: this.fabric.version || '5.3.0',
+                    coordSpace,
+                    objects,
+                };
+            });
         }
 
         pushHistory() {
@@ -4529,18 +5058,21 @@
         }
 
         exportJson() {
-            if (!this.fabric) return null;
-            const objects = this.fabric.getObjects()
-                .filter((o) => !o.isGridLine && !o.isDrawingPreview)
-                .map((o) => {
-                    const data = o.toObject([...TacticsCanvas.EXPORT_PROPS, 'isBackground', 'isGridLine']);
-                    delete data.tacticsParent;
-                    return data;
-                });
-            return {
-                version: this.fabric.version || '5.3.0',
-                objects,
-            };
+            return this.withExportCoordSpace((coordSpace) => {
+                if (!this.fabric) return null;
+                const objects = this.fabric.getObjects()
+                    .filter((o) => !o.isGridLine && !o.isDrawingPreview)
+                    .map((o) => {
+                        const data = o.toObject([...TacticsCanvas.EXPORT_PROPS, 'isBackground', 'isGridLine']);
+                        delete data.tacticsParent;
+                        return data;
+                    });
+                return {
+                    version: this.fabric.version || '5.3.0',
+                    coordSpace,
+                    objects,
+                };
+            });
         }
 
         relinkArrowHeads() {
@@ -4589,9 +5121,6 @@
                 } else {
                     this.retunePenEndCap(parent, endType);
                     this.applyStrokeStyle(parent);
-                    if (endType === 'bar') {
-                        parent.set({ strokeLineCap: 'butt' });
-                    }
                     this.installWtEndCapRenderer(parent);
                 }
                 return;
@@ -4658,8 +5187,18 @@
             this.isRemote = wasRemote;
         }
 
+        syncFabricLayoutSize() {
+            const size = this.getSquareSize();
+            if (!this.fabric || !size) return null;
+            this.ensureLogicalCoordSpace();
+            this.applyDisplayZoom(size);
+            this.syncFabricContainer(size);
+            return size;
+        }
+
         async loadDrawings(json) {
             if (!this.fabric || !json) return;
+            this.syncFabricLayoutSize();
             this.isRemote = true;
             this.fabric.getObjects().filter((o) => !o.isBackground && !o.isGridLine).forEach((o) => {
                 this.fabric.remove(o);
@@ -4673,6 +5212,7 @@
                 }
                 fabric.util.enlivenObjects(objects, (objs) => {
                     objs.forEach((obj) => this.fabric.add(obj));
+                    this.applyCoordSpaceScale(json);
                     this.relinkArrowHeads();
                     this.syncInteractionState();
                     resolve();
@@ -4705,7 +5245,14 @@
             this.initFabric();
             if (!this.fabric || !slide) return;
 
+            const generation = ++this.loadSlideGeneration;
+            const isCurrentLoad = () => generation === this.loadSlideGeneration;
+
+            this.isSlideLoading = true;
+            this.slideId = null;
             this.setMapViewportLoading(true);
+            this.setInteractionLocked(true);
+            this.cancelPenStroke();
             try {
                 this.stopPingHold();
                 this.clearRemoteCursors();
@@ -4713,16 +5260,18 @@
                 this.clearPings();
                 this.clearCellFlashes();
                 this.clearRuler();
-                this.slideId = slide.id;
                 this.mapCode = slide.map_code || 'cliff';
                 const scalePromise = this.refreshMapScaleInfo(slide);
                 await this.ensureCanvasLayout(3);
+                if (!isCurrentLoad()) return;
 
                 this.isRemote = true;
                 this.fabric.clear();
+                this.layoutCanvasSize = this.fabric.getWidth() || null;
                 this.bgImageEl = null;
                 this.bgLayout = null;
                 this.isRemote = false;
+                this.slideId = slide.id;
 
                 const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
                 const resolvedUrl = mapUrl || maps().slideMapUrl(slide, publicId);
@@ -4743,22 +5292,33 @@
                 }
 
                 const img = await imgPromise;
+                if (!isCurrentLoad()) return;
                 if (img && img !== this.bgImageEl) {
                     this.showBackgroundImage(img);
                 }
 
                 await jsonPromise;
+                if (!isCurrentLoad()) return;
                 void scalePromise;
                 await this.ensureCanvasLayout(2);
+                if (!isCurrentLoad()) return;
 
                 this.history = [this.exportJson()];
                 this.historyIndex = 0;
                 this.scheduleResize();
                 this.updateGridToggleBtn();
-                this.syncInteractionState();
+                if (this.drawEnabled && !this.interactionLocked) {
+                    this.setTool(this.tool || 'select');
+                } else {
+                    this.syncInteractionState();
+                }
                 this.fabric.requestRenderAll();
             } finally {
-                this.setMapViewportLoading(false);
+                if (isCurrentLoad()) {
+                    this.isSlideLoading = false;
+                    this.setMapViewportLoading(false);
+                    this.setInteractionLocked(false);
+                }
             }
         }
 
@@ -4780,9 +5340,7 @@
                     resolve();
                     return;
                 }
-                if (this.getSquareSize()) {
-                    this.resize();
-                }
+                this.syncFabricLayoutSize();
                 const cleaned = this.stripBackground(json);
                 this.isRemote = !!silent;
                 this.fabric.loadFromJSON(cleaned, () => {
@@ -4791,6 +5349,7 @@
                             this.fabric.remove(obj);
                         }
                     });
+                    this.applyCoordSpaceScale(cleaned);
                     this.fitBackground();
                     this.syncGridOverlay();
                     this.relinkArrowHeads();
@@ -4832,16 +5391,32 @@
                         && Math.round(o.top) === Math.round(msg.payload.top));
                     if (match) this.fabric.remove(match);
                 } else if ((msg.op === 'add' || msg.op === 'modify') && msg.payload) {
+                    const payload = { ...msg.payload };
+                    const liveStrokeId = payload.tacticsLiveStrokeId;
+                    delete payload.tacticsLiveStrokeId;
+                    this.syncFabricLayoutSize();
+                    const target = TacticsCanvas.COORD_SPACE;
+                    const fromSize = Number(msg.coordSpace) || 0;
                     await new Promise((resolve) => {
-                        fabric.util.enlivenObjects([msg.payload], (objs) => {
-                            objs.forEach((obj) => this.fabric.add(obj));
+                        fabric.util.enlivenObjects([payload], (objs) => {
+                            objs.forEach((obj) => {
+                                if (fromSize && Math.abs(fromSize - target) > 0.5) {
+                                    this.scaleObjectGeometry(obj, target / fromSize);
+                                }
+                                this.fabric.add(obj);
+                            });
+                            this.relinkArrowHeads();
                             this.syncInteractionState();
                             this.fabric.requestRenderAll();
                             resolve();
                         });
                     });
                     if (remoteClientId && msg.op === 'add') {
-                        this.removeRemoteStrokesFromClient(remoteClientId);
+                        if (liveStrokeId) {
+                            this.removeRemoteStroke(remoteClientId, liveStrokeId);
+                        } else {
+                            this.removeRemoteStrokesFromClient(remoteClientId);
+                        }
                     }
                 } else if (msg.op === 'ping' && msg.payload) {
                     const p = msg.payload;

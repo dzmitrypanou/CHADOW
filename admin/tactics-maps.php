@@ -79,6 +79,13 @@ try {
             border-radius: 0;
             color: #e8eef2;
             font-size: 0.88rem;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .tactics-upload-field input[type="number"]::-webkit-outer-spin-button,
+        .tactics-upload-field input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
         .tactics-upload-field input[type="number"]:focus,
         .tactics-upload-field input[type="text"]:focus {
@@ -94,6 +101,13 @@ try {
             border-radius: 0;
             color: #e8eef2;
             font-size: 0.82rem;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .tactics-side-length-input::-webkit-outer-spin-button,
+        .tactics-side-length-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
         .tactics-maps-page .custom-select select {
             border-radius: 0;

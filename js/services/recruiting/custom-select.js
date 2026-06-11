@@ -63,6 +63,8 @@
 
     function enhanceSelect(select) {
         if (!select || select.dataset.recruitingSelectEnhanced === '1') return;
+        if (select.hidden || select.hasAttribute('hidden')) return;
+        if (select.dataset.recruitingSelectSkip === '1') return;
         select.dataset.recruitingSelectEnhanced = '1';
 
         const wrap = document.createElement('div');
