@@ -592,32 +592,57 @@
         });
     }
 
-    function updateDrawLockBtn() {
-        const btn = document.getElementById('tacticsDrawLockBtn');
-        if (!btn) return;
+    function toggleDrawModeLock() {
+        if (!canManage) return;
+        const settings = getDrawSettings();
+        settings.draw_mode = settings.draw_mode === 'open' ? 'restricted' : 'open';
+        pushDrawSettingsChange();
+    }
 
+    function updateDrawLockBtn() {
         const settings = getDrawSettings();
         const restricted = settings.draw_mode !== 'open';
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.className = restricted ? 'fas fa-lock' : 'fas fa-lock-open';
-        }
-        btn.classList.toggle('is-active', restricted);
-        btn.title = i18n().t(restricted ? 'drawRestricted' : 'drawOpen');
-        btn.disabled = !canManage;
-        btn.classList.toggle('is-disabled', !canManage);
+        const title = i18n().t(restricted ? 'drawRestricted' : 'drawOpen');
+
+        ['tacticsDrawLockBtn', 'tacticsDrawLockBtnSide'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = restricted ? 'fas fa-lock' : 'fas fa-lock-open';
+            }
+            btn.classList.toggle('is-active', restricted);
+            btn.title = title;
+            btn.disabled = !canManage;
+            btn.classList.toggle('is-disabled', !canManage);
+        });
     }
 
     function bindDrawLockBtn() {
-        const btn = document.getElementById('tacticsDrawLockBtn');
-        if (!btn || btn.dataset.bound) return;
-        btn.dataset.bound = '1';
+        ['tacticsDrawLockBtn', 'tacticsDrawLockBtnSide'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (!btn || btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', () => toggleDrawModeLock());
+        });
+    }
 
-        btn.addEventListener('click', () => {
-            if (!canManage) return;
-            const settings = getDrawSettings();
-            settings.draw_mode = settings.draw_mode === 'open' ? 'restricted' : 'open';
-            pushDrawSettingsChange();
+    function bindEditorChrome() {
+        const leftBtn = document.getElementById('tacticsCollapseLeft');
+        const rightBtn = document.getElementById('tacticsCollapseRight');
+        const leftCol = document.getElementById('tacticsToolsColumn');
+        const rightCol = document.getElementById('tacticsRightColumn');
+
+        leftBtn?.addEventListener('click', () => {
+            const collapsed = leftCol?.classList.toggle('is-collapsed');
+            leftBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            canvasCtrl?.scheduleResize?.();
+        });
+
+        rightBtn?.addEventListener('click', () => {
+            const collapsed = rightCol?.classList.toggle('is-collapsed');
+            rightBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            canvasCtrl?.scheduleResize?.();
         });
     }
 
@@ -681,6 +706,10 @@
             items.push({ clientId: selfId, nickname: String(nickname || '') });
         }
         participantsList = items;
+        const countEl = document.getElementById('tacticsUsersCount');
+        if (countEl) {
+            countEl.textContent = '(' + participantsList.length + ')';
+        }
         const settings = getDrawSettings();
         const editors = new Set(Array.isArray(settings.editors) ? settings.editors : []);
         const drawOpen = settings.draw_mode === 'open';
@@ -689,7 +718,13 @@
             const cid = String(p.clientId || '');
             const isSelf = cid === selfId;
             const displayName = isSelf ? nickname : (p.nickname || cid || '?');
-            const name = escapeHtml(displayName);
+            const colors = window.TacticsCanvas?.CURSOR_COLORS || ['#b388ff'];
+            let colorIdx = 0;
+            for (let i = 0; i < cid.length; i += 1) {
+                colorIdx = (colorIdx + cid.charCodeAt(i)) % colors.length;
+            }
+            const nickColor = colors[colorIdx] || '#b388ff';
+            const name = '<span style="color:' + nickColor + '">' + escapeHtml(displayName) + '</span>';
             const self = isSelf ? ' tactics-participant-self' : '';
             const editingClass = isSelf && nicknameEditing ? ' tactics-participant--editing-nick' : '';
             let actionBtn = '';
@@ -1561,6 +1596,7 @@
         bindDotaPickBtn();
         bindDrawLockBtn();
         bindCursorsLockBtn();
+        bindEditorChrome();
         updateSettingsPanel();
         syncVisibilityUi(roomState?.visibility);
         renderParticipants([{ clientId: String(clientId || ''), nickname: String(nickname || '') }]);

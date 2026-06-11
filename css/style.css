@@ -11178,9 +11178,468 @@ button.tactics-back-link {
     margin-top: auto;
 }
 
+/* StratSketch-style room editor */
+.page-tactics-room {
+    --tactics-editor-bg: #0c0c0c;
+    --tactics-panel-bg: #141414;
+    --tactics-panel-border: #2a2a2a;
+    --tactics-active: #e53935;
+    --tactics-text: #d8d8d8;
+    --tactics-muted: #8a8a8a;
+}
+
+.page-tactics-room .container {
+    max-width: none;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+}
+
+.page-tactics-room footer {
+    display: none;
+}
+
+.page-tactics-room .tactics-service.tactics-room-layout {
+    gap: 0;
+    min-height: calc(100dvh - 52px);
+}
+
+.page-tactics-room .tactics-editor {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: calc(100dvh - 52px);
+    background: var(--tactics-editor-bg);
+    border: 1px solid var(--tactics-panel-border);
+    overflow: hidden;
+}
+
+.page-tactics-room .tactics-editor-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 8px;
+    background: #101010;
+    border-bottom: 1px solid var(--tactics-panel-border);
+}
+
+.page-tactics-room .tactics-editor-topbar__group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.page-tactics-room .tactics-editor-topbar__group--center {
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+    text-align: center;
+}
+
+.page-tactics-room .tactics-editor-topbar__group--right {
+    justify-content: flex-end;
+}
+
+.page-tactics-room .tactics-editor-topbar__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--tactics-text);
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.page-tactics-room .tactics-editor-topbar__btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.page-tactics-room .tactics-editor-topbar__btn.is-active {
+    color: var(--tactics-active);
+}
+
+.page-tactics-room .tactics-editor-topbar__title {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f0f0f0;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.page-tactics-room .tactics-editor-topbar__code {
+    font-size: 0.68rem;
+    color: var(--tactics-muted);
+    letter-spacing: 0.06em;
+}
+
+.page-tactics-room .tactics-editor-body {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) 248px;
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+}
+
+.page-tactics-room .tactics-tools-column,
+.page-tactics-room .tactics-right-sidebar {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--tactics-panel-bg);
+    border-color: var(--tactics-panel-border);
+}
+
+.page-tactics-room .tactics-tools-column {
+    border-right: 1px solid var(--tactics-panel-border);
+}
+
+.page-tactics-room .tactics-right-sidebar {
+    border-left: 1px solid var(--tactics-panel-border);
+}
+
+.page-tactics-room .tactics-tools-column__inner,
+.page-tactics-room .tactics-right-sidebar__inner {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    height: 100%;
+}
+
+.page-tactics-room .tactics-tools-panel {
+    flex: 0 0 auto;
+}
+
+.page-tactics-room .tactics-right-sidebar__inner {
+    justify-content: space-between;
+    gap: 0;
+}
+
+.page-tactics-room .tactics-tools-column.is-collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: visible;
+}
+
+.page-tactics-room .tactics-tools-column.is-collapsed .tactics-tools-column__inner {
+    display: none;
+}
+
+.page-tactics-room .tactics-right-sidebar.is-collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: visible;
+}
+
+.page-tactics-room .tactics-right-sidebar.is-collapsed .tactics-right-sidebar__inner {
+    display: none;
+}
+
+.page-tactics-room .tactics-editor-body:has(.tactics-tools-column.is-collapsed) {
+    grid-template-columns: 0 minmax(0, 1fr) 248px;
+}
+
+.page-tactics-room .tactics-editor-body:has(.tactics-right-sidebar.is-collapsed) {
+    grid-template-columns: 92px minmax(0, 1fr) 0;
+}
+
+.page-tactics-room .tactics-editor-body:has(.tactics-tools-column.is-collapsed):has(.tactics-right-sidebar.is-collapsed) {
+    grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+
+.page-tactics-room .tactics-editor-edge-toggle {
+    position: absolute;
+    top: 50%;
+    z-index: 5;
+    width: 14px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid var(--tactics-panel-border);
+    background: #1a1a1a;
+    color: #888;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.page-tactics-room .tactics-editor-edge-toggle--left {
+    right: -14px;
+    border-radius: 0 4px 4px 0;
+}
+
+.page-tactics-room .tactics-editor-edge-toggle--right {
+    left: -14px;
+    border-radius: 4px 0 0 4px;
+}
+
+.page-tactics-room .tactics-tools-column.is-collapsed .tactics-editor-edge-toggle--left i {
+    transform: rotate(180deg);
+}
+
+.page-tactics-room .tactics-right-sidebar.is-collapsed .tactics-editor-edge-toggle--right i {
+    transform: rotate(180deg);
+}
+
+.page-tactics-room .tactics-tools-panel,
+.page-tactics-room .tactics-sidebar-panel,
+.page-tactics-room .tactics-chat-panel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 8px 6px;
+}
+
+.page-tactics-room .tactics-panel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.page-tactics-room .tactics-palette-presets {
+    gap: 3px;
+}
+
+.page-tactics-room .tactics-palette-swatch {
+    border-radius: 2px;
+    border-width: 1px;
+    border-color: #333;
+    min-height: 18px;
+}
+
+.page-tactics-room .tactics-palette-swatch.is-active {
+    border-color: #fff;
+    box-shadow: 0 0 0 1px #fff;
+}
+
+.page-tactics-room .tactics-width-input--palette {
+    width: 100%;
+    height: 6px;
+    margin: 4px 0;
+}
+
+.page-tactics-room .tactics-hue-slider {
+    height: 8px;
+    margin: 2px 0 6px;
+}
+
+.page-tactics-room .tactics-palette-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.page-tactics-room .tactics-palette-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    padding: 0;
+    border: 1px solid #333;
+    border-radius: 3px;
+    background: #1c1c1c;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.72rem;
+}
+
+.page-tactics-room .tactics-color-input--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.page-tactics-room .tactics-toolbar--grid {
+    gap: 3px;
+}
+
+.page-tactics-room .tactics-toolbar--grid .tactics-tool-btn {
+    height: 36px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #c8c8c8;
+    font-size: 0.88rem;
+}
+
+.page-tactics-room .tactics-toolbar--grid .tactics-tool-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.page-tactics-room .tactics-tool-btn.is-active,
+.page-tactics-room .tactics-toolbar--grid .tactics-tool-btn.is-active {
+    background: rgba(229, 57, 53, 0.18);
+    border-color: var(--tactics-active);
+    color: #fff;
+}
+
+.page-tactics-room .tactics-canvas-panel {
+    background: #080808;
+    border: none;
+    padding: 4px;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.page-tactics-room .tactics-map-grid {
+    margin: 0 auto;
+}
+
+.page-tactics-room .tactics-grid-top span,
+.page-tactics-room .tactics-grid-left span {
+    color: rgba(180, 180, 180, 0.65);
+}
+
+.page-tactics-room .tactics-sidebar-panel--users {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding-bottom: 4px;
+}
+
+.page-tactics-room .tactics-sidebar-panel--slides {
+    flex: 0 0 auto;
+    margin-top: auto;
+    border-top: 1px solid var(--tactics-panel-border);
+    padding-top: 10px;
+}
+
+.page-tactics-room .tactics-users-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.page-tactics-room .tactics-sidebar-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    text-transform: none;
+}
+
+.page-tactics-room .tactics-users-count {
+    color: var(--tactics-muted);
+    font-weight: 500;
+}
+
+.page-tactics-room .tactics-users-perms-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.page-tactics-room .tactics-users-perms-btn.is-active {
+    border-color: var(--tactics-active);
+    color: var(--tactics-active);
+}
+
+.page-tactics-room .tactics-participant {
+    background: #1a1a1a;
+    border-color: #2e2e2e;
+    color: #d0d0d0;
+    font-size: 0.8rem;
+    padding: 5px 8px;
+}
+
+.page-tactics-room .tactics-participant-self {
+    border-color: rgba(229, 57, 53, 0.55);
+    color: #fff;
+}
+
+.page-tactics-room .tactics-slides-head {
+    margin-bottom: 6px;
+}
+
+.page-tactics-room .tactics-slides-nav-btn,
+.page-tactics-room .tactics-add-slide-btn {
+    border: 1px solid #333;
+    background: #1a1a1a;
+    color: #ccc;
+    border-radius: 4px;
+    font-size: 0.72rem;
+}
+
+.page-tactics-room .tactics-add-slide-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-weight: 600;
+    color: #4caf50;
+    border-color: rgba(76, 175, 80, 0.45);
+}
+
+.page-tactics-room .tactics-slide-card--thumb {
+    width: 118px;
+    border-radius: 4px;
+    border-width: 2px;
+    border-color: #333;
+    background: #0a0a0a;
+}
+
+.page-tactics-room .tactics-slide-card--thumb.is-active {
+    border-color: var(--tactics-active);
+    box-shadow: 0 0 0 1px var(--tactics-active);
+    background: #121212;
+}
+
+.page-tactics-room .tactics-slide-thumb {
+    height: 74px;
+    border-radius: 2px 2px 0 0;
+    object-fit: cover;
+}
+
+.page-tactics-room .tactics-slide-card--thumb .tactics-slide-name {
+    color: #bdbdbd;
+    font-size: 0.7rem;
+}
+
+.page-tactics-room .tactics-chat-panel {
+    border-top: 1px solid var(--tactics-panel-border);
+    margin-top: auto;
+}
+
+.page-tactics-room .tactics-chat-toggle {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    color: #bdbdbd;
+}
+
+.page-tactics-room .tactics-chat-input {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #eee;
+}
+
 @media (max-width: 960px) {
     .tactics-lobby-grid,
-    .tactics-room-workspace {
+    .tactics-room-workspace,
+    .page-tactics-room .tactics-editor-body {
         grid-template-columns: 1fr;
     }
 

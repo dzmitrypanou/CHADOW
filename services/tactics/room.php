@@ -119,26 +119,7 @@ require __DIR__ . '/../../includes/site_header.php';
 ?>
 
         <main class="tactics-service tactics-room-layout<?php echo $needsPassword ? ' tactics-room-layout--locked' : ''; ?>">
-            <section class="tactics-panel tactics-room-header" id="tacticsRoomHeader"<?php echo $needsPassword ? ' hidden' : ''; ?>>
-                <div class="tactics-section-head">
-                    <div class="tactics-room-header-main">
-                        <a class="tactics-back-link" href="<?php echo htmlspecialchars($lobbyHref, ENT_QUOTES, 'UTF-8'); ?>">
-                            <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                            <?php echo $lang === 'en' ? 'All rooms' : 'Все комнаты'; ?>
-                        </a>
-                        <h2 class="tactics-section-title" id="tacticsRoomTitle"><?php echo htmlspecialchars((string) $row['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
-                    </div>
-                    <div class="tactics-section-actions">
-                        <button type="button" class="tactics-back-link tactics-room-code-btn" id="tacticsCopyLinkBtn" title="<?php echo $lang === 'en' ? 'Copy link' : 'Копировать ссылку'; ?>">
-                            <i class="fas fa-link tactics-room-code-btn__icon" aria-hidden="true"></i>
-                            <span class="tactics-room-code-btn__text">
-                                <span class="tactics-room-code-btn__label"><?php echo $lang === 'en' ? 'Code' : 'Код'; ?>:</span>
-                                <span class="tactics-room-code-btn__value" id="tacticsRoomCode"><?php echo htmlspecialchars($publicId, ENT_QUOTES, 'UTF-8'); ?></span>
-                            </span>
-                        </button>
-                    </div>
-                </div>
-            </section>
+            <section class="tactics-panel tactics-room-header" id="tacticsRoomHeader" hidden aria-hidden="true"></section>
 
             <div id="tacticsPasswordGate" class="tactics-password-gate"<?php echo $needsPassword ? '' : ' hidden'; ?>>
                 <section class="tactics-panel tactics-password-panel">
@@ -160,9 +141,35 @@ require __DIR__ . '/../../includes/site_header.php';
                 </section>
             </div>
 
-            <div id="tacticsRoomWorkspace" class="tactics-room-workspace"<?php echo $needsPassword ? ' hidden' : ''; ?>>
-                <aside class="tactics-tools-column">
-                    <section class="tactics-panel tactics-tools-panel">
+            <div id="tacticsRoomWorkspace" class="tactics-editor"<?php echo $needsPassword ? ' hidden' : ''; ?>>
+                <header class="tactics-editor-topbar">
+                    <div class="tactics-editor-topbar__group tactics-editor-topbar__group--left">
+                        <a class="tactics-editor-topbar__btn" href="<?php echo htmlspecialchars($lobbyHref, ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo $lang === 'en' ? 'All rooms' : 'Все комнаты'; ?>">
+                            <i class="fas fa-home" aria-hidden="true"></i>
+                        </a>
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsUndoBtn" title="<?php echo $lang === 'en' ? 'Undo' : 'Отменить'; ?>"><i class="fas fa-undo" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsRedoBtn" title="<?php echo $lang === 'en' ? 'Redo' : 'Повтор'; ?>"><i class="fas fa-redo" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="tactics-editor-topbar__group tactics-editor-topbar__group--center">
+                        <h1 class="tactics-editor-topbar__title" id="tacticsRoomTitle"><?php echo htmlspecialchars((string) $row['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
+                        <span class="tactics-editor-topbar__code" id="tacticsRoomCode"><?php echo htmlspecialchars($publicId, ENT_QUOTES, 'UTF-8'); ?></span>
+                    </div>
+                    <div class="tactics-editor-topbar__group tactics-editor-topbar__group--right">
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsCopyLinkBtn" title="<?php echo $lang === 'en' ? 'Copy link' : 'Копировать ссылку'; ?>"><i class="fas fa-link" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn is-active" id="tacticsGridToggleBtn" title="<?php echo $lang === 'en' ? 'Toggle grid' : 'Сетка'; ?>"><i class="fas fa-border-all" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn is-active" id="tacticsDrawLockBtn" title="<?php echo $lang === 'en' ? 'Drawing lock' : 'Блокировка рисования'; ?>"><i class="fas fa-lock" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsCursorsLockBtn" title="<?php echo $lang === 'en' ? 'Cursors lock' : 'Курсоры'; ?>"><i class="fas fa-eye" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn is-active" id="tacticsRemoteCursorsBtn" title="<?php echo $lang === 'en' ? 'Peer cursors' : 'Курсоры участников'; ?>"><i class="fas fa-users" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn is-active" id="tacticsShareCursorBtn" title="<?php echo $lang === 'en' ? 'Share cursor' : 'Мой курсор'; ?>"><i class="fas fa-location-arrow" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsClearBtn" title="<?php echo $lang === 'en' ? 'Clear slide' : 'Очистить слайд'; ?>"><i class="fas fa-trash-alt" aria-hidden="true"></i></button>
+                    </div>
+                </header>
+
+                <div class="tactics-editor-body">
+                <aside class="tactics-tools-column" id="tacticsToolsColumn">
+                    <button type="button" class="tactics-editor-edge-toggle tactics-editor-edge-toggle--left" id="tacticsCollapseLeft" title="<?php echo $lang === 'en' ? 'Toggle tools' : 'Скрыть инструменты'; ?>" aria-expanded="true"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                    <div class="tactics-tools-column__inner">
+                    <section class="tactics-tools-panel">
                         <div class="tactics-palette" id="tacticsPalette">
                             <div class="tactics-palette-presets" role="group" aria-label="<?php echo $lang === 'en' ? 'Colors' : 'Цвета'; ?>">
                                 <button type="button" class="tactics-palette-swatch" data-color="#22c55e" style="--swatch-color:#22c55e" title="<?php echo $lang === 'en' ? 'Green' : 'Зелёный'; ?>"></button>
@@ -171,47 +178,33 @@ require __DIR__ . '/../../includes/site_header.php';
                                 <button type="button" class="tactics-palette-swatch" data-color="#f97316" style="--swatch-color:#f97316" title="<?php echo $lang === 'en' ? 'Orange' : 'Оранжевый'; ?>"></button>
                                 <button type="button" class="tactics-palette-swatch" data-color="#111111" style="--swatch-color:#111111" title="<?php echo $lang === 'en' ? 'Black' : 'Чёрный'; ?>"></button>
                             </div>
+                            <input type="range" id="tacticsStrokeWidth" class="tactics-width-input tactics-width-input--palette" min="2" max="16" value="6" title="<?php echo $lang === 'en' ? 'Width' : 'Толщина'; ?>">
                             <input type="range" id="tacticsHueSlider" class="tactics-hue-slider" min="0" max="360" value="0" title="<?php echo $lang === 'en' ? 'Hue' : 'Оттенок'; ?>">
                             <div class="tactics-palette-actions">
-                                <input type="color" id="tacticsStrokeColor" class="tactics-color-input" value="#ff4444" title="<?php echo $lang === 'en' ? 'Color' : 'Цвет'; ?>">
-                                <input type="color" id="tacticsStrokeColorSecondary" class="tactics-color-input tactics-color-input--secondary" value="#3b82f6" title="<?php echo $lang === 'en' ? 'Secondary color' : 'Второй цвет'; ?>">
-                                <button type="button" class="tactics-tool-btn tactics-palette-action-btn" id="tacticsSwapColorsBtn" title="<?php echo $lang === 'en' ? 'Swap colors' : 'Поменять цвета'; ?>"><i class="fas fa-exchange-alt" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-tool-btn tactics-palette-action-btn" id="tacticsEyedropperBtn" title="<?php echo $lang === 'en' ? 'Eyedropper' : 'Пипетка'; ?>"><i class="fas fa-eye-dropper" aria-hidden="true"></i></button>
+                                <input type="color" id="tacticsStrokeColor" class="tactics-color-input tactics-color-input--hidden" value="#ff4444" tabindex="-1" aria-hidden="true">
+                                <input type="color" id="tacticsStrokeColorSecondary" class="tactics-color-input tactics-color-input--hidden" value="#3b82f6" tabindex="-1" aria-hidden="true">
+                                <button type="button" class="tactics-palette-action-btn" id="tacticsSwapColorsBtn" title="<?php echo $lang === 'en' ? 'Swap colors' : 'Поменять цвета'; ?>"><i class="fas fa-exchange-alt" aria-hidden="true"></i></button>
+                                <button type="button" class="tactics-palette-action-btn" id="tacticsEyedropperBtn" title="<?php echo $lang === 'en' ? 'Eyedropper' : 'Пипетка'; ?>"><i class="fas fa-eye-dropper" aria-hidden="true"></i></button>
                             </div>
                         </div>
                         <div class="tactics-toolbar tactics-toolbar--grid" id="tacticsToolbar">
                             <button type="button" class="tactics-tool-btn is-active" data-tool="select" title="<?php echo $lang === 'en' ? 'Select' : 'Выбор'; ?>"><i class="fas fa-mouse-pointer"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="pen" title="<?php echo $lang === 'en' ? 'Pen' : 'Карандаш'; ?>"><i class="fas fa-pen"></i></button>
+                            <button type="button" class="tactics-tool-btn" data-tool="pen" title="<?php echo $lang === 'en' ? 'Draw' : 'Рисование'; ?>"><i class="fas fa-pen"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="line" title="<?php echo $lang === 'en' ? 'Line' : 'Линия'; ?>"><i class="fas fa-minus"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="arrow" title="<?php echo $lang === 'en' ? 'Arrow' : 'Стрелка'; ?>"><i class="fas fa-long-arrow-alt-right"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="rect" title="<?php echo $lang === 'en' ? 'Rectangle' : 'Прямоугольник'; ?>"><i class="far fa-square"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="circle" title="<?php echo $lang === 'en' ? 'Circle' : 'Круг'; ?>"><i class="far fa-circle"></i></button>
+                            <button type="button" class="tactics-tool-btn" data-tool="rect" title="<?php echo $lang === 'en' ? 'Rectangle' : 'Прямоугольник'; ?>"><i class="far fa-square"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="polygon" title="<?php echo $lang === 'en' ? 'Polygon' : 'Многоугольник'; ?>"><i class="fas fa-draw-polygon"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="eraser" title="<?php echo $lang === 'en' ? 'Eraser' : 'Ластик'; ?>"><i class="fas fa-eraser"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="text" title="<?php echo $lang === 'en' ? 'Text' : 'Текст'; ?>"><i class="fas fa-font"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="image" title="<?php echo $lang === 'en' ? 'Image' : 'Изображение'; ?>"><i class="fas fa-image"></i></button>
-                            <button type="button" class="tactics-tool-btn" data-tool="ping" title="<?php echo $lang === 'en' ? 'Ping map' : 'Пинг по карте'; ?>"><i class="fas fa-crosshairs"></i></button>
+                            <button type="button" class="tactics-tool-btn" data-tool="ping" title="<?php echo $lang === 'en' ? 'Ping' : 'Пинг'; ?>"><i class="fas fa-crosshairs"></i></button>
                             <button type="button" class="tactics-tool-btn" data-tool="ruler" title="<?php echo $lang === 'en' ? 'Ruler' : 'Линейка'; ?>"><i class="fas fa-ruler-horizontal"></i></button>
-                        </div>
-                        <div class="tactics-toolbar-room" id="tacticsToolbarRoom">
-                            <input type="range" id="tacticsStrokeWidth" class="tactics-width-input tactics-width-input--horizontal" min="2" max="16" value="6" title="<?php echo $lang === 'en' ? 'Width' : 'Толщина'; ?>">
-                            <div class="tactics-toolbar-room__row">
-                                <button type="button" class="tactics-tool-btn is-active" id="tacticsDrawLockBtn" title="<?php echo $lang === 'en' ? 'Drawing lock' : 'Блокировка рисования'; ?>"><i class="fas fa-lock" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-tool-btn" id="tacticsCursorsLockBtn" title="<?php echo $lang === 'en' ? 'Cursors lock' : 'Блокировка курсоров'; ?>"><i class="fas fa-eye-slash" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-tool-btn is-active" id="tacticsGridToggleBtn" title="<?php echo $lang === 'en' ? 'Toggle grid' : 'Сетка'; ?>"><i class="fas fa-border-all"></i></button>
-                                <button type="button" class="tactics-tool-btn is-active" id="tacticsRemoteCursorsBtn" title="<?php echo $lang === 'en' ? 'Peer cursors' : 'Курсоры'; ?>"><i class="fas fa-users"></i></button>
-                                <button type="button" class="tactics-tool-btn is-active" id="tacticsShareCursorBtn" title="<?php echo $lang === 'en' ? 'Share cursor' : 'Мой курсор'; ?>"><i class="fas fa-location-arrow"></i></button>
-                            </div>
-                            <div class="tactics-toolbar-room__row">
-                                <button type="button" class="tactics-tool-btn" id="tacticsUndoBtn" title="<?php echo $lang === 'en' ? 'Undo' : 'Отменить'; ?>"><i class="fas fa-undo"></i></button>
-                                <button type="button" class="tactics-tool-btn" id="tacticsRedoBtn" title="<?php echo $lang === 'en' ? 'Redo' : 'Повтор'; ?>"><i class="fas fa-redo"></i></button>
-                                <button type="button" class="tactics-tool-btn" id="tacticsClearBtn" title="<?php echo $lang === 'en' ? 'Clear slide' : 'Очистить'; ?>"><i class="fas fa-trash-alt"></i></button>
-                            </div>
+                            <button type="button" class="tactics-tool-btn" data-tool="arrow" title="<?php echo $lang === 'en' ? 'Arrow' : 'Стрелка'; ?>"><i class="fas fa-long-arrow-alt-right"></i></button>
                         </div>
                         <input type="file" id="tacticsImageUpload" accept="image/webp,image/png,image/jpeg" hidden>
                     </section>
-                    <section class="tactics-panel tactics-chat-panel" id="tacticsChatPanel">
-                        <button type="button" class="tactics-chat-toggle" id="tacticsChatToggle" aria-expanded="true">
+                    <section class="tactics-chat-panel is-collapsed" id="tacticsChatPanel">
+                        <button type="button" class="tactics-chat-toggle" id="tacticsChatToggle" aria-expanded="false">
                             <span data-tactics-i18n="chatTitle"><?php echo $lang === 'en' ? 'Chat' : 'Чат'; ?></span>
                             <i class="fas fa-chevron-up tactics-chat-toggle__icon" aria-hidden="true"></i>
                         </button>
@@ -223,6 +216,7 @@ require __DIR__ . '/../../includes/site_header.php';
                             </form>
                         </div>
                     </section>
+                    </div>
                 </aside>
 
                 <section class="tactics-canvas-panel">
@@ -256,9 +250,14 @@ require __DIR__ . '/../../includes/site_header.php';
                     </div>
                 </section>
 
-                <aside class="tactics-right-sidebar">
-                    <section class="tactics-panel tactics-sidebar-panel">
-                        <h4 class="tactics-sidebar-title" data-tactics-i18n="sidebarOnline"><?php echo $lang === 'en' ? 'Users' : 'Участники'; ?></h4>
+                <aside class="tactics-right-sidebar" id="tacticsRightColumn">
+                    <button type="button" class="tactics-editor-edge-toggle tactics-editor-edge-toggle--right" id="tacticsCollapseRight" title="<?php echo $lang === 'en' ? 'Toggle sidebar' : 'Скрыть панель'; ?>" aria-expanded="true"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                    <div class="tactics-right-sidebar__inner">
+                    <section class="tactics-sidebar-panel tactics-sidebar-panel--users">
+                        <div class="tactics-users-head">
+                            <h4 class="tactics-sidebar-title"><span data-tactics-i18n="sidebarOnline"><?php echo $lang === 'en' ? 'Users' : 'Участники'; ?></span> <span class="tactics-users-count" id="tacticsUsersCount">(0)</span></h4>
+                            <button type="button" class="tactics-users-perms-btn" id="tacticsDrawLockBtnSide" title="<?php echo $lang === 'en' ? 'Drawing permissions' : 'Права на рисование'; ?>"><i class="fas fa-lock" aria-hidden="true"></i></button>
+                        </div>
                         <ul id="tacticsParticipants" class="tactics-participants-list"></ul>
                     </section>
                     <section class="tactics-panel tactics-sidebar-panel" id="tacticsRoomSettings" hidden>
@@ -291,13 +290,13 @@ require __DIR__ . '/../../includes/site_header.php';
                             </button>
                         </div>
                     </section>
-                    <section class="tactics-panel tactics-sidebar-panel tactics-sidebar-panel--slides" id="tacticsMapsPanel">
+                    <section class="tactics-sidebar-panel tactics-sidebar-panel--slides" id="tacticsMapsPanel">
                         <div class="tactics-slides-head">
                             <h4 class="tactics-sidebar-title" data-tactics-i18n="slidesSection"><?php echo $lang === 'en' ? 'Slides' : 'Слайды'; ?></h4>
                             <div class="tactics-slides-head__actions">
-                                <button type="button" class="tactics-icon-btn" id="tacticsSlidesScrollLeft" title="<?php echo $lang === 'en' ? 'Scroll left' : 'Влево'; ?>"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-icon-btn" id="tacticsSlidesScrollRight" title="<?php echo $lang === 'en' ? 'Scroll right' : 'Вправо'; ?>"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
-                                <button type="button" class="tactics-add-slide-btn" id="tacticsAddSlideBtn" data-tactics-i18n="addSlide"><?php echo $lang === 'en' ? '+ Add' : '+ Добавить'; ?></button>
+                                <button type="button" class="tactics-slides-nav-btn" id="tacticsSlidesScrollLeft" title="<?php echo $lang === 'en' ? 'Scroll left' : 'Влево'; ?>"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                                <button type="button" class="tactics-slides-nav-btn" id="tacticsSlidesScrollRight" title="<?php echo $lang === 'en' ? 'Scroll right' : 'Вправо'; ?>"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                                <button type="button" class="tactics-add-slide-btn" id="tacticsAddSlideBtn"><?php echo $lang === 'en' ? 'Add' : 'Добавить'; ?> <i class="fas fa-plus" aria-hidden="true"></i></button>
                             </div>
                         </div>
                         <div class="tactics-slides-strip-wrap">
@@ -319,7 +318,9 @@ require __DIR__ . '/../../includes/site_header.php';
                             ?>
                         </div>
                     </section>
+                    </div>
                 </aside>
+                </div>
             </div>
 
             <?php
