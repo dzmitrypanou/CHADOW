@@ -10461,7 +10461,7 @@ button.tactics-back-link {
     inset: 0;
     z-index: 4;
     pointer-events: none;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .tactics-remote-stroke {

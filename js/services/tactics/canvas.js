@@ -161,8 +161,10 @@
             this.remoteStrokesLayerEl = null;
             this.remoteStrokes = new Map();
             this.localStrokeId = null;
-            this.localStrokePoints = [];
-            this.localStrokeBroadcastIndex = 0;
+            this.localStrokeSegments = [];
+            this.localStrokeBroadcastPos = { seg: 0, pt: 0 };
+            this.localStrokeBroadcastOutside = false;
+            this.localStrokeLastOutsideNorm = null;
             this.strokePointBroadcastRaf = 0;
             this.lastStrokePointBroadcastAt = 0;
             this.loadSlideGeneration = 0;
@@ -1571,6 +1573,33 @@
             };
         }
 
+        getRemoteStrokeRenderSize() {
+            const stack = this.getStackEl();
+            const w = stack?.clientWidth || 0;
+            const h = stack?.clientHeight || 0;
+            if (w > 0 && h > 0) {
+                return { width: w, height: h };
+            }
+            const wrap = this.getWrapEl();
+            return {
+                width: wrap?.clientWidth || 0,
+                height: wrap?.clientHeight || 0,
+            };
+        }
+
+        syncRemoteStrokesLayerGeometry() {
+            const layer = this.remoteStrokesLayerEl;
+            if (!layer) return;
+            layer.style.inset = '0';
+            layer.style.left = '';
+            layer.style.top = '';
+            layer.style.right = '';
+            layer.style.bottom = '';
+            layer.style.width = '';
+            layer.style.height = '';
+            layer.style.overflow = 'visible';
+        }
+
         getMapGridEl() {
             return this.canvasEl?.closest('.tactics-map-grid');
         }
@@ -2499,12 +2528,106 @@
                 this.remoteStrokesLayerEl = layer;
             }
             this.mountOverlayLayer(this.remoteStrokesLayerEl, root);
+            this.syncRemoteStrokesLayerGeometry();
         }
 
         normalizePoint(pointer) {
             const w = this.fabric?.getWidth() || 1;
             const h = this.fabric?.getHeight() || 1;
             return { x: pointer.x / w, y: pointer.y / h };
+        }
+
+        isNormalizedPointInside(p) {
+            if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return false;
+            return p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
+        }
+
+        segmentUnitSquareIntersection(inside, outside) {
+            if (!inside || !outside) return null;
+            const dx = outside.x - inside.x;
+            const dy = outside.y - inside.y;
+            if (!dx && !dy) return null;
+
+            let bestT = null;
+            const consider = (t) => {
+                if (!Number.isFinite(t) || t <= 0 || t > 1) return;
+                if (bestT !== null && t >= bestT) return;
+                const x = inside.x + dx * t;
+                const y = inside.y + dy * t;
+                if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+                    bestT = t;
+                }
+            };
+
+            if (dx) {
+                consider((0 - inside.x) / dx);
+                consider((1 - inside.x) / dx);
+            }
+            if (dy) {
+                consider((0 - inside.y) / dy);
+                consider((1 - inside.y) / dy);
+            }
+            if (bestT === null) return null;
+            return { x: inside.x + dx * bestT, y: inside.y + dy * bestT };
+        }
+
+        getLocalStrokePointCount() {
+            return (this.localStrokeSegments || []).reduce((n, seg) => n + seg.length, 0);
+        }
+
+        getLastLocalStrokePoint() {
+            const segs = this.localStrokeSegments;
+            if (!segs?.length) return null;
+            const lastSeg = segs[segs.length - 1];
+            return lastSeg?.length ? lastSeg[lastSeg.length - 1] : null;
+        }
+
+        ensureLocalStrokeSegment() {
+            if (!this.localStrokeSegments.length) {
+                this.localStrokeSegments.push([]);
+            }
+            return this.localStrokeSegments[this.localStrokeSegments.length - 1];
+        }
+
+        startNewLocalStrokeSegment() {
+            this.localStrokeSegments.push([]);
+        }
+
+        appendLocalStrokeBroadcastPoint(pt) {
+            const w = this.fabric?.getWidth() || 1;
+            const h = this.fabric?.getHeight() || 1;
+            const minNorm = TacticsCanvas.PEN_MIN_POINT_DIST / Math.min(w, h);
+            const last = this.getLastLocalStrokePoint();
+            if (last && Math.hypot(pt.x - last.x, pt.y - last.y) < minNorm) {
+                return false;
+            }
+            this.ensureLocalStrokeSegment().push(pt);
+            return true;
+        }
+
+        collectPendingStrokeBroadcast() {
+            const chunks = [];
+            const pos = this.localStrokeBroadcastPos;
+            const segs = this.localStrokeSegments;
+            if (!segs?.length) return chunks;
+
+            for (let si = pos.seg; si < segs.length; si += 1) {
+                const startPt = si === pos.seg ? pos.pt : 0;
+                const slice = segs[si].slice(startPt);
+                if (!slice.length) continue;
+                chunks.push({ segmentBreak: si > pos.seg, points: slice });
+            }
+            return chunks;
+        }
+
+        advanceLocalStrokeBroadcastPos() {
+            const segs = this.localStrokeSegments;
+            if (!segs.length) {
+                this.localStrokeBroadcastPos = { seg: 0, pt: 0 };
+                return;
+            }
+            const seg = segs.length - 1;
+            this.localStrokeBroadcastPos = { seg, pt: segs[seg].length };
         }
 
         sendCursorFromPointerEvent(ev, visible) {
@@ -2600,8 +2723,12 @@
                 this.finishLocalStrokeBroadcast();
             }
             this.localStrokeId = 'ls' + Math.random().toString(16).slice(2, 10);
-            this.localStrokePoints = [this.normalizePoint(pointer)];
-            this.localStrokeBroadcastIndex = 0;
+            const pt = this.normalizePoint(pointer);
+            const inside = this.isNormalizedPointInside(pt);
+            this.localStrokeSegments = inside ? [[pt]] : [[]];
+            this.localStrokeBroadcastPos = { seg: 0, pt: inside ? 1 : 0 };
+            this.localStrokeBroadcastOutside = !inside;
+            this.localStrokeLastOutsideNorm = inside ? null : pt;
             this.lastStrokePointBroadcastAt = 0;
             this.onOp({
                 op: 'stroke_start',
@@ -2613,7 +2740,8 @@
                     width: this.getStrokeWidth(),
                     endType: this.getEndType(),
                     lineType: this.getToolSettings().lineType || 'solid',
-                    points: [this.localStrokePoints[0]],
+                    points: inside ? [pt] : [],
+                    segments: this.localStrokeSegments.map((seg) => seg.slice()),
                 },
             });
         }
@@ -2630,12 +2758,37 @@
         flushStrokePointBroadcast(minPoints = 2) {
             if (!this.localStrokeId || !this.slideId) return;
 
-            const append = this.localStrokePoints.slice(this.localStrokeBroadcastIndex);
             const hasLive = !!this.penLivePointer;
-            if (!append.length && !hasLive) return;
-            if (this.localStrokePoints.length < minPoints && !append.length) return;
+            const liveNorm = hasLive ? this.normalizePoint(this.penLivePointer) : null;
+            const liveInside = liveNorm && this.isNormalizedPointInside(liveNorm);
+            if (hasLive && !liveInside) {
+                this.localStrokeLastOutsideNorm = liveNorm;
+                const last = this.getLastLocalStrokePoint();
+                if (last && this.isNormalizedPointInside(last) && !this.localStrokeBroadcastOutside) {
+                    const edge = this.segmentUnitSquareIntersection(last, liveNorm);
+                    if (edge) this.appendLocalStrokeBroadcastPoint(edge);
+                    this.localStrokeBroadcastOutside = true;
+                }
+            } else if (hasLive && liveInside && this.localStrokeBroadcastOutside) {
+                const outside = this.localStrokeLastOutsideNorm || liveNorm;
+                const edge = this.isNormalizedPointInside(outside)
+                    ? outside
+                    : this.segmentUnitSquareIntersection(liveNorm, outside);
+                if (this.getLastLocalStrokePoint()) {
+                    this.startNewLocalStrokeSegment();
+                } else if (!this.localStrokeSegments.length) {
+                    this.localStrokeSegments.push([]);
+                }
+                if (edge) this.appendLocalStrokeBroadcastPoint(edge);
+                this.localStrokeBroadcastOutside = false;
+                this.localStrokeLastOutsideNorm = null;
+            }
 
-            const longStroke = this.localStrokePoints.length
+            const chunks = this.collectPendingStrokeBroadcast();
+            if (!chunks.length && !hasLive) return;
+            if (this.getLocalStrokePointCount() < minPoints && !chunks.length) return;
+
+            const longStroke = this.getLocalStrokePointCount()
                 > TacticsCanvas.REMOTE_STROKE_BROADCAST_LONG_THRESHOLD;
             const minInterval = longStroke
                 ? TacticsCanvas.REMOTE_STROKE_BROADCAST_MIN_INTERVAL_MS
@@ -2648,37 +2801,78 @@
                 return;
             }
 
-            const payload = { strokeId: this.localStrokeId };
-            if (append.length) {
-                payload.append = append;
-                this.localStrokeBroadcastIndex = this.localStrokePoints.length;
+            if (chunks.length) {
+                chunks.forEach((chunk, index) => {
+                    const payload = {
+                        strokeId: this.localStrokeId,
+                        append: chunk.points,
+                    };
+                    if (chunk.segmentBreak) {
+                        payload.segmentBreak = true;
+                    }
+                    if (index === chunks.length - 1 && hasLive) {
+                        payload.livePoint = liveInside ? liveNorm : null;
+                    }
+                    this.onOp({
+                        op: 'stroke_point',
+                        slideId: this.slideId,
+                        payload,
+                    });
+                });
+                this.advanceLocalStrokeBroadcastPos();
+            } else if (hasLive) {
+                this.onOp({
+                    op: 'stroke_point',
+                    slideId: this.slideId,
+                    payload: {
+                        strokeId: this.localStrokeId,
+                        livePoint: liveInside ? liveNorm : null,
+                    },
+                });
             }
-            if (hasLive) {
-                payload.livePoint = this.normalizePoint(this.penLivePointer);
-            }
-
-            this.onOp({
-                op: 'stroke_point',
-                slideId: this.slideId,
-                payload,
-            });
             this.lastStrokePointBroadcastAt = now;
         }
 
         queueStrokePointBroadcast(pointer) {
             if (!this.localStrokeId || !this.slideId) return;
             const pt = this.normalizePoint(pointer);
-            const last = this.localStrokePoints[this.localStrokePoints.length - 1];
-            if (last) {
-                const w = this.fabric?.getWidth() || 1;
-                const h = this.fabric?.getHeight() || 1;
-                const minNorm = TacticsCanvas.PEN_MIN_POINT_DIST / Math.min(w, h);
-                if (Math.hypot(pt.x - last.x, pt.y - last.y) < minNorm) {
-                    return;
+            const inside = this.isNormalizedPointInside(pt);
+
+            if (!inside) {
+                this.localStrokeLastOutsideNorm = pt;
+                const last = this.getLastLocalStrokePoint();
+                if (last && this.isNormalizedPointInside(last) && !this.localStrokeBroadcastOutside) {
+                    const edge = this.segmentUnitSquareIntersection(last, pt);
+                    if (edge) this.appendLocalStrokeBroadcastPoint(edge);
                 }
+                this.localStrokeBroadcastOutside = true;
+                this.scheduleStrokePointBroadcast();
+                return;
             }
-            this.localStrokePoints.push(pt);
-            this.scheduleStrokePointBroadcast();
+
+            if (this.localStrokeBroadcastOutside) {
+                const outside = this.localStrokeLastOutsideNorm || pt;
+                const edge = this.isNormalizedPointInside(outside)
+                    ? outside
+                    : this.segmentUnitSquareIntersection(pt, outside);
+                if (this.getLastLocalStrokePoint()) {
+                    this.startNewLocalStrokeSegment();
+                } else if (!this.localStrokeSegments.length) {
+                    this.localStrokeSegments.push([]);
+                }
+                if (edge) {
+                    this.appendLocalStrokeBroadcastPoint(edge);
+                }
+                this.appendLocalStrokeBroadcastPoint(pt);
+                this.localStrokeBroadcastOutside = false;
+                this.localStrokeLastOutsideNorm = null;
+                this.scheduleStrokePointBroadcast();
+                return;
+            }
+
+            if (this.appendLocalStrokeBroadcastPoint(pt)) {
+                this.scheduleStrokePointBroadcast();
+            }
         }
 
         finishLocalStrokeBroadcast() {
@@ -2694,8 +2888,10 @@
                 payload: { strokeId: this.localStrokeId },
             });
             this.localStrokeId = null;
-            this.localStrokePoints = [];
-            this.localStrokeBroadcastIndex = 0;
+            this.localStrokeSegments = [];
+            this.localStrokeBroadcastPos = { seg: 0, pt: 0 };
+            this.localStrokeBroadcastOutside = false;
+            this.localStrokeLastOutsideNorm = null;
             this.lastStrokePointBroadcastAt = 0;
         }
 
@@ -2728,6 +2924,7 @@
         }
 
         refreshRemoteStrokes() {
+            this.syncRemoteStrokesLayerGeometry();
             this.remoteStrokes.forEach((entry) => this.scheduleRemoteStrokeRender(entry));
         }
 
@@ -2764,30 +2961,49 @@
             return out;
         }
 
-        getRemoteStrokePreviewPoints(entry) {
-            const pts = Array.isArray(entry?.points) ? entry.points.slice() : [];
+        getRemoteStrokePreviewSegments(entry) {
+            let segments = Array.isArray(entry?.segments) && entry.segments.length
+                ? entry.segments.map((seg) => (Array.isArray(seg) ? seg.slice() : []))
+                : (Array.isArray(entry?.points) && entry.points.length
+                    ? [entry.points.slice()]
+                    : []);
+            if (!segments.length) {
+                segments = [[]];
+            }
+
             const live = entry?.livePoint;
-            if (!live || !Number.isFinite(live.x) || !Number.isFinite(live.y)) {
-                return pts;
+            if (live && this.isNormalizedPointInside(live)) {
+                const lastSeg = segments[segments.length - 1];
+                const last = lastSeg[lastSeg.length - 1];
+                const minNorm = TacticsCanvas.PEN_MIN_POINT_DIST / TacticsCanvas.COORD_SPACE;
+                if (!last || Math.hypot(live.x - last.x, live.y - last.y) >= minNorm * 0.25) {
+                    lastSeg.push(live);
+                }
             }
-            const last = pts[pts.length - 1];
-            const minNorm = TacticsCanvas.PEN_MIN_POINT_DIST / TacticsCanvas.COORD_SPACE;
-            if (!last || Math.hypot(live.x - last.x, live.y - last.y) >= minNorm * 0.25) {
-                pts.push(live);
-            }
-            return pts;
+            return segments.filter((seg) => seg.length);
+        }
+
+        getRemoteStrokePreviewPoints(entry) {
+            return this.getRemoteStrokePreviewSegments(entry).flat();
+        }
+
+        getRemoteStrokeBodyPreviewSegments(entry) {
+            const segments = this.getRemoteStrokePreviewSegments(entry);
+            if (!segments.length) return [];
+            const total = segments.reduce((n, seg) => n + seg.length, 0);
+            const maxPoints = TacticsCanvas.REMOTE_STROKE_PREVIEW_MAX_POINTS;
+            if (total <= maxPoints) return segments;
+            const perSegment = Math.max(2, Math.floor(maxPoints / segments.length));
+            return segments.map((seg) => this.decimateNormalizedStrokePoints(seg, perSegment));
         }
 
         getRemoteStrokeBodyPreviewPoints(entry) {
-            const preview = this.getRemoteStrokePreviewPoints(entry);
-            return this.decimateNormalizedStrokePoints(
-                preview,
-                TacticsCanvas.REMOTE_STROKE_PREVIEW_MAX_POINTS,
-            );
+            return this.getRemoteStrokeBodyPreviewSegments(entry).flat();
         }
 
         getRemoteStrokeCapSourcePoints(entry) {
-            const preview = this.getRemoteStrokePreviewPoints(entry);
+            const segments = this.getRemoteStrokePreviewSegments(entry);
+            const preview = segments[segments.length - 1] || [];
             const capMax = TacticsCanvas.REMOTE_STROKE_CAP_SOURCE_POINTS;
             if (preview.length <= capMax) return preview;
             return [preview[0], ...preview.slice(-(capMax - 1))];
@@ -2841,7 +3057,8 @@
         }
 
         buildRemoteStrokeSvgParts(entry, overlayW, overlayH) {
-            const previewPoints = this.getRemoteStrokeBodyPreviewPoints(entry);
+            const previewSegments = this.getRemoteStrokeBodyPreviewSegments(entry);
+            const previewPoints = previewSegments.flat();
             const capSourcePoints = this.getRemoteStrokeCapSourcePoints(entry);
             if (!previewPoints.length || overlayW <= 0 || overlayH <= 0) return [];
 
@@ -2874,7 +3091,7 @@
             const parts = [];
             const space = TacticsCanvas.COORD_SPACE;
 
-            if (previewPoints.length === 1) {
+            if (!isLine && previewPoints.length === 1) {
                 const pt = toCanvas(previewPoints[0]);
                 const dotR = Math.max(1.5, strokeWidth / 2);
                 parts.push({
@@ -2918,22 +3135,26 @@
                         ...strokeAttrs,
                     },
                 });
-            } else if (previewPoints.length >= 2) {
-                const bodyNormPts = previewPoints.slice();
-                if (capPreview) {
-                    bodyNormPts[bodyNormPts.length - 1] = {
-                        x: capPreview.geom.bodyX2 / space,
-                        y: capPreview.geom.bodyY2 / space,
-                    };
-                }
-                const canvasPts = bodyNormPts.map((p) => toCanvas(p));
-                parts.push({
-                    tag: 'polyline',
-                    attrs: {
-                        points: canvasPts.map((pt) => `${pt.x},${pt.y}`).join(' '),
-                        fill: 'none',
-                        ...strokeAttrs,
-                    },
+            } else {
+                const lastSegIdx = previewSegments.length - 1;
+                previewSegments.forEach((segment, segIdx) => {
+                    if (segment.length < 2) return;
+                    const bodyNormPts = segment.slice();
+                    if (segIdx === lastSegIdx && capPreview) {
+                        bodyNormPts[bodyNormPts.length - 1] = {
+                            x: capPreview.geom.bodyX2 / space,
+                            y: capPreview.geom.bodyY2 / space,
+                        };
+                    }
+                    const canvasPts = bodyNormPts.map((p) => toCanvas(p));
+                    parts.push({
+                        tag: 'polyline',
+                        attrs: {
+                            points: canvasPts.map((pt) => `${pt.x},${pt.y}`).join(' '),
+                            fill: 'none',
+                            ...strokeAttrs,
+                        },
+                    });
                 });
             }
 
@@ -3002,8 +3223,12 @@
         }
 
         renderRemoteStrokePath(entry) {
-            if (!entry?.el || !entry.points?.length) return;
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
+            const hasPoints = Array.isArray(entry?.segments)
+                ? entry.segments.some((seg) => seg.length)
+                : entry.points?.length;
+            if (!entry?.el || !hasPoints) return;
+            this.syncRemoteStrokesLayerGeometry();
+            const { width: overlayW, height: overlayH } = this.getRemoteStrokeRenderSize();
             if (overlayW <= 0 || overlayH <= 0) {
                 this.scheduleRemoteStrokeRender(entry);
                 return;
@@ -3085,10 +3310,14 @@
                 const el = document.createElement('div');
                 el.className = 'tactics-remote-stroke';
                 this.remoteStrokesLayerEl.appendChild(el);
+                const segments = Array.isArray(p.segments) && p.segments.length
+                    ? p.segments.map((seg) => (Array.isArray(seg) ? seg.slice() : []))
+                    : (Array.isArray(p.points) && p.points.length ? [p.points.slice()] : [[]]);
                 entry = {
                     el,
                     tool: p.tool || 'pen',
-                    points: Array.isArray(p.points) ? p.points.slice() : [],
+                    segments,
+                    points: segments.flat(),
                     color: p.color,
                     width: p.width,
                     endType: p.endType || 'none',
@@ -3112,12 +3341,24 @@
                     const start = entry.points[0] || incoming[0];
                     const latest = p.livePoint || incoming[incoming.length - 1];
                     entry.points = start && latest ? [start, latest] : incoming.slice(-2);
-                } else if (Array.isArray(p.append) && p.append.length) {
-                    entry.points.push(...p.append);
-                } else if (Array.isArray(p.points)) {
-                    entry.points = p.points.slice();
+                    entry.segments = [entry.points.slice()];
+                } else {
+                    if (!Array.isArray(entry.segments) || !entry.segments.length) {
+                        entry.segments = entry.points?.length ? [entry.points.slice()] : [[]];
+                    }
+                    if (p.segmentBreak) {
+                        entry.segments.push([]);
+                    }
+                    const tail = entry.segments[entry.segments.length - 1];
+                    if (Array.isArray(p.append) && p.append.length) {
+                        tail.push(...p.append);
+                    } else if (Array.isArray(p.points)) {
+                        entry.segments = [p.points.slice()];
+                    }
+                    entry.points = entry.segments.flat();
                 }
-                entry.livePoint = p.livePoint || null;
+                const live = p.livePoint;
+                entry.livePoint = live && this.isNormalizedPointInside(live) ? live : null;
                 this.scheduleRemoteStrokeRender(entry);
                 return;
             }

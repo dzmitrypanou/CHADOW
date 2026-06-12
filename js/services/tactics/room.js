@@ -47,6 +47,8 @@
     let lastCursorPostKey = '';
     let pendingSessionPromise = null;
     let saveInFlight = false;
+    let drawSettingsSaveInFlight = false;
+    let presentationToggleInFlight = false;
     let save403Attempts = 0;
     const SAVE_403_MAX_ATTEMPTS = 2;
 
@@ -895,19 +897,25 @@
         if (!computeHasDrawRights() || !roomState || !accessToken) return;
 
         persistCanvasToSlide();
+        drawSettingsSaveInFlight = true;
 
-        const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
-            public_id: roomState.public_id,
-            room_data: roomState.room_data,
-            revision,
-            access_token: accessToken,
-        }, accessToken);
+        try {
+            const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
+                public_id: roomState.public_id,
+                room_data: roomState.room_data,
+                revision,
+                access_token: accessToken,
+            }, accessToken);
 
-        if (res.ok && res.data.success) {
-            revision = res.data.data.revision || revision + 1;
-            roomState.revision = revision;
-        } else if (res.status === 409) {
-            await resyncRoom(true);
+            if (res.ok && res.data.success) {
+                revision = res.data.data.revision || revision + 1;
+                roomState.revision = revision;
+            } else if (res.status === 409) {
+                await resyncRoom(true);
+            }
+        } finally {
+            drawSettingsSaveInFlight = false;
+            updatePresentationBtn();
         }
     }
 
@@ -931,10 +939,10 @@
         }
     }
 
-    function pushDrawSettingsChange() {
+    async function pushDrawSettingsChange() {
         applyDrawPermissions();
         broadcastDrawSettings();
-        saveDrawSettingsNow();
+        await saveDrawSettingsNow();
     }
 
     function pushGridChange(visible) {
@@ -994,6 +1002,7 @@
         const canEditSlides = !mobileView && (canManage || canDraw) && !viewerLocked;
         slidesCtrl?.setCanManage(canManage);
         slidesCtrl?.setCanAddSlides(canEditSlides);
+        slidesCtrl?.setCanRenameSlides(canManage || canDraw);
         slidesCtrl?.setSlidesLocked(viewerLocked);
         const mapsPanel = document.getElementById('tacticsMapsPanel');
         if (mapsPanel) {
@@ -1266,8 +1275,8 @@
         btn.hidden = !computeHasDrawRights() && !(active && !host);
         btn.classList.toggle('is-active', active && host);
         btn.classList.toggle('is-viewer-status', viewerStatus);
-        btn.disabled = !canToggle;
-        btn.setAttribute('aria-disabled', canToggle ? 'false' : 'true');
+        btn.disabled = !canToggle || presentationToggleInFlight || drawSettingsSaveInFlight;
+        btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
 
         const icon = btn.querySelector('i');
         if (icon) {
@@ -1294,28 +1303,36 @@
         document.getElementById('tacticsRoomWorkspace')?.classList.toggle('is-presenting', active);
     }
 
-    function togglePresentationMode() {
-        if (!canControlPresentation()) return;
+    async function togglePresentationMode() {
+        if (!canControlPresentation() || presentationToggleInFlight) return;
+        presentationToggleInFlight = true;
+        updatePresentationBtn();
+
         const settings = getDrawSettings();
         const enabling = !isPresentationMode();
 
-        if (enabling && slidesCtrl && roomState?.room_data) {
-            const slideId = slidesCtrl.getActiveSlideId();
-            if (slideId) {
-                roomState.room_data.active_slide_id = slideId;
-                wsClient?.sendSlide('switch', {
-                    action: 'switch',
-                    slideId,
-                    activeSlideId: slideId,
-                });
+        try {
+            if (enabling && slidesCtrl && roomState?.room_data) {
+                const slideId = slidesCtrl.getActiveSlideId();
+                if (slideId) {
+                    roomState.room_data.active_slide_id = slideId;
+                    wsClient?.sendSlide('switch', {
+                        action: 'switch',
+                        slideId,
+                        activeSlideId: slideId,
+                    });
+                }
+                settings.presentation_host_id = String(clientId || '');
+            } else {
+                delete settings.presentation_host_id;
             }
-            settings.presentation_host_id = String(clientId || '');
-        } else {
-            delete settings.presentation_host_id;
-        }
 
-        settings.presentation_mode = enabling;
-        pushDrawSettingsChange();
+            settings.presentation_mode = enabling;
+            await pushDrawSettingsChange();
+        } finally {
+            presentationToggleInFlight = false;
+            updatePresentationBtn();
+        }
     }
 
     function bindPresentBtn() {
@@ -1679,6 +1696,7 @@
 
     function applyRemoteDrawSettings(settings) {
         if (!settings || !roomState?.room_data) return;
+        if (presentationToggleInFlight) return;
 
         const local = getDrawSettings();
         const wasPresentation = isPresentationMode();
@@ -1849,9 +1867,18 @@
     }
 
     async function refreshSaveSession() {
+        const previousRoomData = roomState?.room_data;
         const payload = await refreshSession('');
         if (!payload) return false;
         applySessionTokens(payload);
+        if (payload.room?.room_data) {
+            const mergedRoomData = mergeLocalCanvasRoomData(
+                previousRoomData,
+                payload.room.room_data,
+            );
+            roomState.room_data = mergedRoomData;
+            slidesCtrl?.setRoomData(mergedRoomData);
+        }
         saveRoomSessionSnapshot();
         applyDrawPermissions();
         if (wsClient && wsToken) {
@@ -2023,6 +2050,35 @@
         await canvasCtrl.applyCanvasState(slide.canvas);
     }
 
+    function mergePendingDrawSettings(localRoomData, incomingRoomData) {
+        if (!drawSettingsSaveInFlight || !localRoomData?.settings) {
+            return incomingRoomData;
+        }
+        return {
+            ...incomingRoomData,
+            settings: {
+                ...(incomingRoomData?.settings || {}),
+                ...localRoomData.settings,
+            },
+        };
+    }
+
+    function mergeLocalSlideMeta(localSlide, serverSlide) {
+        const merged = { ...serverSlide };
+        if (!localSlide || !dirty) return merged;
+
+        const localTitle = typeof localSlide.title === 'string' ? localSlide.title.trim() : '';
+        const serverTitle = typeof serverSlide.title === 'string' ? serverSlide.title.trim() : '';
+        if (localTitle !== serverTitle) {
+            if (localTitle) {
+                merged.title = localTitle;
+            } else {
+                delete merged.title;
+            }
+        }
+        return merged;
+    }
+
     function mergeLocalCanvasRoomData(localRoomData, incomingRoomData) {
         if (!localRoomData?.slides || !incomingRoomData?.slides) {
             return incomingRoomData;
@@ -2034,10 +2090,11 @@
             if (!localSlide) {
                 return nextSlide;
             }
+            let merged = mergeLocalSlideMeta(localSlide, nextSlide);
             if (canvasStateHasObjects(localSlide.canvas)) {
-                return { ...nextSlide, canvas: localSlide.canvas };
+                merged = { ...merged, canvas: localSlide.canvas };
             }
-            return nextSlide;
+            return merged;
         });
 
         return {
@@ -2060,13 +2117,16 @@
         const localSlides = previousRoomData.slides;
         const mergedSlides = incomingRoomData.slides.map((nextSlide) => {
             const localSlide = localSlides.find((s) => s.id === nextSlide.id);
-            if (!localSlide?.canvas) {
+            if (!localSlide) {
                 return nextSlide;
             }
+            let merged = mergeLocalSlideMeta(localSlide, nextSlide);
             if (activeSlideId && nextSlide.id === activeSlideId && canvasCtrl) {
-                return { ...nextSlide, canvas: canvasCtrl.getCanvasState() };
+                merged = { ...merged, canvas: canvasCtrl.getCanvasState() };
+            } else if (localSlide.canvas) {
+                merged = { ...merged, canvas: localSlide.canvas };
             }
-            return { ...nextSlide, canvas: localSlide.canvas };
+            return merged;
         });
 
         return {
@@ -2354,15 +2414,16 @@
             applyRemoteGridSetting(newData.room_data.settings.show_grid);
         }
 
-        if (dirty && !force) return;
+        if ((dirty || drawSettingsSaveInFlight) && !force) return;
 
         const activeId = slidesCtrl?.getActiveSlideId();
         const prevSlide = roomState.room_data?.slides?.find((s) => s.id === activeId);
-        const mergedRoomData = preserveRealtimeCanvasRoomData(
+        let mergedRoomData = preserveRealtimeCanvasRoomData(
             roomState.room_data,
             newData.room_data,
             activeId,
         );
+        mergedRoomData = mergePendingDrawSettings(roomState.room_data, mergedRoomData);
         const nextSlide = mergedRoomData?.slides?.find((s) => s.id === activeId);
 
         roomState.room_data = mergedRoomData;
@@ -3402,9 +3463,7 @@
                 try {
                     const sessionPayload = await pendingSessionPromise;
                     if (sessionPayload) {
-                        applySessionTokens(sessionPayload);
-                        saveRoomSessionSnapshot();
-                        applyDrawPermissions();
+                        await mergeSessionUpdate(sessionPayload);
                     }
                 } catch (err) {
                     console.warn('[tactics] session refresh after bootstrap failed', err);

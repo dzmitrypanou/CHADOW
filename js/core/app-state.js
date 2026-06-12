@@ -12,7 +12,7 @@ const AppState = {
     enemyStats: new Map(),
     availableMaps: new Set(),
     isNewFilesLoaded: false,
-    version: '3.2.2 stable mark 2',
+    version: '3.2.2 stable mark 3',
     userSettings: {
         battleType: 'all',
         map: 'all',

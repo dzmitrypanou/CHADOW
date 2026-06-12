@@ -37,6 +37,9 @@
             this.canAddSlides = options.canAddSlides !== undefined
                 ? !!options.canAddSlides
                 : this.canManage;
+            this.canRenameSlides = options.canRenameSlides !== undefined
+                ? !!options.canRenameSlides
+                : this.canAddSlides;
             if (this.addBtn) {
                 this.addBtn.hidden = !this.canAddSlides;
             }
@@ -259,6 +262,10 @@
             if (changed) {
                 this.render();
             }
+        }
+
+        setCanRenameSlides(canRenameSlides) {
+            this.canRenameSlides = !!canRenameSlides;
         }
 
         setSlidesLocked(locked) {
@@ -791,7 +798,7 @@
         }
 
         startSlideRename(slideId, nameEl) {
-            if (!this.canAddSlides) return;
+            if (!this.canRenameSlides) return;
             const slide = this.getSlides().find((s) => s.id === slideId);
             if (!slide || !nameEl) return;
             if (nameEl.classList?.contains('tactics-slide-rename-input')) return;
@@ -801,26 +808,31 @@
             input.className = 'tactics-slide-rename-input';
             input.maxLength = 64;
             input.value = typeof slide.title === 'string' ? slide.title : '';
-            input.placeholder = this.getSlideDisplayName(slide);
+            input.placeholder = i18n().t('mapNameEmpty') || this.getSlideDisplayName(slide);
 
             let finished = false;
-            const onBlur = () => finish(false);
+            const restoreNameEl = (displayName) => {
+                const name = displayName || this.getSlideDisplayName(slide);
+                if (input.isConnected) {
+                    input.replaceWith(this.createSlideNameEl(slideId, name));
+                }
+            };
 
             const finish = (cancel) => {
                 if (finished) return;
                 finished = true;
                 input.removeEventListener('blur', onBlur);
+                input.removeEventListener('keydown', onKeydown);
 
                 if (cancel) {
-                    const displayName = this.getSlideDisplayName(slide);
-                    input.replaceWith(this.createSlideNameEl(slideId, displayName));
+                    restoreNameEl(this.getSlideDisplayName(slide));
                     return;
                 }
 
                 const displayName = this.applySlideTitle(slideId, input.value);
+                restoreNameEl(displayName);
                 if (!displayName) return;
 
-                input.replaceWith(this.createSlideNameEl(slideId, displayName));
                 this.onChange();
                 this.onRenamed(slideId);
                 this.onBroadcast({
@@ -830,8 +842,8 @@
                 });
             };
 
-            input.addEventListener('blur', onBlur);
-            input.addEventListener('keydown', (ev) => {
+            const onBlur = () => finish(false);
+            const onKeydown = (ev) => {
                 if (ev.key === 'Enter') {
                     ev.preventDefault();
                     finish(false);
@@ -840,7 +852,10 @@
                     ev.preventDefault();
                     finish(true);
                 }
-            });
+            };
+
+            input.addEventListener('blur', onBlur);
+            input.addEventListener('keydown', onKeydown);
 
             nameEl.replaceWith(input);
             input.focus();
