@@ -431,7 +431,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         <div class="tactics-map-grid is-map-loading" id="tacticsMapGrid">
                             <div class="tactics-grid-corner" aria-hidden="true"></div>
                             <div class="tactics-grid-top" aria-hidden="true">
-                                <?php foreach (['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as $col) : ?>
+                                <?php foreach (['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] as $col) : ?>
                                     <span><?php echo $col; ?></span>
                                 <?php endforeach; ?>
                             </div>

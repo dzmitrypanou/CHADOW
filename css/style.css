@@ -13466,8 +13466,9 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
 .page-tactics-room .tactics-sidebar-panel--slides {
     display: flex;
     flex-direction: column;
-    flex: unset;
+    flex: 1 1 auto;
     min-height: 0;
+    overflow: hidden;
     margin-top: 0;
     border-top: 1px solid var(--tactics-panel-border);
     padding: 0;
@@ -13478,11 +13479,18 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    margin-top: 0;
+    padding: 0 10px 10px;
+    box-sizing: border-box;
 }
 
-.page-tactics-room .tactics-sidebar-panel--slides .tactics-slides-strip-wrap {
-    padding: 10px;
-    box-sizing: border-box;
+.page-tactics-room .tactics-slides-strip-wrap--grid .tactics-slides-carousel-viewport,
+.page-tactics-room .tactics-slides-strip-wrap--list .tactics-slides-carousel-viewport {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .page-tactics-room .tactics-sidebar-panel--slides .tactics-add-slide-field {
@@ -13656,8 +13664,9 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
 }
 
 .page-tactics-room .tactics-slides-head {
+    flex-shrink: 0;
     margin-bottom: 0;
-    padding: 9px 10px;
+    padding: 9px 10px 12px;
     align-items: center;
 }
 
@@ -13798,9 +13807,10 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     min-height: 0;
     max-height: none;
     margin: 0;
-    padding: 0;
+    padding: 0 0 8px;
     scroll-behavior: smooth;
     align-content: start;
+    -webkit-overflow-scrolling: touch;
 }
 
 .page-tactics-room .tactics-slides-list--grid .tactics-slide-item {
@@ -13834,8 +13844,9 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     min-height: 0;
     max-height: none;
     margin-top: 0;
-    padding-bottom: 0;
+    padding-bottom: 8px;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .page-tactics-room .tactics-slide-card--list {
