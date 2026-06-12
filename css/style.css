@@ -13791,6 +13791,51 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     font-weight: 600;
 }
 
+.page-tactics-room .tactics-slide-rename-input {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--tactics-muted);
+    font-size: inherit;
+    line-height: 1.2;
+    text-align: center;
+    padding: 0 2px;
+    outline: none;
+    box-shadow: none;
+    appearance: none;
+    caret-color: var(--tactics-active);
+}
+
+.page-tactics-room .tactics-slide-rename-input:focus,
+.page-tactics-room .tactics-slide-rename-input:focus-visible {
+    border: none;
+    background: transparent;
+    outline: none;
+    box-shadow: none;
+}
+
+.page-tactics-room .tactics-slide-rename-input::selection {
+    background: rgba(100, 181, 246, 0.45);
+    color: var(--tactics-text-bright);
+}
+
+.page-tactics-room .tactics-slide-card--thumb.is-active .tactics-slide-rename-input {
+    color: var(--tactics-text-bright);
+    font-weight: 600;
+}
+
+.page-tactics-room .tactics-slide-card--list .tactics-slide-rename-input {
+    width: 100%;
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--tactics-text);
+}
+
+.page-tactics-room .tactics-slide-card--list.is-active .tactics-slide-rename-input {
+    color: #07121f;
+    font-weight: 600;
+}
+
 .page-tactics-room .tactics-slides-strip-wrap--grid,
 .page-tactics-room .tactics-slides-strip-wrap--list {
     margin: 0;

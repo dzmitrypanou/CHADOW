@@ -12,7 +12,7 @@ const AppState = {
     enemyStats: new Map(),
     availableMaps: new Set(),
     isNewFilesLoaded: false,
-    version: '3.2.2 der sturm',
+    version: '3.2.2 goldfish',
     userSettings: {
         battleType: 'all',
         map: 'all',

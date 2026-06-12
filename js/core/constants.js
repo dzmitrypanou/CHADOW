@@ -1,5 +1,5 @@
 const AppConstants = {
-    VERSION: '3.2.2 der sturm',
+    VERSION: '3.2.2 goldfish',
     LANG: (typeof window !== 'undefined' && window.ABS_LANG === 'en') ? 'en' : 'ru',
     DEFAULT_VISIBLE_COLUMNS: {
         battles: true,

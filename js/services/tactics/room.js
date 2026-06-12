@@ -564,6 +564,10 @@
         return !canManage;
     }
 
+    function shouldShowGuestNicknameEditUi() {
+        return canEditNickname() && (isMobileLayout() || isCompactLayout());
+    }
+
     function getNicknameEditInput() {
         return document.querySelector('.tactics-participant-name-input')
             || document.getElementById('tacticsMobileNicknameInput');
@@ -574,12 +578,11 @@
         const titleEl = document.getElementById('tacticsRoomTitle');
         if (!titleRow || !titleEl) return;
 
-        const mobile = isMobileLayout();
-        const editable = canEditNickname();
+        const showGuestNickUi = shouldShowGuestNicknameEditUi();
         let penBtn = document.getElementById('tacticsMobileNicknameBtn');
         let editWrap = document.getElementById('tacticsMobileNicknameWrap');
 
-        if (!mobile || !editable) {
+        if (!showGuestNickUi) {
             penBtn?.remove();
             editWrap?.remove();
             titleEl.hidden = false;
@@ -634,7 +637,7 @@
     function startNicknameEdit() {
         if (!canEditNickname()) return;
         nicknameEditing = true;
-        if (isMobileLayout()) {
+        if (shouldShowGuestNicknameEditUi()) {
             syncMobileNicknameEditUi();
             const input = document.getElementById('tacticsMobileNicknameInput');
             if (!input) return;
@@ -683,12 +686,10 @@
         }
 
         const prev = nickname;
-        nickname = next;
         nicknameEditing = false;
 
-        const payload = await refreshSession('');
+        const payload = await refreshSession('', { nickname: next, nicknameChange: true });
         if (!payload) {
-            nickname = prev;
             syncMobileNicknameEditUi();
             renderParticipants(participantsList);
             return;
@@ -699,6 +700,8 @@
         wsUrl = payload.ws_url;
         if (payload.nickname) {
             nickname = payload.nickname;
+        } else {
+            nickname = next;
         }
 
         if (wsClient) {
@@ -2715,13 +2718,19 @@
     async function refreshSession(password, options = {}) {
         const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
         const explicitPassword = typeof password === 'string' ? password.trim() : '';
+        const requestedNickname = typeof options.nickname === 'string'
+            ? options.nickname.trim()
+            : '';
 
         const body = {
             public_id: window.ABS_TACTICS_PUBLIC_ID,
-            nickname,
+            nickname: requestedNickname || nickname,
             client_id: clientId,
             lang: i18n().getLang(),
         };
+        if (options.nicknameChange) {
+            body.nickname_change = true;
+        }
         if (explicitPassword) {
             body.password = explicitPassword;
         } else {
@@ -2765,7 +2774,7 @@
         accessToken = payload.access_token;
         wsToken = payload.ws_token;
         wsUrl = payload.ws_url;
-        if (payload.nickname) {
+        if (payload.nickname && (!nicknameLockedByUser || options.nicknameChange)) {
             nickname = payload.nickname;
         }
         canManage = !!payload.can_manage;
@@ -2817,7 +2826,7 @@
         if (payload.ws_url) {
             wsUrl = payload.ws_url;
         }
-        if (payload.nickname) {
+        if (payload.nickname && !nicknameLockedByUser) {
             nickname = payload.nickname;
         }
         if (payload.room) {
