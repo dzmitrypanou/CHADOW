@@ -197,7 +197,7 @@ require __DIR__ . '/../../includes/site_header.php';
                             </span>
                             <i class="fas fa-link tactics-room-code-btn__icon" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsDownloadScreenshotBtn" title="<?php echo $lang === 'en' ? 'Download screenshot' : 'Скачать скрин'; ?>"><i class="fas fa-download" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-editor-topbar__btn" id="tacticsDownloadScreenshotBtn" data-tactics-i18n-title="downloadScreenshot" title="<?php echo $lang === 'en' ? 'Download screenshot' : 'Скачать скрин'; ?>"><i class="fas fa-download" aria-hidden="true"></i></button>
                         <div class="site-lang-switch tactics-editor-lang-switch" id="tacticsEditorLangSwitch" aria-label="<?php echo $lang === 'en' ? 'Language' : 'Язык'; ?>">
                             <a class="site-lang-link<?php echo $lang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
                                 <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span><span class="site-lang-code">RU</span>
@@ -338,7 +338,6 @@ require __DIR__ . '/../../includes/site_header.php';
                                         </div>
                                         <div class="tactics-option-row" id="tacticsTextTypeOptions" role="radiogroup">
                                             <button type="button" class="tactics-option-btn is-active" data-value="text" aria-label="Text"><span class="tactics-text-type-preview">ABC</span></button>
-                                            <button type="button" class="tactics-option-btn" data-value="label" aria-label="Label"><span class="tactics-text-type-preview tactics-text-type-preview--label">ABC</span></button>
                                             <button type="button" class="tactics-option-btn" data-value="callout" aria-label="Callout"><span class="tactics-text-type-preview tactics-text-type-preview--callout">ABC</span></button>
                                         </div>
                                     </div>
@@ -509,6 +508,7 @@ require __DIR__ . '/../../includes/site_header.php';
             $mapSelectId = 'tacticsAddSlideMap';
             $mapPickerModalId = 'tacticsMapPickerModal';
             require __DIR__ . '/_map_picker_modal.php';
+            require __DIR__ . '/_confirm_modal.php';
             ?>
 
             <?php
@@ -553,6 +553,7 @@ require __DIR__ . '/../../includes/site_footer.php';
     <script src="/js/services/tactics/maps.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/recruiting/custom-select.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/tactics/map-picker.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/tactics/confirm.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/tactics/ws-client.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/tactics/slides.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/tactics/icons.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>

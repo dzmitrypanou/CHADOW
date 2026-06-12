@@ -34,7 +34,6 @@
 
     const TEXT_TYPE_LABELS = {
         text: 'toolTextPlain',
-        label: 'toolTextLabel',
         callout: 'toolTextCallout',
     };
 
@@ -70,6 +69,12 @@
         }
     }
 
+    function normalizeTextType() {
+        if (state.textType === 'label' || !TEXT_TYPE_LABELS[state.textType]) {
+            state.textType = DEFAULTS.textType;
+        }
+    }
+
     function load() {
         try {
             const raw = localStorage.getItem(PREFS_KEY);
@@ -77,6 +82,7 @@
             const parsed = JSON.parse(raw);
             state = { ...DEFAULTS, ...parsed };
             normalizeIconSelection();
+            normalizeTextType();
         } catch (e) {
             state = { ...DEFAULTS };
         }
@@ -93,6 +99,7 @@
     function set(partial) {
         state = { ...state, ...partial };
         normalizeIconSelection();
+        normalizeTextType();
         save();
         syncUi();
         notify();
@@ -270,6 +277,18 @@
             btn.setAttribute('aria-label', key);
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('viewBox', marker.viewBox);
+            const markerSizeScale = Number(marker.sizeScale);
+            if (Number.isFinite(markerSizeScale) && markerSizeScale > 0 && markerSizeScale !== 1) {
+                const parts = String(marker.viewBox || '0 0 0 0').trim().split(/\s+/).map(Number);
+                const vbW = parts[2] || 0;
+                const vbH = parts[3] || 0;
+                const offsetX = (vbW * (1 - markerSizeScale)) / 2;
+                const offsetY = (vbH * (1 - markerSizeScale)) / 2;
+                svg.setAttribute(
+                    'transform',
+                    `translate(${offsetX} ${offsetY}) scale(${markerSizeScale})`,
+                );
+            }
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('d', marker.path);
             path.setAttribute('fill', 'currentColor');

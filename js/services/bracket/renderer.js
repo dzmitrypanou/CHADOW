@@ -134,11 +134,30 @@
         return treeMatchCenterY(roundIndex, matchIndex) - (TREE_MATCH_HEIGHT_PX / 2);
     }
 
-    function buildTreeConnector(roundIndex, matchIndex) {
+    function matchPairConnectorVertLen(roundIdx, matchIdx, roundKeys, roundsMap, matchCenterYFn) {
+        const roundKey = roundKeys[roundIdx];
+        const matchCount = (roundsMap[roundKey] || []).length;
+        if (matchCount <= 1) {
+            return ((2 ** roundIdx) * TREE_BLOCK_PX) / 2;
+        }
+
+        const pairIdx = matchIdx % 2 === 0 ? matchIdx + 1 : matchIdx - 1;
+        if (pairIdx < 0 || pairIdx >= matchCount) {
+            return ((2 ** roundIdx) * TREE_BLOCK_PX) / 2;
+        }
+
+        const topIdx = Math.min(matchIdx, pairIdx);
+        const bottomIdx = Math.max(matchIdx, pairIdx);
+        const topCenter = matchCenterYFn(roundIdx, topIdx, roundKeys, roundsMap);
+        const bottomCenter = matchCenterYFn(roundIdx, bottomIdx, roundKeys, roundsMap);
+        return (bottomCenter - topCenter) / 2;
+    }
+
+    function buildTreeConnector(roundIndex, matchIndex, vertLenPx) {
         if (roundIndex < 0) return null;
 
-        const pairSpan = (2 ** roundIndex) * TREE_BLOCK_PX;
-        const vertLen = pairSpan / 2;
+        const defaultVertLen = ((2 ** roundIndex) * TREE_BLOCK_PX) / 2;
+        const vertLen = typeof vertLenPx === 'number' && vertLenPx > 0 ? vertLenPx : defaultVertLen;
         const isUpper = matchIndex % 2 === 0;
 
         const lines = document.createElement('div');
@@ -169,17 +188,304 @@
         return wrap;
     }
 
-    function renderSingleElimTree(stageEl, roundsMap, participants, editable, onWinnerClick, onScoreChange, matchFormat) {
+    function appendFinalConnector(wrap) {
+        const lines = document.createElement('div');
+        lines.className = 'bracket-tree__lines bracket-tree__lines--final';
+        lines.setAttribute('aria-hidden', 'true');
+        lines.innerHTML = '<span class="bracket-tree__line bracket-tree__line--h is-full"></span>';
+        wrap.appendChild(lines);
+    }
+
+    function shouldUseStraightConnector(roundIdx, roundKeys, roundsMap) {
+        const nextKey = roundKeys[roundIdx + 1];
+        if (!nextKey) return false;
+
+        const curMatches = roundsMap[roundKeys[roundIdx]] || [];
+        const nextMatches = roundsMap[nextKey] || [];
+        return curMatches.length === nextMatches.length;
+    }
+
+    function elementVisualCenterY(el) {
+        const rect = el.getBoundingClientRect();
+        return rect.top + (rect.height / 2);
+    }
+
+    function nudgeWrapVerticalCenterTo(targetWrap, targetCenterY) {
+        if (!targetWrap) return;
+
+        const currentCenterY = elementVisualCenterY(targetWrap);
+        const deltaY = targetCenterY - currentCenterY;
+        if (Math.abs(deltaY) < 0.5) return;
+
+        const currentTop = parseFloat(targetWrap.style.top);
+        const baseTop = Number.isFinite(currentTop) ? currentTop : targetWrap.offsetTop;
+        targetWrap.style.top = `${baseTop + deltaY}px`;
+    }
+
+    function alignWrapConnectorCenterTo(sourceWrap, targetWrap) {
+        if (!sourceWrap || !targetWrap) return;
+        nudgeWrapVerticalCenterTo(targetWrap, elementVisualCenterY(sourceWrap));
+    }
+
+    function alignToMergedSources(targetWrap, sourceWraps) {
+        if (!targetWrap || !sourceWraps?.length) return;
+
+        const avgCenter = sourceWraps.reduce((sum, wrap) => sum + elementVisualCenterY(wrap), 0)
+            / sourceWraps.length;
+        nudgeWrapVerticalCenterTo(targetWrap, avgCenter);
+    }
+
+    function alignPedestalToSource(sourceWrap, pedestalWrap) {
+        if (!sourceWrap || !pedestalWrap) return;
+
+        const sourceCenterY = elementVisualCenterY(sourceWrap);
+        const winnerBox = pedestalWrap.querySelector('.bracket-tree__winner-box');
+        if (winnerBox) {
+            const boxCenterY = elementVisualCenterY(winnerBox);
+            const deltaY = sourceCenterY - boxCenterY;
+            const currentTop = parseFloat(pedestalWrap.style.top);
+            const baseTop = Number.isFinite(currentTop) ? currentTop : pedestalWrap.offsetTop;
+            pedestalWrap.style.top = `${baseTop + deltaY}px`;
+            return;
+        }
+
+        alignWrapConnectorCenterTo(sourceWrap, pedestalWrap);
+    }
+
+    function syncUpperBracketAlignment(tree, alignment) {
+        const {
+            lastWinnersMatchWrap,
+            mergeSourceWraps,
+            grandFinalMatchWrap,
+            pedestalSourceWrap,
+        } = alignment;
+
+        if (mergeSourceWraps?.length > 1 && lastWinnersMatchWrap) {
+            alignToMergedSources(lastWinnersMatchWrap, mergeSourceWraps);
+        }
+        if (grandFinalMatchWrap && lastWinnersMatchWrap) {
+            alignWrapConnectorCenterTo(lastWinnersMatchWrap, grandFinalMatchWrap);
+        }
+
+        const pedestalWrap = tree.querySelector('.bracket-tree__match-wrap--pedestal');
+        if (!pedestalWrap) return;
+
+        const sourceWrap = pedestalSourceWrap || lastWinnersMatchWrap;
+        if (sourceWrap) {
+            alignPedestalToSource(sourceWrap, pedestalWrap);
+        }
+    }
+
+    function appendWinnerPedestalColumn(tree, treeHeight, finalMatch, participants) {
+        if (!finalMatch) return;
+
+        const winnerCol = document.createElement('div');
+        winnerCol.className = 'bracket-tree__round bracket-tree__round--winner';
+        winnerCol.style.minHeight = `${treeHeight}px`;
+
+        const label = document.createElement('div');
+        label.className = 'bracket-tree__round-label';
+        label.setAttribute('aria-hidden', 'true');
+        label.innerHTML = '&nbsp;';
+        winnerCol.appendChild(label);
+
+        const stack = document.createElement('div');
+        stack.className = 'bracket-tree__stack';
+        stack.style.height = `${treeHeight}px`;
+
+        const winnerWrap = document.createElement('div');
+        winnerWrap.className = 'bracket-tree__match-wrap bracket-tree__match-wrap--pedestal';
+        winnerWrap.appendChild(renderWinnerPedestal(participants, finalMatch));
+        stack.appendChild(winnerWrap);
+
+        winnerCol.appendChild(stack);
+        tree.appendChild(winnerCol);
+    }
+
+    function renderSingleElimTree(stageEl, roundsMap, participants, editable, onWinnerClick, onScoreChange, matchFormat, options = {}) {
+        const trailingFinalMatches = Array.isArray(options.trailingFinalMatches)
+            ? options.trailingFinalMatches
+            : [];
+        const hasTrailingFinals = trailingFinalMatches.length > 0;
         const roundKeys = Object.keys(roundsMap).sort((a, b) => Number(a) - Number(b));
-        if (roundKeys.length === 0) return;
+        if (roundKeys.length === 0 && !hasTrailingFinals) return;
 
         const tree = document.createElement('div');
         tree.className = 'bracket-tree';
 
-        const firstRoundCount = roundsMap[roundKeys[0]].length;
+        const firstRoundCount = roundKeys.length
+            ? roundsMap[roundKeys[0]].length
+            : 1;
         const treeHeight = firstRoundCount * TREE_BLOCK_PX;
+        const anchorRoundIdx = Math.max(0, roundKeys.length - 1);
+        const anchorCenterY = treeMatchCenterY(anchorRoundIdx, 0);
 
-        let finalMatch = null;
+        let pedestalMatch = null;
+        let pedestalSourceWrap = null;
+        let grandFinalMatchWrap = null;
+        let lastWinnersMatchWrap = null;
+        let mergeSourceWraps = null;
+        let prevRoundMatchWraps = [];
+
+        roundKeys.forEach((roundKey, roundIdx) => {
+            const col = document.createElement('div');
+            col.className = 'bracket-tree__round';
+            col.style.minHeight = `${treeHeight}px`;
+
+            const label = document.createElement('div');
+            label.className = 'bracket-tree__round-label';
+            label.textContent = `${I18n.t('round')} ${roundKey}`;
+            col.appendChild(label);
+
+            const stack = document.createElement('div');
+            stack.className = 'bracket-tree__stack';
+            stack.style.height = `${treeHeight}px`;
+
+            const matches = [...roundsMap[roundKey]].sort((a, b) => (a.slot || 0) - (b.slot || 0));
+            const isLastWinnersRound = roundIdx === roundKeys.length - 1;
+            const currentRoundWraps = [];
+
+            matches.forEach((m, idx) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'bracket-tree__match-wrap';
+                wrap.style.top = `${treeMatchTop(roundIdx, idx)}px`;
+
+                wrap.appendChild(renderMatch(m, participants, editable, onWinnerClick, onScoreChange, matchFormat));
+
+                if (roundIdx < roundKeys.length - 1) {
+                    if (shouldUseStraightConnector(roundIdx, roundKeys, roundsMap)) {
+                        appendFinalConnector(wrap);
+                    } else {
+                        const connector = buildTreeConnector(roundIdx, idx);
+                        if (connector) wrap.appendChild(connector);
+                    }
+                } else if (matches.length === 1) {
+                    appendFinalConnector(wrap);
+                }
+
+                stack.appendChild(wrap);
+                currentRoundWraps.push(wrap);
+
+                if (isLastWinnersRound && matches.length === 1) {
+                    lastWinnersMatchWrap = wrap;
+                    if (!hasTrailingFinals) {
+                        pedestalMatch = matches[0];
+                        pedestalSourceWrap = wrap;
+                    }
+                    if (prevRoundMatchWraps.length > 1) {
+                        mergeSourceWraps = [...prevRoundMatchWraps];
+                    }
+                }
+            });
+
+            prevRoundMatchWraps = currentRoundWraps;
+            col.appendChild(stack);
+            tree.appendChild(col);
+        });
+
+        if (hasTrailingFinals) {
+            trailingFinalMatches.forEach((m, idx) => {
+                const col = document.createElement('div');
+                col.className = 'bracket-tree__round bracket-tree__round--grand-final';
+                col.style.minHeight = `${treeHeight}px`;
+
+                const label = document.createElement('div');
+                label.className = 'bracket-tree__round-label';
+                label.textContent = stageLabel(m.stage || 'grand_final');
+                col.appendChild(label);
+
+                const stack = document.createElement('div');
+                stack.className = 'bracket-tree__stack';
+                stack.style.height = `${treeHeight}px`;
+
+                const wrap = document.createElement('div');
+                wrap.className = 'bracket-tree__match-wrap';
+                wrap.style.top = `${anchorCenterY - (TREE_MATCH_HEIGHT_PX / 2)}px`;
+                wrap.appendChild(renderMatch(m, participants, editable, onWinnerClick, onScoreChange, matchFormat));
+                appendFinalConnector(wrap);
+
+                stack.appendChild(wrap);
+                col.appendChild(stack);
+                tree.appendChild(col);
+
+                grandFinalMatchWrap = wrap;
+                pedestalMatch = m;
+                pedestalSourceWrap = wrap;
+            });
+        }
+
+        if (pedestalMatch) {
+            appendWinnerPedestalColumn(tree, treeHeight, pedestalMatch, participants);
+        }
+
+        stageEl.appendChild(tree);
+
+        const alignment = {
+            lastWinnersMatchWrap,
+            mergeSourceWraps,
+            grandFinalMatchWrap,
+            pedestalSourceWrap,
+        };
+        const runAlignment = () => syncUpperBracketAlignment(tree, alignment);
+
+        runAlignment();
+        requestAnimationFrame(runAlignment);
+    }
+
+    function losersMatchCenterY(roundIdx, matchIdx, roundKeys, roundsMap) {
+        const roundKey = roundKeys[roundIdx];
+        const matchCount = (roundsMap[roundKey] || []).length;
+        const firstRoundCount = (roundsMap[roundKeys[0]] || []).length;
+
+        if (matchCount === firstRoundCount) {
+            return treeMatchCenterY(0, matchIdx);
+        }
+
+        if (matchCount === 1 && roundIdx > 0) {
+            const prevKey = roundKeys[roundIdx - 1];
+            const prevMatches = roundsMap[prevKey] || [];
+            if (prevMatches.length > 1) {
+                const top = losersMatchCenterY(roundIdx - 1, 0, roundKeys, roundsMap);
+                const bottom = losersMatchCenterY(
+                    roundIdx - 1,
+                    prevMatches.length - 1,
+                    roundKeys,
+                    roundsMap,
+                );
+                return (top + bottom) / 2;
+            }
+            return losersMatchCenterY(roundIdx - 1, 0, roundKeys, roundsMap);
+        }
+
+        return treeMatchCenterY(roundIdx, matchIdx);
+    }
+
+    function losersMatchTop(roundIdx, matchIdx, roundKeys, roundsMap) {
+        return losersMatchCenterY(roundIdx, matchIdx, roundKeys, roundsMap) - (TREE_MATCH_HEIGHT_PX / 2);
+    }
+
+    function losersTreeHeight(roundKeys, roundsMap) {
+        let maxBottom = 0;
+
+        roundKeys.forEach((roundKey, roundIdx) => {
+            const matches = roundsMap[roundKey] || [];
+            matches.forEach((_, idx) => {
+                const top = losersMatchTop(roundIdx, idx, roundKeys, roundsMap);
+                maxBottom = Math.max(maxBottom, top + TREE_MATCH_HEIGHT_PX);
+            });
+        });
+
+        return Math.max(maxBottom + 8, TREE_BLOCK_PX);
+    }
+
+    function renderLosersBracketTree(stageEl, roundsMap, participants, editable, onWinnerClick, onScoreChange, matchFormat) {
+        const roundKeys = Object.keys(roundsMap).sort((a, b) => Number(a) - Number(b));
+        if (roundKeys.length === 0) return;
+
+        const treeHeight = losersTreeHeight(roundKeys, roundsMap);
+
+        const tree = document.createElement('div');
+        tree.className = 'bracket-tree bracket-tree--losers';
 
         roundKeys.forEach((roundKey, roundIdx) => {
             const col = document.createElement('div');
@@ -199,19 +505,23 @@
             matches.forEach((m, idx) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'bracket-tree__match-wrap';
-                wrap.style.top = `${treeMatchTop(roundIdx, idx)}px`;
-
+                wrap.style.top = `${losersMatchTop(roundIdx, idx, roundKeys, roundsMap)}px`;
                 wrap.appendChild(renderMatch(m, participants, editable, onWinnerClick, onScoreChange, matchFormat));
 
                 if (roundIdx < roundKeys.length - 1) {
-                    const connector = buildTreeConnector(roundIdx, idx);
-                    if (connector) wrap.appendChild(connector);
-                } else if (matches.length === 1) {
-                    const lines = document.createElement('div');
-                    lines.className = 'bracket-tree__lines bracket-tree__lines--final';
-                    lines.setAttribute('aria-hidden', 'true');
-                    lines.innerHTML = '<span class="bracket-tree__line bracket-tree__line--h is-full"></span>';
-                    wrap.appendChild(lines);
+                    if (shouldUseStraightConnector(roundIdx, roundKeys, roundsMap)) {
+                        appendFinalConnector(wrap);
+                    } else {
+                        const vertLen = matchPairConnectorVertLen(
+                            roundIdx,
+                            idx,
+                            roundKeys,
+                            roundsMap,
+                            losersMatchCenterY,
+                        );
+                        const connector = buildTreeConnector(roundIdx, idx, vertLen);
+                        if (connector) wrap.appendChild(connector);
+                    }
                 }
 
                 stack.appendChild(wrap);
@@ -219,37 +529,7 @@
 
             col.appendChild(stack);
             tree.appendChild(col);
-
-            if (roundIdx === roundKeys.length - 1 && matches[0]) {
-                finalMatch = matches[0];
-            }
         });
-
-        if (finalMatch) {
-            const winnerCol = document.createElement('div');
-            winnerCol.className = 'bracket-tree__round bracket-tree__round--winner';
-            winnerCol.style.minHeight = `${treeHeight}px`;
-
-            const label = document.createElement('div');
-            label.className = 'bracket-tree__round-label';
-            label.setAttribute('aria-hidden', 'true');
-            label.innerHTML = '&nbsp;';
-            winnerCol.appendChild(label);
-
-            const stack = document.createElement('div');
-            stack.className = 'bracket-tree__stack';
-            stack.style.height = `${treeHeight}px`;
-
-            const pedestalHeight = TREE_PEDESTAL_LABEL_PX + 6 + TREE_PEDESTAL_BOX_PX;
-            const finalCenterY = treeMatchCenterY(roundKeys.length - 1, 0);
-            const winnerWrap = document.createElement('div');
-            winnerWrap.className = 'bracket-tree__match-wrap bracket-tree__match-wrap--pedestal';
-            winnerWrap.style.top = `${finalCenterY - (pedestalHeight / 2)}px`;
-            winnerWrap.appendChild(renderWinnerPedestal(participants, finalMatch));
-            stack.appendChild(winnerWrap);
-            winnerCol.appendChild(stack);
-            tree.appendChild(winnerCol);
-        }
 
         stageEl.appendChild(tree);
     }
@@ -298,14 +578,174 @@
         return !(format === 'single' && stage === 'winners');
     }
 
+    function buildRoundsMap(matches) {
+        const rounds = {};
+        (matches || []).forEach((m) => {
+            const r = m.round || 1;
+            if (!rounds[r]) rounds[r] = [];
+            rounds[r].push(m);
+        });
+        return rounds;
+    }
+
+    function mergeUpperAndFinalRounds(winnersMatches, finalMatches) {
+        const merged = buildRoundsMap(winnersMatches);
+        const wKeys = Object.keys(merged).map(Number);
+        const offset = wKeys.length ? Math.max(...wKeys) : 0;
+        const finalRounds = buildRoundsMap(finalMatches);
+        Object.keys(finalRounds)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .forEach((r) => {
+                merged[offset + r] = finalRounds[r];
+            });
+        return merged;
+    }
+
+    function collectGrandFinalMatches(stages) {
+        const matches = [...(stages.grand_final || [])];
+        if (stages.grand_final_reset?.length) {
+            matches.push(...stages.grand_final_reset);
+        }
+        return matches.sort((a, b) => (a.round || 1) - (b.round || 1) || (a.slot || 0) - (b.slot || 0));
+    }
+
+    function isDoubleElimView(format, stages, settings) {
+        if (format === 'double') return true;
+        if (format === 'group_de') {
+            return !!(stages.losers?.length || stages.grand_final?.length || stages.winners?.length);
+        }
+        if (format === 'group' && settings?.playoffType === 'double') {
+            return !!(stages.winners?.length || stages.losers?.length || stages.playoff?.length);
+        }
+        return false;
+    }
+
+    function renderStageBracket(stageEl, rounds, participants, editable, onWinnerClick, onScoreChange, matchFormat) {
+        if (isStandardElimTree(rounds)) {
+            renderSingleElimTree(
+                stageEl,
+                rounds,
+                participants,
+                editable,
+                onWinnerClick,
+                onScoreChange,
+                matchFormat
+            );
+        } else {
+            renderColumnLayout(
+                stageEl,
+                rounds,
+                participants,
+                editable,
+                onWinnerClick,
+                onScoreChange,
+                matchFormat
+            );
+        }
+    }
+
+    function renderDoubleEliminationLayout(container, stages, participants, editable, onWinnerClick, onScoreChange, matchFormat) {
+        container.classList.add('bracket-elimination--double');
+
+        const winnersMatches = stages.winners || stages.playoff || [];
+        const finalMatches = collectGrandFinalMatches(stages);
+        const losersMatches = stages.losers || [];
+
+        if (winnersMatches.length || finalMatches.length) {
+            const upperEl = document.createElement('div');
+            upperEl.className = 'bracket-stage bracket-stage--upper';
+
+            const title = document.createElement('h3');
+            title.className = 'bracket-stage__title';
+            title.textContent = stageLabel('winners');
+            upperEl.appendChild(title);
+
+            const upperRounds = buildRoundsMap(winnersMatches);
+            if (Object.keys(upperRounds).length === 0 || isStandardElimTree(upperRounds)) {
+                renderSingleElimTree(
+                    upperEl,
+                    upperRounds,
+                    participants,
+                    editable,
+                    onWinnerClick,
+                    onScoreChange,
+                    matchFormat,
+                    { trailingFinalMatches: finalMatches },
+                );
+            } else {
+                renderStageBracket(
+                    upperEl,
+                    mergeUpperAndFinalRounds(winnersMatches, finalMatches),
+                    participants,
+                    editable,
+                    onWinnerClick,
+                    onScoreChange,
+                    matchFormat,
+                );
+            }
+            container.appendChild(upperEl);
+        }
+
+        if (losersMatches.length) {
+            const lowerEl = document.createElement('div');
+            lowerEl.className = 'bracket-stage bracket-stage--lower';
+
+            const title = document.createElement('h3');
+            title.className = 'bracket-stage__title';
+            title.textContent = stageLabel('losers');
+            lowerEl.appendChild(title);
+
+            const losersRounds = buildRoundsMap(losersMatches);
+            if (Object.keys(losersRounds).length > 0) {
+                renderLosersBracketTree(
+                    lowerEl,
+                    losersRounds,
+                    participants,
+                    editable,
+                    onWinnerClick,
+                    onScoreChange,
+                    matchFormat,
+                );
+            } else {
+                renderColumnLayout(
+                    lowerEl,
+                    losersRounds,
+                    participants,
+                    editable,
+                    onWinnerClick,
+                    onScoreChange,
+                    matchFormat,
+                );
+            }
+            container.appendChild(lowerEl);
+        }
+    }
+
     function renderEliminationTree(container, bracketData, editable, onWinnerClick, onScoreChange, matchFormat, format) {
         container.innerHTML = '';
+        container.classList.remove('bracket-elimination--double');
         const defaultParticipants = bracketData.participants || [];
         const playoffParticipants = bracketData.settings?.playoffParticipants || null;
+        const settings = bracketData.settings || {};
         const matches = bracketData.matches || [];
         const stages = groupMatchesByStage(
             matches.filter((m) => m.stage !== 'group')
         );
+
+        if (isDoubleElimView(format, stages, settings)) {
+            const participants = playoffParticipants || defaultParticipants;
+            renderDoubleEliminationLayout(
+                container,
+                stages,
+                participants,
+                editable,
+                onWinnerClick,
+                onScoreChange,
+                matchFormat
+            );
+            return;
+        }
 
         const stageOrder = ['winners', 'playoff', 'losers', 'grand_final'];
         const sortedStages = Object.keys(stages)
@@ -331,27 +771,15 @@
                 rounds[r].push(m);
             });
 
-            if (isStandardElimTree(rounds)) {
-                renderSingleElimTree(
-                    stageEl,
-                    rounds,
-                    participants,
-                    editable,
-                    onWinnerClick,
-                    onScoreChange,
-                    matchFormat
-                );
-            } else {
-                renderColumnLayout(
-                    stageEl,
-                    rounds,
-                    participants,
-                    editable,
-                    onWinnerClick,
-                    onScoreChange,
-                    matchFormat
-                );
-            }
+            renderStageBracket(
+                stageEl,
+                rounds,
+                participants,
+                editable,
+                onWinnerClick,
+                onScoreChange,
+                matchFormat
+            );
 
             container.appendChild(stageEl);
         });

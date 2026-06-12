@@ -57,7 +57,7 @@ try {
     $inputNickname = tactics_sanitize_nickname((string) ($input['nickname'] ?? ''));
     $nicknameChange = !empty($input['nickname_change']);
 
-    if (!$isOwner && $nicknameChange && $inputNickname !== '') {
+    if ($nicknameChange && $inputNickname !== '') {
         $nickname = $inputNickname;
     } elseif ($userId !== null) {
         $roomData = json_decode((string) ($row['room_data'] ?? ''), true);

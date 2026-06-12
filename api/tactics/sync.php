@@ -33,7 +33,13 @@ try {
         $tokenPayload = tactics_verify_room_token($userDb, $wsToken, $row);
         if ($tokenPayload !== null) {
             $clientId = trim((string) ($tokenPayload['cid'] ?? $clientId));
-            $nickname = tactics_sanitize_nickname((string) ($tokenPayload['nick'] ?? $nickname));
+            $tokenNick = tactics_sanitize_nickname((string) ($tokenPayload['nick'] ?? ''));
+            if ($nickname === '' || $nickname === 'Guest' || $nickname === 'Гость'
+                || tactics_is_generic_guest_nickname($nickname)) {
+                if ($tokenNick !== '') {
+                    $nickname = $tokenNick;
+                }
+            }
         }
     }
 

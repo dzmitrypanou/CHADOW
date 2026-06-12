@@ -18,10 +18,12 @@
         td: {
             viewBox: '0 0 12 11',
             path: 'M 0 0 L 12 0 L 6 11 Z',
+            sizeScale: 0.8,
         },
         spg: {
             viewBox: '0 0 8 8',
             path: 'M 0 0 L 8 0 L 8 8 L 0 8 Z',
+            sizeScale: 0.8,
         },
     };
 

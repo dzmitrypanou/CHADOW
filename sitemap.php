@@ -9,7 +9,7 @@ require_once __DIR__ . '/config/ensure_cms_pages.php';
 
 $base = abs_site_base_url();
 
-const ABS_SITEMAP_XHTML_NS = 'http://www.w3.org/TR/xhtml11/xhtml11_schema.html';
+const ABS_SITEMAP_XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
 /**
  * @return array{alternates:array{ru:string,en:string}}
@@ -33,6 +33,10 @@ $pages = [
     abs_sitemap_page('/', '/en'),
     abs_sitemap_page('/services/abs', '/en/services/abs'),
     abs_sitemap_page('/services/online', '/en/services/online'),
+    abs_sitemap_page('/services/recruiting', '/en/services/recruiting'),
+    abs_sitemap_page('/services/bracket', '/en/services/bracket'),
+    abs_sitemap_page('/services/tactics', '/en/services/tactics'),
+    abs_sitemap_page('/services/tactics/rooms', '/en/services/tactics/rooms'),
 ];
 
 try {

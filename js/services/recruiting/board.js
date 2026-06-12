@@ -341,6 +341,87 @@
         `;
     }
 
+    const MASONRY_MIN_WIDTH = 769;
+    let masonryResizeTimer = null;
+
+    function masonryEnabled() {
+        return window.matchMedia(`(min-width: ${MASONRY_MIN_WIDTH}px)`).matches;
+    }
+
+    function collectPostCards() {
+        if (listEl.querySelector('.recruiting-post-column')) {
+            return [...listEl.querySelectorAll('.recruiting-post-card')].sort((a, b) => {
+                return Number(a.dataset.listOrder ?? 0) - Number(b.dataset.listOrder ?? 0);
+            });
+        }
+
+        return [...listEl.querySelectorAll(':scope > .recruiting-post-card')];
+    }
+
+    function flattenPostList() {
+        const cards = collectPostCards();
+        if (!cards.length || !listEl.querySelector('.recruiting-post-column')) {
+            return;
+        }
+        listEl.replaceChildren(...cards);
+    }
+
+    function hasExpandedPosts() {
+        return !!listEl.querySelector('.recruiting-post-toggle[data-expanded="true"]');
+    }
+
+    function layoutPostListMasonry() {
+        if (listEl.querySelector('.recruiting-list-empty, .recruiting-list-loading')) {
+            return;
+        }
+        if (hasExpandedPosts()) {
+            return;
+        }
+
+        const cards = collectPostCards();
+        if (!cards.length) {
+            return;
+        }
+
+        cards.forEach((card, index) => {
+            card.dataset.listOrder = String(index);
+        });
+
+        if (!masonryEnabled()) {
+            flattenPostList();
+            return;
+        }
+
+        let col1 = listEl.querySelector('.recruiting-post-column[data-column="1"]');
+        let col2 = listEl.querySelector('.recruiting-post-column[data-column="2"]');
+
+        if (!col1) {
+            listEl.replaceChildren();
+            col1 = document.createElement('div');
+            col2 = document.createElement('div');
+            col1.className = 'recruiting-post-column';
+            col2.className = 'recruiting-post-column';
+            col1.dataset.column = '1';
+            col2.dataset.column = '2';
+            listEl.append(col1, col2);
+        } else {
+            col1.replaceChildren();
+            col2.replaceChildren();
+        }
+
+        cards.forEach((card, index) => {
+            let target;
+            if (index === 0) {
+                target = col1;
+            } else if (index === 1) {
+                target = col2;
+            } else {
+                target = col1.offsetHeight <= col2.offsetHeight ? col1 : col2;
+            }
+            target.appendChild(card);
+        });
+    }
+
     function renderList(items) {
         t = buildT();
         listRendered = true;
@@ -349,10 +430,10 @@
             return;
         }
         listEl.innerHTML = items.map(renderPostCard).join('');
-        bindPostToggles();
         if (typeof window.absApplyLocalTimes === 'function') {
             window.absApplyLocalTimes(listEl);
         }
+        layoutPostListMasonry();
     }
 
     function renderPagination(pagination) {
@@ -378,27 +459,26 @@
         `;
     }
 
-    function bindPostToggles() {
-        listEl.querySelectorAll('.recruiting-post-toggle').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const card = btn.closest('.recruiting-post-card');
-                const full = card ? card.querySelector('.recruiting-post-body-full') : null;
-                const excerptEl = card ? card.querySelector('.recruiting-post-excerpt') : null;
-                if (!full || !excerptEl) return;
-                const expanded = btn.getAttribute('data-expanded') === 'true';
-                if (expanded) {
-                    full.classList.add('hidden');
-                    excerptEl.classList.remove('hidden');
-                    btn.setAttribute('data-expanded', 'false');
-                    btn.textContent = buildT().readMore;
-                } else {
-                    full.classList.remove('hidden');
-                    excerptEl.classList.add('hidden');
-                    btn.setAttribute('data-expanded', 'true');
-                    btn.textContent = buildT().showLess;
-                }
-            });
-        });
+    function handlePostToggleClick(btn) {
+        const card = btn.closest('.recruiting-post-card');
+        const full = card ? card.querySelector('.recruiting-post-body-full') : null;
+        const excerptEl = card ? card.querySelector('.recruiting-post-excerpt') : null;
+        if (!full || !excerptEl) return;
+
+        const expanded = btn.getAttribute('data-expanded') === 'true';
+        if (expanded) {
+            full.classList.add('hidden');
+            excerptEl.classList.remove('hidden');
+            btn.setAttribute('data-expanded', 'false');
+            btn.textContent = buildT().readMore;
+            requestAnimationFrame(() => layoutPostListMasonry());
+            return;
+        }
+
+        full.classList.remove('hidden');
+        excerptEl.classList.add('hidden');
+        btn.setAttribute('data-expanded', 'true');
+        btn.textContent = buildT().showLess;
     }
 
     async function loadPosts() {
@@ -503,6 +583,12 @@
     let contactCopyResetTimer = null;
 
     listEl.addEventListener('click', async (e) => {
+        const toggleBtn = e.target.closest('.recruiting-post-toggle');
+        if (toggleBtn && listEl.contains(toggleBtn)) {
+            handlePostToggleClick(toggleBtn);
+            return;
+        }
+
         const btn = e.target.closest('.recruiting-post-contact-link--copy');
         if (!btn || btn.disabled) return;
 
@@ -524,6 +610,11 @@
 
     window.addEventListener('recruiting:langchange', () => {
         relocalizeView();
+    });
+
+    window.addEventListener('resize', () => {
+        clearTimeout(masonryResizeTimer);
+        masonryResizeTimer = setTimeout(layoutPostListMasonry, 150);
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -562,7 +653,7 @@
             lastPagination = initial.pagination || null;
             if (hasServerCards) {
                 listRendered = true;
-                bindPostToggles();
+                layoutPostListMasonry();
             } else {
                 renderList(lastItems);
             }
@@ -572,7 +663,7 @@
 
         if (hasServerCards) {
             listRendered = true;
-            bindPostToggles();
+            layoutPostListMasonry();
             return;
         }
 

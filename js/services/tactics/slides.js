@@ -3,6 +3,7 @@
 
     const maps = () => window.AbsTacticsMaps;
     const i18n = () => window.AbsTacticsI18n;
+    const confirmUi = () => window.AbsTacticsConfirm;
 
     function generateSlideId() {
         return 's' + Math.random().toString(16).slice(2, 10);
@@ -79,8 +80,10 @@
 
         pinViewSlide(slideId) {
             if (!slideId || !this.getSlides().some((s) => s.id === slideId)) return;
+            if (this.viewSlideId === slideId) return;
             this.viewSlideId = slideId;
             this.persistViewSlideId();
+            this.render();
         }
 
         getViewModeStorageKey() {
@@ -244,12 +247,17 @@
         }
 
         setCanAddSlides(canAddSlides) {
-            this.canAddSlides = !!canAddSlides;
+            const next = !!canAddSlides;
+            const changed = this.canAddSlides !== next;
+            this.canAddSlides = next;
             if (this.addBtn) {
                 this.addBtn.hidden = !this.canAddSlides;
             }
             if (!this.canAddSlides) {
                 this.setAddSelectVisible(false);
+            }
+            if (changed) {
+                this.render();
             }
         }
 
@@ -381,8 +389,9 @@
             return next.length <= 64 ? next : clean.slice(0, 64 - suffix.length) + suffix;
         }
 
-        buildChangeMapBtn(slideId, changeMapTitle) {
+        buildChangeMapBtn(slideId, changeMapTitle, isActive) {
             if (!this.canAddSlides) return '';
+            if (this.viewMode !== 'list' && !isActive) return '';
             return '<button type="button" class="tactics-slide-change-map" data-slide-id="' + slideId + '" title="' + escapeHtml(changeMapTitle) + '" aria-label="' + escapeHtml(changeMapTitle) + '">'
                 + '<i class="fas fa-map" aria-hidden="true"></i>'
                 + '<span class="tactics-slide-change-map__label">' + escapeHtml(changeMapTitle) + '</span>'
@@ -558,9 +567,60 @@
         }
 
         getSlideDisplayName(slide) {
+            const mapsApi = maps();
+            if (mapsApi?.getSlideTitle) {
+                return mapsApi.getSlideTitle(slide, this.lang);
+            }
             const custom = typeof slide?.title === 'string' ? slide.title.trim() : '';
             if (custom) return custom;
             return this.getSlideDefaultName(slide);
+        }
+
+        applySlideTitle(slideId, title) {
+            const slide = this.getSlides().find((s) => s.id === slideId);
+            if (!slide) return null;
+
+            const clean = String(title || '').trim();
+            if (clean) {
+                slide.title = clean;
+            } else {
+                delete slide.title;
+            }
+
+            return this.getSlideDisplayName(slide);
+        }
+
+        createSlideNameEl(slideId, displayName) {
+            const el = document.createElement('span');
+            el.className = 'tactics-slide-name';
+            el.setAttribute('data-slide-id', slideId);
+            el.title = i18n().t('renameMapHint');
+            el.textContent = displayName;
+            this.bindSlideNameEl(el);
+            return el;
+        }
+
+        bindSlideNameEl(el) {
+            if (!el || el.dataset.renameBound === '1') return;
+            el.dataset.renameBound = '1';
+            el.addEventListener('click', () => {
+                const slideId = el.getAttribute('data-slide-id');
+                if (slideId) this.switchSlide(slideId);
+            });
+            el.addEventListener('dblclick', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const slideId = el.getAttribute('data-slide-id');
+                if (slideId) this.startSlideRename(slideId, el);
+            });
+        }
+
+        updateSlideNameInDom(slideId, displayName) {
+            if (!this.listEl || !displayName) return;
+            this.listEl.querySelectorAll(`.tactics-slide-name[data-slide-id="${slideId}"]`).forEach((el) => {
+                if (el.classList.contains('tactics-slide-rename-input')) return;
+                el.textContent = displayName;
+            });
         }
 
         getSlideThumbUrl(slide) {
@@ -642,7 +702,7 @@
             const duplicateBtn = canDuplicate
                 ? this.buildDuplicateBtn(slide.id, duplicateTitle)
                 : '';
-            const changeMapBtn = this.buildChangeMapBtn(slide.id, changeMapTitle);
+            const changeMapBtn = this.buildChangeMapBtn(slide.id, changeMapTitle, slide.id === activeId);
 
             if (this.viewMode === 'list') {
                 return '<li class="tactics-slide-item">'
@@ -700,7 +760,7 @@
                 btn.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     const slideId = btn.getAttribute('data-slide-id');
-                    if (slideId) this.deleteSlide(slideId);
+                    if (slideId) void this.deleteSlide(slideId);
                 });
             });
 
@@ -721,16 +781,7 @@
             });
 
             this.listEl.querySelectorAll('.tactics-slide-name').forEach((el) => {
-                el.addEventListener('click', () => {
-                    const slideId = el.getAttribute('data-slide-id');
-                    if (slideId) this.switchSlide(slideId);
-                });
-                el.addEventListener('dblclick', (ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    const slideId = el.getAttribute('data-slide-id');
-                    if (slideId) this.startSlideRename(slideId, el);
-                });
+                this.bindSlideNameEl(el);
             });
 
             this.refreshSlideThumbs();
@@ -743,27 +794,47 @@
             if (!this.canAddSlides) return;
             const slide = this.getSlides().find((s) => s.id === slideId);
             if (!slide || !nameEl) return;
+            if (nameEl.classList?.contains('tactics-slide-rename-input')) return;
 
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'tactics-slide-rename-input';
             input.maxLength = 64;
             input.value = typeof slide.title === 'string' ? slide.title : '';
-            input.placeholder = this.getSlideDefaultName(slide);
+            input.placeholder = this.getSlideDisplayName(slide);
+
+            let finished = false;
+            const onBlur = () => finish(false);
 
             const finish = (cancel) => {
-                if (!cancel) {
-                    this.renameSlide(slideId, input.value);
-                } else {
-                    this.render();
+                if (finished) return;
+                finished = true;
+                input.removeEventListener('blur', onBlur);
+
+                if (cancel) {
+                    const displayName = this.getSlideDisplayName(slide);
+                    input.replaceWith(this.createSlideNameEl(slideId, displayName));
+                    return;
                 }
+
+                const displayName = this.applySlideTitle(slideId, input.value);
+                if (!displayName) return;
+
+                input.replaceWith(this.createSlideNameEl(slideId, displayName));
+                this.onChange();
+                this.onRenamed(slideId);
+                this.onBroadcast({
+                    action: 'rename',
+                    slideId,
+                    title: slide.title || '',
+                });
             };
 
-            input.addEventListener('blur', () => finish(false));
+            input.addEventListener('blur', onBlur);
             input.addEventListener('keydown', (ev) => {
                 if (ev.key === 'Enter') {
                     ev.preventDefault();
-                    input.blur();
+                    finish(false);
                 }
                 if (ev.key === 'Escape') {
                     ev.preventDefault();
@@ -780,18 +851,14 @@
             const slide = this.getSlides().find((s) => s.id === slideId);
             if (!slide) return;
 
-            const clean = String(title || '').trim();
-            if (clean) {
-                slide.title = clean;
-            } else {
-                delete slide.title;
-            }
+            const displayName = this.applySlideTitle(slideId, title);
+            if (!displayName) return;
 
-            this.render();
-            this.onChange();
-            this.onRenamed(slideId);
+            this.updateSlideNameInDom(slideId, displayName);
 
             if (!skipBroadcast) {
+                this.onChange();
+                this.onRenamed(slideId);
                 this.onBroadcast({
                     action: 'rename',
                     slideId,
@@ -1016,17 +1083,24 @@
             }
         }
 
-        deleteSlide(slideId, skipBroadcast) {
+        async deleteSlide(slideId, skipBroadcast) {
             if (!this.canManage && !this.canAddSlides && !skipBroadcast) return;
             const slides = this.getSlides();
             if (slides.length <= 1) {
-                window.alert(i18n().t('deleteSlideLast'));
+                if (confirmUi()?.alert) {
+                    await confirmUi().alert(i18n().t('deleteSlideLast'));
+                } else {
+                    window.alert(i18n().t('deleteSlideLast'));
+                }
                 return;
             }
 
             const msg = i18n().t('deleteSlideConfirm');
-            if (!skipBroadcast && !window.confirm(msg)) {
-                return;
+            if (!skipBroadcast) {
+                const confirmed = confirmUi()?.confirm
+                    ? await confirmUi().confirm(msg)
+                    : window.confirm(msg);
+                if (!confirmed) return;
             }
 
             const wasActive = slideId === this.getActiveSlideId();

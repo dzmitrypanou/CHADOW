@@ -45,17 +45,15 @@ $metaRobots = isset($metaRobots) && trim((string) $metaRobots) !== ''
     : 'index,follow';
 $siteNameRu = 'Chadow';
 $siteNameEn = 'Chadow';
-if (empty($tacticsRoomShell)) {
-    try {
-        require_once __DIR__ . '/../config/database.php';
-        require_once __DIR__ . '/../config/ensure_site_settings.php';
-        $_siteSettingsDb = Database::getInstance();
-        $siteNameRu = get_site_name($_siteSettingsDb, 'ru');
-        $siteNameEn = get_site_name($_siteSettingsDb, 'en');
-    } catch (Throwable $e) {
-        $siteNameRu = 'Chadow';
-        $siteNameEn = 'Chadow';
-    }
+try {
+    require_once __DIR__ . '/../config/database.php';
+    require_once __DIR__ . '/../config/ensure_site_settings.php';
+    $_siteSettingsDb = Database::getInstance();
+    $siteNameRu = get_site_name($_siteSettingsDb, 'ru');
+    $siteNameEn = get_site_name($_siteSettingsDb, 'en');
+} catch (Throwable $e) {
+    $siteNameRu = 'Chadow';
+    $siteNameEn = 'Chadow';
 }
 $siteName = $absLang === 'en' ? $siteNameEn : $siteNameRu;
 $pageTitleRaw = isset($pageTitle) ? trim((string) $pageTitle) : '';

@@ -38,6 +38,7 @@
     let settingsTimer = null;
     let settingsSaving = false;
     let nicknameLockedByUser = false;
+    let nicknameLockedBeforeEdit = false;
     let nicknameEditing = false;
     let wsAuthRefreshing = false;
     let wsAuthFailures = 0;
@@ -55,6 +56,29 @@
 
     function roomPublicId() {
         return String(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID || '');
+    }
+
+    function saveRoomSessionSnapshot() {
+        store().saveRoomSession(roomPublicId(), {
+            access_token: accessToken,
+            ws_token: wsToken,
+            nickname,
+            nickname_locked: nicknameLockedByUser,
+            client_id: clientId,
+        });
+    }
+
+    function mergeParticipantsWithLocalSelf(list) {
+        const selfId = String(clientId || '');
+        let items = normalizeParticipants(list);
+        if (!selfId) return items;
+        items = items.map((p) => (
+            p.clientId === selfId ? { ...p, nickname: String(nickname || '') } : p
+        ));
+        if (!items.some((p) => p.clientId === selfId)) {
+            items.push({ clientId: selfId, nickname: String(nickname || '') });
+        }
+        return items;
     }
 
     const DEFAULT_SLIDE_VIEW_PREFS = {
@@ -298,7 +322,7 @@
         }
 
         const message = res.data?.error || i18n().t('uploadCustomMapError');
-        window.alert(message);
+        await tacticsAlert(message);
     }
 
     async function duplicateCustomMapFile(sourceSlideId, targetSlideId) {
@@ -355,6 +379,21 @@
         }
 
         const message = res.data?.error || i18n().t('uploadCustomMapError');
+        await tacticsAlert(message);
+    }
+
+    function tacticsConfirm(message) {
+        if (window.AbsTacticsConfirm?.confirm) {
+            return window.AbsTacticsConfirm.confirm(message);
+        }
+        return Promise.resolve(window.confirm(message));
+    }
+
+    async function tacticsAlert(message) {
+        if (window.AbsTacticsConfirm?.alert) {
+            await window.AbsTacticsConfirm.alert(message);
+            return;
+        }
         window.alert(message);
     }
 
@@ -561,11 +600,16 @@
     }
 
     function canEditNickname() {
+        if (!window.ABS_TACTICS_IS_LOGGED_IN) return true;
         return !canManage;
     }
 
     function shouldShowGuestNicknameEditUi() {
         return canEditNickname() && (isMobileLayout() || isCompactLayout());
+    }
+
+    function usesTopbarNicknameEditUi() {
+        return nicknameEditing && shouldShowGuestNicknameEditUi();
     }
 
     function getNicknameEditInput() {
@@ -576,22 +620,38 @@
     function syncMobileNicknameEditUi() {
         const titleRow = document.querySelector('.page-tactics-room .tactics-editor-topbar__title-row');
         const titleEl = document.getElementById('tacticsRoomTitle');
+        const groupEl = titleEl?.closest('.tactics-editor-topbar__group--center');
+        const visibilityWrap = document.getElementById('tacticsRoomVisibilityWrap');
         if (!titleRow || !titleEl) return;
 
         const showGuestNickUi = shouldShowGuestNicknameEditUi();
         let penBtn = document.getElementById('tacticsMobileNicknameBtn');
         let editWrap = document.getElementById('tacticsMobileNicknameWrap');
 
+        const clearNicknameEditingLayout = () => {
+            titleRow.classList.remove('is-nickname-editing');
+            groupEl?.classList.remove('is-nickname-editing');
+            titleEl.hidden = false;
+            if (visibilityWrap && canManage) {
+                visibilityWrap.hidden = false;
+            }
+        };
+
         if (!showGuestNickUi) {
             penBtn?.remove();
             editWrap?.remove();
-            titleEl.hidden = false;
+            clearNicknameEditingLayout();
             return;
         }
 
         if (nicknameEditing) {
             penBtn?.remove();
             titleEl.hidden = true;
+            if (visibilityWrap) {
+                visibilityWrap.hidden = true;
+            }
+            titleRow.classList.add('is-nickname-editing');
+            groupEl?.classList.add('is-nickname-editing');
             if (!editWrap) {
                 editWrap = document.createElement('div');
                 editWrap.id = 'tacticsMobileNicknameWrap';
@@ -606,21 +666,19 @@
                     + ' id="tacticsMobileNicknameCancel" title="'
                     + escapeHtml(i18n().getLang() === 'en' ? 'Cancel' : 'Отмена')
                     + '"><i class="fas fa-times" aria-hidden="true"></i></button>';
-                titleRow.appendChild(editWrap);
+                titleEl.insertAdjacentElement('afterend', editWrap);
                 editWrap.querySelector('#tacticsMobileNicknameSave')
                     ?.addEventListener('click', () => saveNickname());
                 editWrap.querySelector('#tacticsMobileNicknameCancel')
                     ?.addEventListener('click', () => cancelNicknameEdit());
-            }
-            const input = document.getElementById('tacticsMobileNicknameInput');
-            if (input && input.value !== nickname) {
-                input.value = nickname;
+            } else if (editWrap.previousElementSibling !== titleEl) {
+                titleEl.insertAdjacentElement('afterend', editWrap);
             }
             return;
         }
 
         editWrap?.remove();
-        titleEl.hidden = false;
+        clearNicknameEditingLayout();
         if (!penBtn) {
             penBtn = document.createElement('button');
             penBtn.type = 'button';
@@ -630,33 +688,51 @@
             penBtn.setAttribute('aria-label', penBtn.title);
             penBtn.innerHTML = '<i class="fas fa-pen" aria-hidden="true"></i>';
             penBtn.addEventListener('click', () => startNicknameEdit());
-            titleRow.appendChild(penBtn);
+            titleEl.insertAdjacentElement('afterend', penBtn);
+        } else if (penBtn.previousElementSibling !== titleEl) {
+            titleEl.insertAdjacentElement('afterend', penBtn);
         }
+    }
+
+    function abortNicknameEditStart() {
+        nicknameEditing = false;
+        nicknameLockedByUser = nicknameLockedBeforeEdit;
+        syncMobileNicknameEditUi();
+        renderParticipants(participantsList);
+    }
+
+    function focusNicknameEditInput(input) {
+        if (!input) return false;
+        input.value = nickname;
+        input.focus();
+        input.select();
+        input.addEventListener('keydown', onNicknameInputKeydown);
+        return true;
     }
 
     function startNicknameEdit() {
         if (!canEditNickname()) return;
+        nicknameLockedBeforeEdit = nicknameLockedByUser;
+        nicknameLockedByUser = true;
         nicknameEditing = true;
         if (shouldShowGuestNicknameEditUi()) {
             syncMobileNicknameEditUi();
-            const input = document.getElementById('tacticsMobileNicknameInput');
-            if (!input) return;
-            input.value = nickname;
-            input.focus();
-            input.select();
-            input.addEventListener('keydown', onNicknameInputKeydown);
+            renderParticipants(participantsList);
+            if (!focusNicknameEditInput(document.getElementById('tacticsMobileNicknameInput'))) {
+                abortNicknameEditStart();
+            }
             return;
         }
+        syncMobileNicknameEditUi();
         renderParticipants(participantsList);
-        const input = document.querySelector('.tactics-participant-name-input');
-        if (!input) return;
-        input.focus();
-        input.select();
-        input.addEventListener('keydown', onNicknameInputKeydown);
+        if (!focusNicknameEditInput(document.querySelector('.tactics-participant-name-input'))) {
+            abortNicknameEditStart();
+        }
     }
 
     function cancelNicknameEdit() {
         nicknameEditing = false;
+        nicknameLockedByUser = nicknameLockedBeforeEdit;
         syncMobileNicknameEditUi();
         renderParticipants(participantsList);
     }
@@ -680,6 +756,7 @@
             || 'Guest';
         if (next === nickname) {
             nicknameEditing = false;
+            nicknameLockedByUser = nicknameLockedBeforeEdit;
             syncMobileNicknameEditUi();
             renderParticipants(participantsList);
             return;
@@ -687,9 +764,19 @@
 
         const prev = nickname;
         nicknameEditing = false;
+        nicknameLockedByUser = true;
+        nicknameLockedBeforeEdit = true;
+        nickname = next;
+        updateLocalParticipantNickname(nickname);
+        syncMobileNicknameEditUi();
+        renderParticipants(participantsList);
 
         const payload = await refreshSession('', { nickname: next, nicknameChange: true });
         if (!payload) {
+            nickname = prev;
+            nicknameLockedByUser = nicknameLockedBeforeEdit;
+            updateLocalParticipantNickname(nickname);
+            saveRoomSessionSnapshot();
             syncMobileNicknameEditUi();
             renderParticipants(participantsList);
             return;
@@ -700,8 +787,6 @@
         wsUrl = payload.ws_url;
         if (payload.nickname) {
             nickname = payload.nickname;
-        } else {
-            nickname = next;
         }
 
         if (wsClient) {
@@ -713,14 +798,7 @@
             }
         }
 
-        nicknameLockedByUser = true;
-        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: accessToken,
-            ws_token: wsToken,
-            nickname,
-            client_id: clientId,
-            is_owner: canManage,
-        });
+        saveRoomSessionSnapshot();
         updateLocalParticipantNickname(nickname);
         syncMobileNicknameEditUi();
         renderParticipants(participantsList);
@@ -921,7 +999,7 @@
         if (mapsPanel) {
             mapsPanel.classList.toggle('is-disabled', !canEditSlides);
         }
-        chatCtrl?.setInputEnabled(!isPresentationMode() && !mobileView);
+        chatCtrl?.setInputEnabled(!mobileView);
         updateRoomTitle();
         syncMapModalCustomUploadUi();
         syncDotaPickUi(slidesCtrl?.getActiveSlide());
@@ -992,8 +1070,11 @@
             window.ABS_PAGE_TITLES.ru = pageTitle;
             window.ABS_PAGE_TITLES.en = pageTitle;
         }
+        const lang = i18n().getLang();
         if (typeof window.absSetDocumentTitle === 'function') {
-            window.absSetDocumentTitle(pageTitle, i18n().getLang());
+            window.absSetDocumentTitle(pageTitle, lang);
+        } else if (typeof window.absFormatSiteTitle === 'function') {
+            document.title = window.absFormatSiteTitle(pageTitle, lang);
         } else {
             document.title = pageTitle;
         }
@@ -1093,12 +1174,28 @@
             if (cancel) {
                 titleEl.textContent = originalText;
                 syncRoomDocumentTitle(originalText);
-            } else {
-                const nextTitle = String(titleEl.textContent || '').replace(/\s+/g, ' ').trim();
-                titleEl.textContent = nextTitle || i18n().t('roomTitlePlaceholder');
-                await saveRoomTitle(nextTitle);
+                return;
             }
-            updateRoomTitle();
+
+            const nextTitle = String(titleEl.textContent || '').replace(/\s+/g, ' ').trim();
+            const displayTitle = nextTitle || i18n().t('roomTitlePlaceholder');
+            const previousTitle = String(roomState?.title || '').trim();
+
+            titleEl.textContent = displayTitle;
+            if (roomState) {
+                roomState.title = displayTitle;
+            }
+            syncRoomDocumentTitle(displayTitle);
+
+            const saved = await saveRoomTitle(nextTitle);
+            if (!saved) {
+                const rollbackTitle = previousTitle || i18n().t('roomTitlePlaceholder');
+                titleEl.textContent = rollbackTitle;
+                if (roomState) {
+                    roomState.title = previousTitle;
+                }
+                syncRoomDocumentTitle(rollbackTitle);
+            }
         };
 
         const onBlur = () => {
@@ -1112,7 +1209,8 @@
         titleEl.addEventListener('keydown', (ev) => {
             if (ev.key === 'Enter') {
                 ev.preventDefault();
-                titleEl.blur();
+                titleEl.removeEventListener('blur', onBlur);
+                void finish(false);
             }
             if (ev.key === 'Escape') {
                 ev.preventDefault();
@@ -1637,15 +1735,14 @@
         const el = document.getElementById('tacticsParticipants');
         if (!el) return;
 
+        participantsList = mergeParticipantsWithLocalSelf(list);
         const selfId = String(clientId || '');
-        let items = normalizeParticipants(list);
-        if (selfId && !items.some((p) => p.clientId === selfId)) {
-            items.push({ clientId: selfId, nickname: String(nickname || '') });
-        }
-        participantsList = items;
         const countEl = document.getElementById('tacticsUsersCount');
         if (countEl) {
             countEl.textContent = '(' + participantsList.length + ')';
+        }
+        if (nicknameEditing && getNicknameEditInput()) {
+            return;
         }
         const settings = getDrawSettings();
         const editors = new Set(Array.isArray(settings.editors) ? settings.editors : []);
@@ -1663,11 +1760,13 @@
             const nickColor = colors[colorIdx] || '#b388ff';
             const name = '<span style="color:' + nickColor + '">' + escapeHtml(displayName) + '</span>';
             const self = isSelf ? ' tactics-participant-self' : '';
-            const editingClass = isSelf && nicknameEditing ? ' tactics-participant--editing-nick' : '';
+            const editingClass = isSelf && nicknameEditing && !usesTopbarNicknameEditUi()
+                ? ' tactics-participant--editing-nick'
+                : '';
             let actionBtn = '';
 
             if (isSelf) {
-                if (canEditNickname() && nicknameEditing) {
+                if (canEditNickname() && nicknameEditing && !usesTopbarNicknameEditUi()) {
                     const editTitle = i18n().t('saveNickname');
                     actionBtn = '<button type="button" class="tactics-participant-nick-btn is-save"'
                         + ' title="' + escapeHtml(editTitle) + '" aria-label="' + escapeHtml(editTitle) + '">'
@@ -1679,7 +1778,7 @@
                         + '</li>';
                 }
 
-                if (canEditNickname()) {
+                if (canEditNickname() && !nicknameEditing) {
                     const editTitle = i18n().t('editNickname');
                     actionBtn = '<button type="button" class="tactics-participant-nick-btn"'
                         + ' title="' + escapeHtml(editTitle) + '" aria-label="' + escapeHtml(editTitle) + '">'
@@ -1753,13 +1852,7 @@
         const payload = await refreshSession('');
         if (!payload) return false;
         applySessionTokens(payload);
-        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: accessToken,
-            ws_token: wsToken,
-            nickname,
-            client_id: clientId,
-            is_owner: canManage,
-        });
+        saveRoomSessionSnapshot();
         applyDrawPermissions();
         if (wsClient && wsToken) {
             wsClient.reconnectWithToken(wsToken);
@@ -2568,7 +2661,7 @@
 
     async function deleteRoom() {
         if (!canManage || !roomState || !accessToken) return;
-        if (!window.confirm(i18n().t('deleteRoomConfirm'))) return;
+        if (!(await tacticsConfirm(i18n().t('deleteRoomConfirm')))) return;
 
         stopPolling();
         dirty = false;
@@ -2591,7 +2684,7 @@
             return;
         }
 
-        window.alert(i18n().t('deleteRoomError'));
+        await tacticsAlert(i18n().t('deleteRoomError'));
         startPollingFallback();
     }
 
@@ -2752,13 +2845,7 @@
             if (res.status === 403 && (explicitPassword || window.ABS_TACTICS_NEEDS_PASSWORD)) {
                 accessToken = null;
                 wsToken = null;
-                store().saveRoomSession(window.ABS_TACTICS_PUBLIC_ID, {
-                    access_token: '',
-                    ws_token: '',
-                    nickname,
-                    client_id: clientId,
-                    is_owner: false,
-                });
+                saveRoomSessionSnapshot();
             }
             if (res.status === 404) {
                 const fallback = buildBootstrapPayload(stored);
@@ -2784,13 +2871,7 @@
         }
         canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
 
-        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: accessToken,
-            ws_token: wsToken,
-            nickname,
-            client_id: clientId,
-            is_owner: canManage,
-        });
+        saveRoomSessionSnapshot();
 
         return payload;
     }
@@ -2801,13 +2882,7 @@
         revealWorkspace();
         updateSettingsPanel();
         syncVisibilityUi(roomState.visibility);
-        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: accessToken,
-            ws_token: wsToken,
-            nickname,
-            client_id: clientId,
-            is_owner: canManage,
-        });
+        saveRoomSessionSnapshot();
         if (!workspaceInitPromise) {
             workspaceInitPromise = initWorkspace();
         }
@@ -2857,13 +2932,7 @@
         }
         updateSettingsPanel();
         syncVisibilityUi(roomState?.visibility);
-        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: accessToken,
-            ws_token: wsToken,
-            nickname,
-            client_id: clientId,
-            is_owner: canManage,
-        });
+        saveRoomSessionSnapshot();
         applyDrawPermissions();
         syncViewerToPresentationSlide();
         if (!wsToken) return;
@@ -3044,7 +3113,7 @@
                 updateMobileSlideNav();
             },
             onChange: () => markDirty(),
-            onRenamed: () => {},
+            onRenamed: () => updateMobileSlideNav(),
             onMapModalOpen: (slideId) => {
                 customMapModalSlideId = slideId || null;
                 syncMapModalCustomUploadUi();
@@ -3264,13 +3333,7 @@
 
         accessToken = null;
         wsToken = null;
-        store().saveRoomSession(window.ABS_TACTICS_PUBLIC_ID, {
-            access_token: '',
-            ws_token: '',
-            nickname,
-            client_id: clientId,
-            is_owner: false,
-        });
+        saveRoomSessionSnapshot();
 
         try {
             const payload = await refreshSession(password);
@@ -3299,6 +3362,9 @@
             } else {
                 nickname = stored.nickname;
             }
+        }
+        if (stored?.nickname_locked || (stored?.nickname && !isGuestNickname(stored.nickname))) {
+            nicknameLockedByUser = true;
         }
 
         document.getElementById('tacticsRoomJoinForm')?.addEventListener('submit', handlePasswordJoin);
@@ -3337,13 +3403,8 @@
                     const sessionPayload = await pendingSessionPromise;
                     if (sessionPayload) {
                         applySessionTokens(sessionPayload);
-                        store().saveRoomSession(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID, {
-                            access_token: accessToken,
-                            ws_token: wsToken,
-                            nickname,
-                            client_id: clientId,
-                            is_owner: canManage,
-                        });
+                        saveRoomSessionSnapshot();
+                        applyDrawPermissions();
                     }
                 } catch (err) {
                     console.warn('[tactics] session refresh after bootstrap failed', err);
