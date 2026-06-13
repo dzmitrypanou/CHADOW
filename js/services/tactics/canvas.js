@@ -1985,14 +1985,15 @@
 
         getSquareSize() {
             const compact = this.isCompactMapLayout();
-            const mapColumn = this.canvasEl?.closest('.tactics-map-column');
             const canvasPanel = this.canvasEl?.closest('.tactics-canvas-panel');
-            const measureEl = compact ? canvasPanel : (mapColumn || canvasPanel);
+            const measureEl = canvasPanel || this.canvasEl?.closest('.tactics-map-column');
             if (!measureEl) return 640;
 
-            const columnRect = measureEl.getBoundingClientRect();
-            const measureWidth = columnRect?.width || 0;
-            const measureHeight = columnRect?.height || 0;
+            // Measure the full canvas panel, not the map column: the column shrink-wraps
+            // to the current map size while the panel is flex-centered, which caps growth
+            // on wide viewports and leaves the panel background visible around the map.
+            const measureWidth = measureEl.clientWidth;
+            const measureHeight = measureEl.clientHeight;
             if (measureWidth <= 0 || measureHeight <= 0) return null;
 
             const labelsW = compact ? 0 : TacticsCanvas.LABEL_LEFT + TacticsCanvas.LABEL_GAP;
@@ -2171,14 +2172,40 @@
             this.layoutCanvasSize = ref;
         }
 
+        getCanvasCssSize(displaySize) {
+            const size = Number(displaySize);
+            if (!Number.isFinite(size) || size <= 0) return TacticsCanvas.COORD_SPACE;
+            return Math.max(size, TacticsCanvas.COORD_SPACE);
+        }
+
         applyDisplayZoom(displaySize) {
             if (!this.fabric || !displaySize) return;
             const ref = TacticsCanvas.COORD_SPACE;
-            const zoom = displaySize / ref;
+            const cssSize = this.getCanvasCssSize(displaySize);
+            // Below coord space: shrink via viewport zoom, clip in the wrap.
+            // Above coord space: CSS size carries the scale; viewport zoom stays 1
+            // (otherwise zoom and CSS stretch stack and the map is cropped).
+            const zoom = displaySize < ref ? displaySize / ref : 1;
             this.fabric.setZoom(zoom);
             if (typeof this.fabric.setDimensions === 'function') {
-                this.fabric.setDimensions({ width: displaySize, height: displaySize }, { cssOnly: true });
+                this.fabric.setDimensions({ width: cssSize, height: cssSize }, { cssOnly: true });
             }
+            this.syncCanvasDisplaySize(displaySize);
+        }
+
+        syncCanvasDisplaySize(displaySize) {
+            if (!this.fabric || !displaySize) return;
+            const px = `${this.getCanvasCssSize(displaySize)}px`;
+            [
+                this.fabric.lowerCanvasEl,
+                this.fabric.upperCanvasEl,
+                this.fabric.wrapperEl,
+                this.canvasEl,
+            ].forEach((el) => {
+                if (!el) return;
+                el.style.width = px;
+                el.style.height = px;
+            });
         }
 
         scheduleResize() {
@@ -2216,9 +2243,10 @@
             const container = this.fabric?.wrapperEl || this.canvasEl?.parentElement;
             if (!container) return;
 
-            container.style.width = size + 'px';
-            container.style.height = size + 'px';
-            this.pinMapBoxElement(container, size);
+            const canvasCssSize = this.getCanvasCssSize(size);
+            container.style.width = `${canvasCssSize}px`;
+            container.style.height = `${canvasCssSize}px`;
+            this.pinMapBoxElement(container, canvasCssSize);
 
             if (wrap) {
                 this.pinMapBoxElement(wrap, size);
@@ -2252,6 +2280,7 @@
             this.ensureLogicalCoordSpace();
             this.applyDisplayZoom(size);
             this.syncFabricContainer(size);
+            this.syncCanvasDisplaySize(size);
             if (typeof this.fabric.calcOffset === 'function') {
                 this.fabric.calcOffset();
             }
@@ -6365,6 +6394,7 @@
             this.ensureLogicalCoordSpace();
             this.applyDisplayZoom(size);
             this.syncFabricContainer(size);
+            this.syncCanvasDisplaySize(size);
             return size;
         }
 
