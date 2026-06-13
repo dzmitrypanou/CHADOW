@@ -449,6 +449,9 @@
             } else {
                 window.addEventListener('resize', () => this.resize());
             }
+            const onViewportGeometryChange = () => this.scheduleResize();
+            window.visualViewport?.addEventListener('resize', onViewportGeometryChange, { passive: true });
+            window.visualViewport?.addEventListener('scroll', onViewportGeometryChange, { passive: true });
             this.bindMapWheelZoom();
 
             this.fabric.on('object:added', (e) => {
@@ -834,24 +837,45 @@
             return this.normalizedMapPointToOverlay(x / canvasSize, y / canvasSize);
         }
 
+        getMapContentLayoutSize() {
+            const layout = Number(this.mapCssLayoutSize);
+            if (Number.isFinite(layout) && layout > 0) {
+                return { width: layout, height: layout };
+            }
+
+            const wrap = this.getWrapEl();
+            if (wrap) {
+                const width = wrap.offsetWidth;
+                const height = wrap.offsetHeight;
+                if (width > 0 && height > 0) {
+                    return { width, height };
+                }
+            }
+
+            const container = this.fabric?.wrapperEl;
+            if (container) {
+                const width = container.offsetWidth;
+                const height = container.offsetHeight;
+                if (width > 0 && height > 0) {
+                    return { width, height };
+                }
+            }
+
+            return null;
+        }
+
         getMapContentMetrics() {
             const overlays = this.getOverlaysEl();
-            const canvas = this.fabric?.upperCanvasEl || this.canvasEl;
-            if (canvas && overlays) {
-                const canvasRect = canvas.getBoundingClientRect();
-                const overlayRect = overlays.getBoundingClientRect();
-                const width = canvasRect.width;
-                const height = canvasRect.height;
-                if (width > 0 && height > 0) {
-                    return {
-                        width,
-                        height,
-                        offsetX: canvasRect.left - overlayRect.left,
-                        offsetY: canvasRect.top - overlayRect.top,
-                        overlayWidth: overlayRect.width,
-                        overlayHeight: overlayRect.height,
-                    };
-                }
+            const layout = this.getMapContentLayoutSize();
+            if (layout) {
+                return {
+                    width: layout.width,
+                    height: layout.height,
+                    offsetX: 0,
+                    offsetY: 0,
+                    overlayWidth: overlays?.offsetWidth || layout.width,
+                    overlayHeight: overlays?.offsetHeight || layout.height,
+                };
             }
 
             const wrap = this.getWrapEl();
@@ -1828,6 +1852,9 @@
                 zoomEl.style.transform = '';
                 zoomEl.style.transformOrigin = '';
                 viewport?.classList.remove('is-map-zoomed', 'is-map-panning');
+                if (typeof this.fabric?.calcOffset === 'function') {
+                    this.fabric.calcOffset();
+                }
                 this.syncAllMapOverlayLayers();
                 this.repositionRemoteCursors();
                 this.refreshRemoteStrokes();
@@ -1839,6 +1866,9 @@
             zoomEl.style.transformOrigin = '0 0';
             zoomEl.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
             viewport?.classList.add('is-map-zoomed');
+            if (typeof this.fabric?.calcOffset === 'function') {
+                this.fabric.calcOffset();
+            }
             this.syncAllMapOverlayLayers();
             this.repositionRemoteCursors();
             this.refreshRemoteStrokes();
@@ -2222,6 +2252,9 @@
             this.ensureLogicalCoordSpace();
             this.applyDisplayZoom(size);
             this.syncFabricContainer(size);
+            if (typeof this.fabric.calcOffset === 'function') {
+                this.fabric.calcOffset();
+            }
             this.syncOverlaysRootGeometry();
             this.fitBackground();
             this.syncGridOverlay();
@@ -3151,14 +3184,24 @@
 
         sendCursorFromPointerEvent(ev, visible) {
             if (!this.slideId || !ev) return;
-            const canvas = this.fabric?.upperCanvasEl || this.canvasEl;
-            if (!canvas) return;
 
-            const bounds = canvas.getBoundingClientRect();
-            if (bounds.width <= 0 || bounds.height <= 0) return;
+            let x;
+            let y;
+            if (this.fabric) {
+                const pointer = this.fabric.getPointer(ev);
+                const w = this.fabric.getWidth() || 1;
+                const h = this.fabric.getHeight() || 1;
+                x = pointer.x / w;
+                y = pointer.y / h;
+            } else {
+                const canvas = this.canvasEl;
+                if (!canvas) return;
+                const bounds = canvas.getBoundingClientRect();
+                if (bounds.width <= 0 || bounds.height <= 0) return;
+                x = (ev.clientX - bounds.left) / bounds.width;
+                y = (ev.clientY - bounds.top) / bounds.height;
+            }
 
-            const x = (ev.clientX - bounds.left) / bounds.width;
-            const y = (ev.clientY - bounds.top) / bounds.height;
             if (x < 0 || x > 1 || y < 0 || y > 1) {
                 if (!visible) this.queueCursorSend(0, 0, false);
                 return;
