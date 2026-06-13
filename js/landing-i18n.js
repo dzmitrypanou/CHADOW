@@ -36,7 +36,7 @@
                     desc: 'Пошаговая установка и настройка модов для World of Tanks и Мира танков.',
                 },
                 'aim-trainers': {
-                    title: 'Aim тренажёры',
+                    title: 'Аим-тренажеры',
                     desc: 'Мини-игры для тренировки прицеливания и реакции.',
                 },
             },
@@ -46,6 +46,7 @@
                 online: '/services/online/',
                 tactics: '/services/tactics',
                 bracket: '/services/bracket',
+                'aim-trainers': '/services/aim',
             },
         },
         en: {
@@ -92,6 +93,7 @@
                 online: '/en/services/online/',
                 tactics: '/en/services/tactics',
                 bracket: '/en/services/bracket',
+                'aim-trainers': '/en/services/aim',
             },
         },
     };

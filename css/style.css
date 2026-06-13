@@ -15079,3 +15079,730 @@ body.tactics-confirm-open {
     border-color: rgba(141, 195, 255, 0.32);
     color: var(--tactics-text-bright);
 }
+
+/* Aim trainers */
+.page-aim,
+.page-aim-play {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 181, 246, 0.55) rgba(10, 18, 36, 0.55);
+}
+
+.aim-service,
+.aim-play {
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap);
+}
+
+.aim-panel {
+    background: linear-gradient(180deg, rgba(22, 33, 61, 0.82) 0%, rgba(16, 24, 46, 0.78) 100%);
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    box-shadow: 0 16px 36px rgba(4, 10, 22, 0.34), inset 0 1px 0 rgba(188, 220, 255, 0.08);
+    padding: 28px;
+}
+
+.aim-service-header.aim-panel {
+    padding: 16px 20px;
+}
+
+.aim-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.aim-header-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+.aim-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.aim-section-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.25;
+}
+
+.aim-header-intro .aim-section-hint {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.4;
+}
+
+.aim-section-hint,
+.aim-nickname-hint,
+.aim-play-desc,
+.aim-results-note,
+.aim-leaderboard-empty,
+.aim-leaderboard-loading,
+.aim-leaderboard-error {
+    margin: 8px 0 0;
+    color: rgba(175, 200, 228, 0.78);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.aim-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.aim-ratings-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: 38px;
+    padding: 0 14px;
+}
+
+.aim-ratings-header.aim-panel {
+    padding: 16px 20px;
+}
+
+.aim-ratings-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.aim-ratings-toolbar .aim-section-title {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.aim-nick-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 1 auto;
+    min-width: 0;
+    cursor: text;
+}
+
+.aim-nick-inline__label {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(175, 200, 228, 0.72);
+}
+
+.aim-nick-inline__field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 12px;
+    height: 38px;
+    border: 1px solid rgba(113, 163, 230, 0.32);
+    background: rgba(10, 18, 36, 0.55);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.aim-nick-inline__field:focus-within {
+    border-color: rgba(100, 181, 246, 0.55);
+    background: rgba(10, 18, 36, 0.72);
+}
+
+.aim-nick-inline__icon {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    color: rgba(142, 203, 255, 0.75);
+}
+
+.aim-nick-inline__input {
+    width: 168px;
+    max-width: 36vw;
+    border: none;
+    background: transparent;
+    color: #e8f2ff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0;
+    outline: none;
+}
+
+.aim-nick-inline__input::placeholder {
+    color: rgba(175, 200, 228, 0.45);
+}
+
+.aim-nickname-bar {
+    margin-top: 20px;
+    display: grid;
+    gap: 8px;
+    max-width: 420px;
+}
+
+.aim-field {
+    display: grid;
+    gap: 6px;
+}
+
+.aim-field-label {
+    font-size: 0.88rem;
+    color: rgba(175, 200, 228, 0.85);
+}
+
+.aim-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border: 1px solid rgba(113, 163, 230, 0.35);
+    background: rgba(10, 18, 36, 0.65);
+    color: #e8f2ff;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.aim-input:focus {
+    outline: none;
+    border-color: rgba(100, 181, 246, 0.55);
+    background: rgba(10, 18, 36, 0.72);
+}
+
+.aim-trainer-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--layout-gap);
+    align-items: stretch;
+}
+
+.aim-trainer-card {
+    grid-column: span 6;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid rgba(113, 163, 230, 0.24);
+    background: rgba(10, 18, 36, 0.42);
+}
+
+.aim-trainer-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.aim-trainer-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.aim-trainer-card__title i {
+    color: #8ecbff;
+}
+
+.aim-trainer-card__duration {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    background: rgba(30, 51, 89, 0.55);
+    color: rgba(175, 200, 228, 0.9);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.aim-trainer-card__desc {
+    margin: 0;
+    color: rgba(175, 200, 228, 0.78);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    flex: 1;
+}
+
+.aim-trainer-card__top {
+    border-top: 1px solid rgba(113, 163, 230, 0.18);
+    padding-top: 12px;
+}
+
+.aim-trainer-card__top-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.aim-trainer-card__top-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(175, 200, 228, 0.85);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.aim-link-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    color: #8ecbff;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.aim-link-btn:hover {
+    color: #b8deff;
+}
+
+.aim-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    border: 1px solid rgba(100, 181, 246, 0.45);
+    background: rgba(30, 51, 89, 0.88);
+    color: #8ecbff;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.92rem;
+    transition: all 0.2s ease;
+}
+
+.aim-btn:hover:not(:disabled) {
+    border-color: #64b5f6;
+    color: #b8deff;
+}
+
+.aim-btn--primary {
+    background: linear-gradient(180deg, #4a90e2 0%, #357abd 100%);
+    border-color: rgba(100, 181, 246, 0.65);
+    color: #fff;
+}
+
+.aim-btn--ghost {
+    background: rgba(10, 18, 36, 0.55);
+}
+
+.aim-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.aim-trainer-card__play {
+    align-self: flex-start;
+}
+
+.aim-leaderboard-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.aim-panel-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.aim-leaderboard-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.aim-lb-tab {
+    padding: 8px 14px;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    background: rgba(10, 18, 36, 0.45);
+    color: rgba(175, 200, 228, 0.9);
+    font-family: inherit;
+    font-size: 0.86rem;
+    cursor: pointer;
+}
+
+.aim-lb-tab.is-active,
+.aim-lb-tab:hover {
+    border-color: rgba(100, 181, 246, 0.55);
+    color: #b8deff;
+}
+
+.aim-leaderboard-table-wrap {
+    overflow-x: auto;
+}
+
+.aim-leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.aim-leaderboard-table th,
+.aim-leaderboard-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(113, 163, 230, 0.16);
+}
+
+.aim-leaderboard-table th {
+    color: rgba(175, 200, 228, 0.75);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.aim-lb-rank {
+    width: 56px;
+    color: rgba(175, 200, 228, 0.7);
+}
+
+.aim-lb-player {
+    font-weight: 600;
+    color: #e8f2ff;
+}
+
+.aim-lb-score {
+    font-variant-numeric: tabular-nums;
+    color: #8ecbff;
+}
+
+.aim-grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    padding: 2px 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-radius: 4px;
+}
+
+.aim-grade--sss { background: rgba(255, 87, 34, 0.28); color: #ffab91; }
+.aim-grade--ss { background: rgba(255, 152, 0, 0.28); color: #ffcc80; }
+.aim-grade--s { background: rgba(255, 193, 7, 0.25); color: #ffd54f; }
+.aim-grade--a { background: rgba(76, 175, 80, 0.22); color: #81c784; }
+.aim-grade--b { background: rgba(66, 165, 245, 0.22); color: #64b5f6; }
+.aim-grade--c { background: rgba(171, 71, 188, 0.2); color: #ce93d8; }
+.aim-grade--d { background: rgba(158, 158, 158, 0.2); color: #bdbdbd; }
+
+#aimResultsGrade.aim-grade {
+    display: inline-flex;
+    margin-top: 10px;
+    padding: 6px 14px;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    min-width: 0;
+}
+
+.page-aim-play .aim-play {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - var(--site-header-height) - 48px);
+    height: calc(100vh - var(--site-header-height) - 48px);
+    max-height: calc(100vh - var(--site-header-height) - 48px);
+    box-sizing: border-box;
+}
+
+.aim-play-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+}
+
+.aim-play-title-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.aim-play-title-wrap .aim-play-desc {
+    margin: 0;
+}
+
+.aim-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba(100, 181, 246, 0.35);
+    background: rgba(10, 18, 36, 0.55);
+    color: #8ecbff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.aim-back-link:hover {
+    border-color: #64b5f6;
+    color: #b8deff;
+}
+
+.aim-play-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.aim-play-stage {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 240px;
+    min-width: 0;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    background: rgba(8, 14, 28, 0.92);
+    overflow: hidden;
+}
+
+.aim-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.aim-hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.aim-hud-stat {
+    padding: 8px 12px;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    background: rgba(10, 18, 36, 0.78);
+    min-width: 88px;
+}
+
+.aim-hud-label {
+    display: block;
+    font-size: 0.72rem;
+    color: rgba(175, 200, 228, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.aim-hud-value {
+    display: block;
+    margin-top: 2px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e8f2ff;
+    font-variant-numeric: tabular-nums;
+}
+
+.aim-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.aim-overlay.aim-overlay--idle,
+.aim-overlay.aim-overlay--results {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.aim-overlay.aim-overlay--results {
+    cursor: default;
+}
+
+.aim-overlay.aim-overlay--idle .aim-overlay-card,
+.aim-overlay.aim-overlay--results .aim-overlay-card {
+    cursor: default;
+}
+
+.aim-overlay-card {
+    pointer-events: auto;
+    padding: 28px 32px;
+    border: 1px solid rgba(113, 163, 230, 0.35);
+    background: rgba(10, 18, 36, 0.92);
+    text-align: center;
+    max-width: 90%;
+}
+
+.aim-overlay-card[hidden] {
+    display: none !important;
+}
+
+.aim-overlay-card--start {
+    padding: 20px 28px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.aim-overlay-hint {
+    margin: 0;
+    color: rgba(175, 200, 228, 0.9);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: center;
+    user-select: none;
+}
+
+.aim-overlay-card--countdown {
+    padding: 40px 56px;
+}
+
+.aim-countdown-num {
+    font-size: 4rem;
+    font-weight: 700;
+    color: #8ecbff;
+    line-height: 1;
+}
+
+.aim-results-label {
+    margin: 0 0 8px;
+    color: rgba(175, 200, 228, 0.8);
+    font-size: 0.9rem;
+}
+
+.aim-results-score {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+}
+
+.aim-results-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 16px 0 0;
+    text-align: left;
+}
+
+.aim-results-nickname {
+    margin-top: 16px;
+    text-align: left;
+}
+
+.aim-results-metric dt {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgba(175, 200, 228, 0.7);
+    text-transform: uppercase;
+}
+
+.aim-results-metric dd {
+    margin: 4px 0 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e8f2ff;
+}
+
+.aim-results-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .aim-panel {
+        padding: 18px;
+    }
+
+    .aim-service-header.aim-panel {
+        padding: 14px 16px;
+    }
+
+    .aim-header-bar {
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .aim-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .aim-nick-inline {
+        flex: 1 1 180px;
+        width: 100%;
+    }
+
+    .aim-ratings-btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .aim-nick-inline__field {
+        flex: 1;
+    }
+
+    .aim-nick-inline__input {
+        width: 100%;
+        max-width: none;
+    }
+
+    .aim-play-stage {
+        min-height: 200px;
+    }
+
+    .page-aim-play .aim-play {
+        min-height: calc(100dvh - var(--site-header-height) - 32px);
+        height: calc(100dvh - var(--site-header-height) - 32px);
+        max-height: calc(100dvh - var(--site-header-height) - 32px);
+    }
+
+    .aim-trainer-card {
+        grid-column: span 12;
+    }
+
+    .aim-results-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .aim-results-actions .aim-btn {
+        width: 100%;
+    }
+}

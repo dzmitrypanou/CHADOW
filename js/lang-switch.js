@@ -295,6 +295,35 @@
         return true;
     }
 
+    async function switchAimLanguage(lang) {
+        if (lang !== 'ru' && lang !== 'en') return false;
+        if (window.ABS_AIM_LANG === lang && window.ABS_LANG === lang) return true;
+
+        if (!window.AbsAimI18n || typeof window.AbsAimI18n.switchLanguage !== 'function') {
+            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
+            return true;
+        }
+
+        window.AbsAimI18n.switchLanguage(lang);
+
+        if (window.AbsAimLobby && typeof window.AbsAimLobby.relocalizeView === 'function') {
+            window.AbsAimLobby.relocalizeView();
+        }
+        if (window.AbsAimPlay && typeof window.AbsAimPlay.relocalizeView === 'function') {
+            window.AbsAimPlay.relocalizeView();
+        }
+        if (window.AbsAimRatings && typeof window.AbsAimRatings.relocalizeView === 'function') {
+            window.AbsAimRatings.relocalizeView();
+        }
+
+        const newPath = buildLangPath(window.location.pathname, lang);
+        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
+
+        updateLangLinks(lang);
+        updateHeaderFooterTexts(lang);
+        return true;
+    }
+
     async function switchLanguageInPlace(lang) {
         if (document.body.classList.contains('page-auth-profile')) {
             await switchProfileLanguage(lang);
@@ -318,6 +347,11 @@
 
         if (document.body.classList.contains('page-tactics')) {
             await switchTacticsLanguage(lang);
+            return;
+        }
+
+        if (document.body.classList.contains('page-aim')) {
+            await switchAimLanguage(lang);
             return;
         }
 

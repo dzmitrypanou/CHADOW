@@ -86,6 +86,20 @@ ErrorDocument 404 /404.php
     RewriteRule ^en/services/tactics/?$ services/tactics/index.php [L,QSA]
     RewriteRule ^services/tactics/?$ services/tactics/index.php [L,QSA]
 
+    # Аим-тренажеры
+    RewriteCond %{THE_REQUEST} \s/+services/aim/index\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/aim/index\.php$ /services/aim [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/+services/aim/play\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/aim/play\.php$ /services/aim [R=301,L,QSA]
+    RewriteCond %{THE_REQUEST} \s/+services/aim/ratings\.php(?:[?\s]|$) [NC]
+    RewriteRule ^services/aim/ratings\.php$ /services/aim/ratings [R=301,L,QSA]
+    RewriteRule ^en/services/aim/ratings/?$ services/aim/ratings.php [L,QSA]
+    RewriteRule ^services/aim/ratings/?$ services/aim/ratings.php [L,QSA]
+    RewriteRule ^en/services/aim/(flick|tracking|reaction|lead|gridshot)/?$ services/aim/play.php?trainer=$1 [L,QSA]
+    RewriteRule ^services/aim/(flick|tracking|reaction|lead|gridshot)/?$ services/aim/play.php?trainer=$1 [L,QSA]
+    RewriteRule ^en/services/aim/?$ services/aim/index.php [L,QSA]
+    RewriteRule ^services/aim/?$ services/aim/index.php [L,QSA]
+
     # Английский роутинг (/en и /en/<slug>)
     # Язык определяется по префиксу /en в includes/lang.php,
     # поэтому не добавляем lang=en в query (иначе копятся дубли при refresh).

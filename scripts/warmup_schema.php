@@ -23,6 +23,7 @@ require_once __DIR__ . '/../config/ensure_map_dictionary.php';
 require_once __DIR__ . '/../config/ensure_recruiting.php';
 require_once __DIR__ . '/../config/ensure_brackets.php';
 require_once __DIR__ . '/../config/ensure_tactics.php';
+require_once __DIR__ . '/../config/ensure_aim.php';
 require_once __DIR__ . '/../config/vehicle_code.php';
 
 $db = Database::getInstance();
@@ -43,5 +44,6 @@ ensure_recruiting_posts_table($db);
 ensure_brackets_table($db);
 ensure_tactics_table($db);
 ensure_tactics_map_assignments_table($db);
+ensure_aim_scores_table($db);
 
 fwrite(STDOUT, "Schema warmup completed\n");
