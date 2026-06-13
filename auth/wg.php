@@ -2,9 +2,42 @@
 require_once __DIR__ . '/../includes/user_bootstrap.php';
 require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../includes/wg_openid_client.php';
+require_once __DIR__ . '/../includes/minecraft_oauth_helpers.php';
 
 $lang = abs_detect_lang();
 $isEn = $lang === 'en';
+
+$mcLauncherSession = isset($_GET['mc_launcher_session']) ? trim((string) $_GET['mc_launcher_session']) : '';
+if ($mcLauncherSession !== '') {
+    if (!minecraft_oauth_is_valid_session_id($mcLauncherSession)) {
+        minecraft_oauth_render_result_page(false, $isEn ? 'Invalid launcher session.' : 'Некорректная сессия лаунчера.');
+        exit();
+    }
+
+    $mcSession = minecraft_oauth_read_session($mcLauncherSession);
+    if ($mcSession === null || ($mcSession['status'] ?? '') !== 'pending') {
+        minecraft_oauth_render_result_page(false, $isEn ? 'Launcher session expired. Try again from the app.' : 'Сессия лаунчера истекла. Начните вход заново.');
+        exit();
+    }
+
+    $realm = minecraft_oauth_realm_for_provider((string) ($mcSession['provider'] ?? 'wg'));
+    $_SESSION['wg_oauth_mode'] = 'launcher';
+    $_SESSION['mc_launcher_session'] = $mcLauncherSession;
+    $_SESSION['wg_oauth_realm'] = $realm;
+    $_SESSION['wg_oauth_state'] = bin2hex(random_bytes(16));
+    unset($_SESSION['wg_oauth_user_id'], $_SESSION['wg_oauth_return']);
+
+    $client = new WgOpenIdClient($userDb);
+    $result = $client->fetchLoginLocation($realm);
+    if (!$result['ok']) {
+        minecraft_oauth_mark_session_error($mcLauncherSession, (string) ($result['error'] ?? 'WG API error'));
+        minecraft_oauth_render_result_page(false, (string) ($result['error'] ?? ($isEn ? 'Failed to start sign-in.' : 'Не удалось начать вход.')));
+        exit();
+    }
+
+    header('Location: ' . $result['location']);
+    exit();
+}
 
 $loginUrl = user_auth_path('/auth/login');
 $profileUrl = user_auth_path('/auth/profile');

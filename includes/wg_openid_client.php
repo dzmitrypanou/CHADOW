@@ -148,6 +148,87 @@ class WgOpenIdClient
     }
 
     /**
+     * @return array{ok:bool, nickname?:string, error?:string}
+     */
+    public function fetchAccountNickname(int $accountId, string $realm): array
+    {
+        $realm = self::normalizeRealm($realm);
+        $accountId = (int) $accountId;
+        $appId = $this->applicationIdForRealm($realm);
+        if ($appId === '' || $accountId <= 0) {
+            return ['ok' => false, 'error' => 'invalid request'];
+        }
+
+        $apiBase = self::apiBaseForRealm($realm);
+        $url = $apiBase . '/wot/account/info/?' . http_build_query([
+            'application_id' => $appId,
+            'account_id' => $accountId,
+            'fields' => 'nickname',
+        ]);
+
+        $response = $this->httpGet($url);
+        if (!$response['ok']) {
+            return ['ok' => false, 'error' => $response['error'] ?? 'Ошибка запроса к WG API'];
+        }
+
+        $data = $response['data'];
+        if (!is_array($data) || ($data['status'] ?? '') !== 'ok') {
+            return ['ok' => false, 'error' => 'nickname не получен'];
+        }
+
+        $account = $data['data'][(string) $accountId] ?? $data['data'][$accountId] ?? null;
+        if (!is_array($account)) {
+            return ['ok' => false, 'error' => 'account not found'];
+        }
+
+        $nickname = trim((string) ($account['nickname'] ?? ''));
+        if ($nickname === '') {
+            return ['ok' => false, 'error' => 'nickname пустой'];
+        }
+
+        return ['ok' => true, 'nickname' => $nickname];
+    }
+
+    /**
+     * @return array{ok:bool, data?:array, error?:string}
+     */
+    private function httpGet(string $url): array
+    {
+        if (!function_exists('curl_init')) {
+            return ['ok' => false, 'error' => 'cURL недоступен'];
+        }
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_HTTPHEADER => [
+                'Accept: application/json',
+            ],
+        ]);
+
+        $raw = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($errno !== 0 || !is_string($raw)) {
+            return ['ok' => false, 'error' => 'Сетевая ошибка при обращении к WG API'];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return ['ok' => false, 'error' => 'WG API вернул HTTP ' . $httpCode];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return ['ok' => false, 'error' => 'Некорректный JSON от WG API'];
+        }
+
+        return ['ok' => true, 'data' => $decoded];
+    }
+
+    /**
      * @return array{ok:bool, data?:array, error?:string}
      */
     private function httpPost(string $url, string $body): array

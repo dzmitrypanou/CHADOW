@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/user_bootstrap.php';
 require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../includes/wg_openid_client.php';
+require_once __DIR__ . '/../includes/minecraft_oauth_helpers.php';
 
 $lang = abs_detect_lang();
 $isEn = $lang === 'en';
@@ -13,16 +14,29 @@ $returnUrl = user_validate_return_url($returnUrl, $profileUrl);
 $realm = isset($_SESSION['wg_oauth_realm']) ? user_normalize_wg_realm((string) $_SESSION['wg_oauth_realm']) : 'eu';
 $mode = isset($_SESSION['wg_oauth_mode']) ? (string) $_SESSION['wg_oauth_mode'] : '';
 $linkUserId = isset($_SESSION['wg_oauth_user_id']) ? (int) $_SESSION['wg_oauth_user_id'] : 0;
+$mcLauncherSession = isset($_SESSION['mc_launcher_session']) ? trim((string) $_SESSION['mc_launcher_session']) : '';
+
+$finishLauncher = static function (bool $success, string $message) use ($mcLauncherSession): void {
+    if ($mcLauncherSession !== '' && minecraft_oauth_is_valid_session_id($mcLauncherSession) && !$success) {
+        minecraft_oauth_mark_session_error($mcLauncherSession, $message);
+    }
+    minecraft_oauth_render_result_page($success, $message);
+    exit();
+};
 
 unset(
     $_SESSION['wg_oauth_return'],
     $_SESSION['wg_oauth_realm'],
     $_SESSION['wg_oauth_state'],
     $_SESSION['wg_oauth_mode'],
-    $_SESSION['wg_oauth_user_id']
+    $_SESSION['wg_oauth_user_id'],
+    $_SESSION['mc_launcher_session']
 );
 
-$errorRedirect = static function (string $message) use ($mode, $loginUrl, $profileUrl): void {
+$errorRedirect = static function (string $message) use ($mode, $loginUrl, $profileUrl, $finishLauncher): void {
+    if ($mode === 'launcher') {
+        $finishLauncher(false, $message);
+    }
     if ($mode === 'login') {
         header('Location: ' . $loginUrl . '?' . http_build_query(['wg_error' => $message]));
     } else {
@@ -37,7 +51,11 @@ $nickname = isset($_GET['nickname']) ? (string) $_GET['nickname'] : '';
 $accountId = isset($_GET['account_id']) ? (int) $_GET['account_id'] : 0;
 $expiresAt = isset($_GET['expires_at']) ? (int) $_GET['expires_at'] : 0;
 
-if ($mode !== 'login' && ($mode !== 'link' || $linkUserId <= 0)) {
+if ($mode !== 'login' && $mode !== 'link' && $mode !== 'launcher') {
+    $errorRedirect($isEn ? 'Session expired. Try again.' : 'Сессия истекла. Попробуйте снова.');
+}
+
+if ($mode === 'link' && $linkUserId <= 0) {
     $errorRedirect($isEn ? 'Session expired. Try again.' : 'Сессия истекла. Попробуйте снова.');
 }
 
@@ -65,6 +83,25 @@ if (!$verified['ok']) {
 $verifiedAccountId = (int) ($verified['account_id'] ?? 0);
 if ($verifiedAccountId > 0) {
     $accountId = $verifiedAccountId;
+}
+
+if ($mode === 'launcher') {
+    if ($mcLauncherSession === '' || !minecraft_oauth_is_valid_session_id($mcLauncherSession)) {
+        $finishLauncher(false, $isEn ? 'Launcher session not found.' : 'Сессия лаунчера не найдена.');
+    }
+
+    $nickname = minecraft_resolve_wg_nickname($userDb, $accountId, $realm, $nickname);
+    $result = minecraft_oauth_finalize_session($mcLauncherSession, $accountId, $nickname);
+    if (!$result['ok']) {
+        $finishLauncher(false, (string) ($result['error'] ?? ($isEn ? 'Could not complete sign-in.' : 'Не удалось завершить вход.')));
+    }
+
+    $finishLauncher(
+        true,
+        ($isEn ? 'Nickname ' : 'Ник ') . ($result['nickname'] ?? '') . ($isEn
+            ? ' received. Return to Chadow Game Center.'
+            : ' получен. Вернитесь в Chadow Game Center.')
+    );
 }
 
 if ($mode === 'login') {

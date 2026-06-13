@@ -36,7 +36,7 @@ function ensure_site_settings_table($db): void
     $stmt->execute(['mc_java_major', '21']);
     $stmt->execute(['mc_wg_application_id', '']);
     $stmt->execute(['mc_lesta_application_id', '']);
-    $stmt->execute(['mc_launcher_version', '1']);
+    $stmt->execute(['mc_launcher_version', '17']);
 }
 
 function get_site_setting($db, string $key, $default = null)

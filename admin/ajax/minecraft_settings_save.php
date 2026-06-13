@@ -25,8 +25,6 @@ $serverPort = isset($_POST['mc_server_port']) ? trim((string) $_POST['mc_server_
 $serverName = isset($_POST['mc_server_name']) ? trim((string) $_POST['mc_server_name']) : '';
 $minecraftVersion = isset($_POST['mc_minecraft_version']) ? trim((string) $_POST['mc_minecraft_version']) : '';
 $javaMajor = isset($_POST['mc_java_major']) ? trim((string) $_POST['mc_java_major']) : '21';
-$wgApplicationId = isset($_POST['mc_wg_application_id']) ? trim((string) $_POST['mc_wg_application_id']) : '';
-$lestaApplicationId = isset($_POST['mc_lesta_application_id']) ? trim((string) $_POST['mc_lesta_application_id']) : '';
 $launcherVersion = isset($_POST['mc_launcher_version']) ? trim((string) $_POST['mc_launcher_version']) : '1';
 
 if ($enabled && !minecraft_is_valid_host($serverHost)) {
@@ -40,7 +38,7 @@ if ($serverName === '') {
 }
 
 if (!minecraft_is_valid_version($minecraftVersion)) {
-    echo json_encode(['success' => false, 'error' => 'Версия Minecraft должна быть в формате 1.X или 1.X.Y (например 1.20.4)'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['success' => false, 'error' => 'Версия Minecraft: формат X.Y или X.Y.Z (например 1.20.4 или 26.1.2)'], JSON_UNESCAPED_UNICODE);
     exit();
 }
 
@@ -53,11 +51,6 @@ if (mb_strlen($serverName, 'UTF-8') > 80) {
     exit();
 }
 
-if (mb_strlen($wgApplicationId, 'UTF-8') > 64 || mb_strlen($lestaApplicationId, 'UTF-8') > 64) {
-    echo json_encode(['success' => false, 'error' => 'application_id не должен превышать 64 символа'], JSON_UNESCAPED_UNICODE);
-    exit();
-}
-
 try {
     set_site_setting($db, 'mc_enabled', $enabled ? '1' : '0');
     set_site_setting($db, 'mc_server_host', $serverHost);
@@ -65,8 +58,6 @@ try {
     set_site_setting($db, 'mc_server_name', $serverName);
     set_site_setting($db, 'mc_minecraft_version', $minecraftVersion);
     set_site_setting($db, 'mc_java_major', (string) $javaMajor);
-    set_site_setting($db, 'mc_wg_application_id', $wgApplicationId);
-    set_site_setting($db, 'mc_lesta_application_id', $lestaApplicationId);
     set_site_setting($db, 'mc_launcher_version', (string) $launcherVersion);
 
     echo json_encode([
