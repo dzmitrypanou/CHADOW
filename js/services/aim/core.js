@@ -303,6 +303,45 @@
             ctx.stroke();
             ctx.restore();
         },
+        drawScope(ctx, x, y, color) {
+            const ring = 28;
+            const tickStart = ring - 9;
+            const tickLen = 7;
+            const stroke = color || 'rgba(139, 195, 74, 0.92)';
+            const dot = color || 'rgba(255, 235, 59, 0.98)';
+
+            ctx.save();
+            ctx.strokeStyle = stroke;
+            ctx.fillStyle = dot;
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.arc(x, y, ring, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.globalAlpha = 0.45;
+            ctx.beginPath();
+            ctx.arc(x, y, ring * 0.62, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y - tickStart);
+            ctx.lineTo(x, y - tickStart + tickLen);
+            ctx.moveTo(x, y + tickStart);
+            ctx.lineTo(x, y + tickStart - tickLen);
+            ctx.moveTo(x - tickStart, y);
+            ctx.lineTo(x - tickStart + tickLen, y);
+            ctx.moveTo(x + tickStart, y);
+            ctx.lineTo(x + tickStart - tickLen, y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        },
         drawTarget(ctx, x, y, radius, fill, stroke) {
             ctx.save();
             ctx.beginPath();

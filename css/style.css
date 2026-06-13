@@ -2835,11 +2835,13 @@ footer {
     white-space: nowrap;
 }
 
+.site-law-help-wrap.is-open .site-law-help-tip,
 .site-law-help-wrap:hover .site-law-help-tip,
 .site-law-help-wrap:focus-within .site-law-help-tip {
     opacity: 1;
     visibility: visible;
     transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
 }
 
 .header h1 .version {
@@ -3040,7 +3042,7 @@ footer {
         grid-row: 1;
         min-width: 0;
         max-width: 100%;
-        overflow: hidden;
+        overflow: visible;
         align-self: center;
         align-items: center;
     }
@@ -3048,7 +3050,7 @@ footer {
     .site-heading-main {
         min-width: 0;
         max-width: 100%;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .site-logo-link {
@@ -3079,6 +3081,29 @@ footer {
         padding-top: 10px;
         border-top: 1px solid rgba(125, 184, 255, 0.14);
         gap: 8px 14px;
+    }
+
+    .site-law-help-tip {
+        left: 0;
+        max-width: min(92vw, 320px);
+        width: max-content;
+        transform: translateX(0) translateY(4px);
+    }
+
+    .site-law-help-tip-line {
+        white-space: normal;
+    }
+
+    .site-law-help-tip::before,
+    .site-law-help-tip::after {
+        left: 10px;
+        transform: none;
+    }
+
+    .site-law-help-wrap.is-open .site-law-help-tip,
+    .site-law-help-wrap:hover .site-law-help-tip,
+    .site-law-help-wrap:focus-within .site-law-help-tip {
+        transform: translateX(0) translateY(0);
     }
 
     .site-lang-switch {
@@ -9641,7 +9666,7 @@ button.tactics-back-link {
 
 .tactics-catalog-list {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
 }
 
@@ -9787,12 +9812,6 @@ button.tactics-back-link {
     grid-column: 1 / -1;
     color: rgba(175, 200, 228, 0.75);
     margin: 0;
-}
-
-@media (max-width: 1400px) {
-    .tactics-catalog-list {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 1100px) {
@@ -15890,6 +15909,10 @@ html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-to
     touch-action: none;
 }
 
+html.aim-device-desktop body.page-aim-play-duckhunt .aim-canvas {
+    cursor: none;
+}
+
 .aim-hud {
     display: flex;
     flex-wrap: wrap;
@@ -16018,72 +16041,88 @@ html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-to
 }
 
 .aim-device-mobile .aim-overlay.aim-overlay--results {
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 4px;
+    padding: 4px 2px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .aim-device-mobile .aim-overlay.aim-overlay--results .aim-overlay-card {
-    max-width: min(94%, 252px);
-    max-height: 100%;
-    padding: 10px 12px 12px;
+    max-width: min(94%, 220px);
+    max-height: calc(100% - 4px);
+    padding: 6px 8px 8px;
     overflow-y: auto;
 }
 
+.aim-device-mobile #aimOverlayResults {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 8px;
+    row-gap: 4px;
+}
+
 .aim-device-mobile .aim-results-label {
-    margin: 0 0 4px;
-    font-size: 0.78rem;
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.68rem;
 }
 
 .aim-device-mobile .aim-results-score {
-    font-size: 1.55rem;
-    line-height: 1.05;
+    grid-column: 1;
+    font-size: 1.2rem;
+    line-height: 1;
 }
 
 .aim-device-mobile #aimResultsGrade.aim-grade {
-    margin-top: 4px;
-    padding: 3px 10px;
-    font-size: 0.82rem;
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    margin: 0;
+    padding: 2px 7px;
+    font-size: 0.72rem;
 }
 
 .aim-device-mobile .aim-results-metrics {
-    margin-top: 6px;
-    gap: 4px;
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    gap: 2px 6px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .aim-device-mobile .aim-results-metric dt {
-    font-size: 0.66rem;
+    font-size: 0.6rem;
 }
 
 .aim-device-mobile .aim-results-metric dd {
-    margin-top: 1px;
-    font-size: 0.88rem;
+    margin-top: 0;
+    font-size: 0.8rem;
 }
 
 .aim-device-mobile .aim-results-nickname {
-    margin-top: 8px;
+    grid-column: 1 / -1;
+    margin-top: 4px;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
 }
 
 .aim-device-mobile .aim-results-nickname .aim-field-label {
-    font-size: 0.72rem;
-    margin-bottom: 2px;
+    font-size: 0.66rem;
+    margin-bottom: 1px;
 }
 
 .aim-device-mobile .aim-results-nickname .aim-input {
-    padding: 5px 8px;
-    font-size: 0.82rem;
+    padding: 4px 7px;
+    font-size: 0.78rem;
 }
 
 .aim-device-mobile .aim-results-actions {
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    margin-top: 8px;
-    gap: 6px;
+    margin-top: 4px;
+    gap: 4px;
 }
 
 .aim-device-mobile .aim-results-actions #aimSubmitBtn {
@@ -16093,9 +16132,13 @@ html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-to
 .aim-device-mobile .aim-results-actions .aim-btn {
     width: auto;
     min-width: 0;
-    padding: 7px 8px;
-    font-size: 0.8rem;
-    gap: 5px;
+    padding: 5px 6px;
+    font-size: 0.72rem;
+    gap: 4px;
+}
+
+.aim-device-mobile .aim-results-actions .aim-btn i {
+    font-size: 0.85em;
 }
 
 .aim-results-metric dt {
@@ -16570,71 +16613,69 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     }
 
     body.page-aim-play .aim-overlay.aim-overlay--results .aim-overlay-card {
-        max-width: min(94%, 252px);
-        padding: 10px 12px 12px;
+        max-width: min(94%, 210px);
+        padding: 6px 8px 8px;
     }
 
     body.page-aim-play .aim-results-score {
-        font-size: 1.55rem;
+        font-size: 1.15rem;
     }
 
     body.page-aim-play .aim-results-nickname {
         max-width: none;
-        margin-top: 8px;
+        margin-top: 4px;
         margin-left: 0;
         margin-right: 0;
     }
 
     body.page-aim-play .aim-results-nickname .aim-field-label {
-        font-size: 0.72rem;
+        font-size: 0.66rem;
     }
 
     body.page-aim-play .aim-results-nickname .aim-input {
-        padding: 5px 8px;
-        font-size: 0.82rem;
-    }
-
-    body.page-aim-play .aim-results-actions {
-        margin-top: 8px;
-        gap: 6px;
-    }
-
-    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-overlay.aim-overlay--results .aim-overlay-card {
-        max-width: min(96%, 236px);
-        padding: 8px 10px 10px;
-    }
-
-    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-label {
-        font-size: 0.72rem;
-        margin-bottom: 2px;
-    }
-
-    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-score {
-        font-size: 1.35rem;
-    }
-
-    html.aim-device-mobile.aim-play-portrait body.page-aim-play #aimResultsGrade.aim-grade {
-        margin-top: 2px;
-        padding: 2px 8px;
+        padding: 4px 7px;
         font-size: 0.78rem;
     }
 
-    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-metrics {
+    body.page-aim-play .aim-results-actions {
         margin-top: 4px;
-        gap: 3px;
+        gap: 4px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-overlay.aim-overlay--results .aim-overlay-card {
+        max-width: min(96%, 200px);
+        padding: 5px 7px 7px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-label {
+        font-size: 0.64rem;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-score {
+        font-size: 1.1rem;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play #aimResultsGrade.aim-grade {
+        padding: 2px 6px;
+        font-size: 0.68rem;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-metrics {
+        margin-top: 2px;
+        gap: 2px;
     }
 
     html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-nickname {
-        margin-top: 6px;
+        margin-top: 3px;
     }
 
     html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-actions {
-        margin-top: 6px;
-        gap: 5px;
+        margin-top: 3px;
+        gap: 3px;
     }
 
     html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-actions .aim-btn {
-        padding: 6px 7px;
-        font-size: 0.76rem;
+        padding: 4px 5px;
+        font-size: 0.68rem;
     }
 }

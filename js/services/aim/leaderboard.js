@@ -7,6 +7,7 @@
     const leaderboardCache = new Map();
     const VIEW_STORAGE_KEY = 'abs_aim_lb_view_devices';
     const VIEW_STORAGE_KEY_LEGACY = 'abs_aim_lb_view_device';
+    const RATINGS_DEVICE_KEY = '__ratings';
 
     let deviceSwitchBound = false;
     let ratingsPanelLoader = null;
@@ -15,10 +16,6 @@
 
     function hardwareDevice() {
         return core() && core().isMobileDevice() ? 'mobile' : 'desktop';
-    }
-
-    function currentDevice() {
-        return hardwareDevice();
     }
 
     function readViewDevices() {
@@ -55,11 +52,30 @@
         }
     }
 
+    function isRatingsPage() {
+        return !!document.querySelector('.page-aim-ratings');
+    }
+
+    function viewRatingsDevice() {
+        const stored = readViewDevices()[RATINGS_DEVICE_KEY];
+        if (stored === 'mobile' || stored === 'desktop') {
+            return stored;
+        }
+        const legacyDefault = readViewDevices().__default;
+        if (legacyDefault === 'mobile' || legacyDefault === 'desktop') {
+            return legacyDefault;
+        }
+        return hardwareDevice();
+    }
+
     function normalizeTrainerId(trainerId) {
         return trainerId ? String(trainerId).toLowerCase() : '';
     }
 
     function viewDevice(trainerId) {
+        if (isRatingsPage()) {
+            return viewRatingsDevice();
+        }
         const id = normalizeTrainerId(trainerId);
         if (id) {
             const stored = readViewDevices()[id];
@@ -70,13 +86,31 @@
         return hardwareDevice();
     }
 
-    function syncDeviceSwitchUI(trainerId) {
-        const id = normalizeTrainerId(trainerId);
-        const switches = id
-            ? document.querySelectorAll('[data-aim-lb-device-switch][data-trainer="' + id + '"]')
-            : document.querySelectorAll('[data-aim-lb-device-switch]');
+    function isRatingsScopeSwitch(wrap) {
+        return wrap && wrap.getAttribute('data-aim-lb-device-scope') === 'ratings';
+    }
 
-        switches.forEach((wrap) => {
+    function syncRatingsDeviceSwitchUI() {
+        const active = viewRatingsDevice();
+        document.querySelectorAll('[data-aim-lb-device-scope="ratings"]').forEach((wrap) => {
+            wrap.querySelectorAll('.aim-lb-device-btn').forEach((btn) => {
+                const device = btn.getAttribute('data-device');
+                const isActive = device === active;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        });
+    }
+
+    function syncDeviceSwitchUI(trainerId) {
+        syncRatingsDeviceSwitchUI();
+
+        const id = normalizeTrainerId(trainerId);
+        const selector = id
+            ? '[data-aim-lb-device-switch][data-trainer="' + id + '"]:not([data-aim-lb-device-scope="ratings"])'
+            : '[data-aim-lb-device-switch][data-trainer]:not([data-aim-lb-device-scope="ratings"])';
+
+        document.querySelectorAll(selector).forEach((wrap) => {
             const switchTrainer = normalizeTrainerId(wrap.getAttribute('data-trainer'));
             if (!switchTrainer) {
                 return;
@@ -91,8 +125,8 @@
         });
     }
 
-    function deviceSwitchButtonsMarkup(trainerId) {
-        const active = viewDevice(trainerId);
+    function deviceSwitchButtonsMarkup(trainerId, scope) {
+        const active = scope === 'ratings' ? viewRatingsDevice() : viewDevice(trainerId);
         const t = i18n().t;
         return '<button type="button" class="aim-lb-device-btn'
             + (active === 'desktop' ? ' is-active' : '')
@@ -123,14 +157,19 @@
             if (!btn || !wrap) {
                 return;
             }
+            const device = btn.getAttribute('data-device');
+            if (device !== 'mobile' && device !== 'desktop') {
+                return;
+            }
+            if (isRatingsScopeSwitch(wrap)) {
+                setViewDevice(device, { scope: 'ratings' });
+                return;
+            }
             const trainerId = normalizeTrainerId(wrap.getAttribute('data-trainer'));
             if (!trainerId) {
                 return;
             }
-            const device = btn.getAttribute('data-device');
-            if (device === 'mobile' || device === 'desktop') {
-                setViewDevice(device, { trainerId });
-            }
+            setViewDevice(device, { trainerId });
         });
     }
 
@@ -147,10 +186,25 @@
 
     function setViewDevice(device, options) {
         const opts = options || {};
-        const trainerId = normalizeTrainerId(opts.trainerId);
         if (device !== 'mobile' && device !== 'desktop') {
             return;
         }
+
+        if (opts.scope === 'ratings' || (isRatingsPage() && !normalizeTrainerId(opts.trainerId))) {
+            const map = readViewDevices();
+            map[RATINGS_DEVICE_KEY] = device;
+            writeViewDevices(map);
+            syncRatingsDeviceSwitchUI();
+
+            if (!opts.silent) {
+                window.dispatchEvent(new CustomEvent('aim:lbviewchange', {
+                    detail: { scope: 'ratings', device },
+                }));
+            }
+            return;
+        }
+
+        const trainerId = normalizeTrainerId(opts.trainerId);
         if (!trainerId) {
             return;
         }
@@ -171,8 +225,15 @@
     function initViewDeviceFromUrl(activeTrainer) {
         const params = new URLSearchParams(window.location.search);
         const device = String(params.get('device') || '').toLowerCase();
+        if (device !== 'mobile' && device !== 'desktop') {
+            return;
+        }
+        if (isRatingsPage()) {
+            setViewDevice(device, { scope: 'ratings', silent: true });
+            return;
+        }
         const trainer = normalizeTrainerId(activeTrainer || params.get('trainer'));
-        if ((device === 'mobile' || device === 'desktop') && trainer) {
+        if (trainer) {
             setViewDevice(device, { trainerId: trainer, silent: true });
         }
     }
@@ -183,7 +244,12 @@
             return;
         }
         const groupLabel = i18n().t('lbDeviceGroup');
-        document.querySelectorAll('[data-aim-lb-device-switch]').forEach((el) => {
+        document.querySelectorAll('[data-aim-lb-device-scope="ratings"]').forEach((el) => {
+            el.setAttribute('role', 'group');
+            el.setAttribute('aria-label', groupLabel);
+            el.innerHTML = deviceSwitchButtonsMarkup('', 'ratings');
+        });
+        document.querySelectorAll('[data-aim-lb-device-switch][data-trainer]:not([data-aim-lb-device-scope="ratings"])').forEach((el) => {
             const trainerId = normalizeTrainerId(el.getAttribute('data-trainer'));
             if (!trainerId) {
                 return;
@@ -192,7 +258,8 @@
             el.setAttribute('aria-label', groupLabel);
             el.innerHTML = deviceSwitchButtonsMarkup(trainerId);
         });
-        document.querySelectorAll('[data-aim-lb-device-switch]').forEach((el) => {
+        syncRatingsDeviceSwitchUI();
+        document.querySelectorAll('[data-aim-lb-device-switch][data-trainer]:not([data-aim-lb-device-scope="ratings"])').forEach((el) => {
             const trainerId = normalizeTrainerId(el.getAttribute('data-trainer'));
             if (trainerId) {
                 syncDeviceSwitchUI(trainerId);
@@ -201,12 +268,7 @@
     }
 
     function setRatingsActiveTrainer(trainerId) {
-        const id = normalizeTrainerId(trainerId);
-        const switchEl = document.querySelector('.aim-ratings-toolbar [data-aim-lb-device-switch]');
-        if (switchEl && id) {
-            switchEl.setAttribute('data-trainer', id);
-            syncDeviceSwitchUI(id);
-        }
+        syncRatingsDeviceSwitchUI();
     }
 
     function cacheKey(trainer, limit, device) {
@@ -344,8 +406,6 @@
         escapeHtml,
         renderTable,
         isCompactLayout,
-        currentDevice,
-        hardwareDevice,
         viewDevice,
         setViewDevice,
         initViewDeviceFromUrl,
@@ -413,7 +473,12 @@
                 window.removeEventListener('aim:devicechange', deviceLayoutListener);
             }
             lbViewChangeListener = (event) => {
-                const trainerId = normalizeTrainerId(event?.detail?.trainerId);
+                const detail = event && event.detail ? event.detail : {};
+                if (detail.scope === 'ratings') {
+                    loadPanel();
+                    return;
+                }
+                const trainerId = normalizeTrainerId(detail.trainerId);
                 if (trainerId && trainerId !== normalizeTrainerId(current)) {
                     return;
                 }

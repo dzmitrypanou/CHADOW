@@ -44,7 +44,7 @@ abs_set_page_titles(
     ($meta['title'] ?? 'Aim Trainer') . ' — Aim Trainers'
 );
 $metaDescription = $meta['desc'] ?? ($lang === 'en' ? 'Aim training mini-game.' : 'Мини-игра для тренировки прицела.');
-$bodyClass = 'page-aim page-aim-play';
+$bodyClass = 'page-aim page-aim-play page-aim-play-' . $trainer;
 $seoSlug = 'services/aim/' . $trainer;
 $extraHeadHtml = aim_device_sniff_script();
 

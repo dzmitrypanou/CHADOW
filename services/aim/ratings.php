@@ -48,7 +48,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         <span class="aim-lb-device-label" data-aim-i18n="lbDeviceLabel">
                             <?php echo $lang === 'en' ? 'Platform' : 'Платформа'; ?>
                         </span>
-                        <div class="aim-lb-device-switch" data-aim-lb-device-switch></div>
+                        <div class="aim-lb-device-switch" data-aim-lb-device-switch data-aim-lb-device-scope="ratings"></div>
                     </div>
                 </div>
             </section>

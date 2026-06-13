@@ -72,6 +72,48 @@
         updateAuthLinks(lang);
     }
 
+    function initSiteLawHelp() {
+        document.querySelectorAll('.site-law-help-wrap').forEach((wrap) => {
+            const btn = wrap.querySelector('.site-law-help');
+            if (!btn || btn.dataset.lawHelpBound === '1') {
+                return;
+            }
+            btn.dataset.lawHelpBound = '1';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const open = wrap.classList.toggle('is-open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.site-law-help-wrap.is-open').forEach((wrap) => {
+                if (wrap.contains(e.target)) {
+                    return;
+                }
+                wrap.classList.remove('is-open');
+                const btn = wrap.querySelector('.site-law-help');
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') {
+                return;
+            }
+            document.querySelectorAll('.site-law-help-wrap.is-open').forEach((wrap) => {
+                wrap.classList.remove('is-open');
+                const btn = wrap.querySelector('.site-law-help');
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    }
+
     function updateAuthLinks(lang) {
         const isEn = lang === 'en';
         const login = document.querySelector('.site-header-auth a[href*="/auth/login"]');
@@ -410,6 +452,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        initSiteLawHelp();
         document.querySelectorAll('.site-lang-link[data-lang]').forEach((link) => {
             link.addEventListener('click', async (e) => {
                 const lang = link.getAttribute('data-lang');

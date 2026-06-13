@@ -238,6 +238,7 @@ $GLOBALS['__chadow_auth_ready'] = true;
                             class="site-law-help"
                             id="siteLawHelp"
                             aria-describedby="siteLawHelpTip"
+                            aria-expanded="false"
                             aria-label="О Федеральном законе № 168-ФЗ"
                         >
                             <i class="fas fa-question-circle" aria-hidden="true"></i>

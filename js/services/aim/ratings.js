@@ -88,7 +88,12 @@
         updateRatingsUrl(activeTrainer);
 
         window.addEventListener('aim:lbviewchange', (event) => {
-            const trainerId = event?.detail?.trainerId;
+            const detail = event && event.detail ? event.detail : {};
+            if (detail.scope === 'ratings') {
+                updateRatingsUrl(activeTrainer);
+                return;
+            }
+            const trainerId = detail.trainerId;
             if (trainerId && trainerId !== activeTrainer) {
                 return;
             }

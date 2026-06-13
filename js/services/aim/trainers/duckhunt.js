@@ -284,7 +284,7 @@
                     drawDuck(duck, ts);
                 });
                 if (!window.AbsAimCore.isMobileDevice()) {
-                    window.AbsAimCore.drawCrosshair(ctx, pointer.x, pointer.y);
+                    window.AbsAimCore.drawScope(ctx, pointer.x, pointer.y);
                 }
             },
             getHudExtra(i18n) {

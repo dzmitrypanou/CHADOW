@@ -96,7 +96,8 @@
         lastResult = { score, grade, metrics };
         if (els.aimResultsScore) els.aimResultsScore.textContent = String(score);
         if (els.aimResultsGrade) {
-            els.aimResultsGrade.textContent = i18n().gradeLabel(grade);
+            const gradeText = core().isMobileDevice() ? grade : i18n().gradeLabel(grade);
+            els.aimResultsGrade.textContent = gradeText;
             els.aimResultsGrade.className = 'aim-grade ' + i18n().gradeClass(grade);
         }
         if (els.aimResultsMetrics) {
