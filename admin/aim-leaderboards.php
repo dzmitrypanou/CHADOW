@@ -68,6 +68,14 @@ try {
             min-width: 36px;
             padding: 6px 10px;
         }
+        #aim-scores-table th:last-child,
+        #aim-scores-table td:last-child {
+            min-width: 148px;
+        }
+        #aim-scores-table .action-buttons {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>
 </head>

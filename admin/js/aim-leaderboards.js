@@ -45,6 +45,10 @@ function deviceLabel(device) {
     return device === 'mobile' ? 'Телефон' : 'ПК';
 }
 
+function isRenamedPlayer(name) {
+    return /^RenamedUser_\d+$/.test(String(name || ''));
+}
+
 function updateStats(stats) {
     if (!stats) return;
     const map = {
@@ -96,6 +100,9 @@ function renderTable(rows, view) {
             ? `<td>${escapeHtml(String(row.rank || '—'))}</td>`
             : '';
         const ratingsUrl = `/services/aim/ratings?trainer=${encodeURIComponent(row.trainer)}&device=${encodeURIComponent(row.device)}`;
+        const renameBtn = isRenamedPlayer(row.player_name)
+            ? ''
+            : `<button type="button" class="action-btn btn-rename-player" data-player="${escapeHtml(row.player_name)}" title="Переименовать в RenamedUser_N"><i class="fas fa-user-pen"></i></button>`;
 
         return `<tr>
             ${rankCell}
@@ -109,6 +116,7 @@ function renderTable(rows, view) {
             <td>
                 <div class="action-buttons">
                     <a href="${escapeHtml(ratingsUrl)}" class="action-btn" target="_blank" rel="noopener" title="Топ на сайте"><i class="fas fa-external-link-alt"></i></a>
+                    ${renameBtn}
                     <button type="button" class="action-btn btn-purge-player" data-trainer="${escapeHtml(row.trainer)}" data-device="${escapeHtml(row.device)}" data-player="${escapeHtml(row.player_name)}" title="Удалить все результаты игрока"><i class="fas fa-user-slash"></i></button>
                     <button type="button" class="action-btn btn-delete" data-id="${row.id}" title="Удалить запись"><i class="fas fa-trash"></i></button>
                 </div>
@@ -169,6 +177,33 @@ async function deleteScore(id) {
             return;
         }
         showNotification('Запись удалена');
+        loadScores(currentPage);
+    } catch (e) {
+        showNotification('Ошибка сервера', 'error');
+    }
+}
+
+async function renamePlayer(playerName) {
+    if (isRenamedPlayer(playerName)) {
+        showNotification('Игрок уже переименован', 'error');
+        return;
+    }
+    if (!confirm(`Переименовать игрока «${playerName}» во всех таблицах в RenamedUser_N?`)) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('player_name', playerName);
+    formData.append('csrf_token', getCsrfToken());
+
+    try {
+        const res = await fetch('/admin/ajax/aim_player_rename.php', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (!json.success) {
+            showNotification(json.error || 'Ошибка', 'error');
+            return;
+        }
+        showNotification(`Переименовано: ${json.old_name} → ${json.new_name} (${json.updated || 0} записей)`);
         loadScores(currentPage);
     } catch (e) {
         showNotification('Ошибка сервера', 'error');
@@ -242,6 +277,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 purgeBtn.dataset.device || 'desktop',
                 purgeBtn.dataset.player || '',
             );
+            return;
+        }
+        const renameBtn = e.target.closest('.btn-rename-player');
+        if (renameBtn) {
+            renamePlayer(renameBtn.dataset.player || '');
         }
     });
 });

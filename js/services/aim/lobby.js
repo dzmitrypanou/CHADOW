@@ -20,7 +20,7 @@
     }
 
     function ratingsHref(trainerId) {
-        const device = lb() && lb().viewDevice ? lb().viewDevice() : '';
+        const device = lb() && lb().viewDevice ? lb().viewDevice(trainerId) : '';
         return i18n().buildRatingsHref(i18n().getLang(), trainerId, device);
     }
 
@@ -47,7 +47,7 @@
             + '<div class="aim-trainer-card__top-actions">'
             + '<div class="aim-lb-device-field">'
             + '<span class="aim-lb-device-label" data-aim-i18n="lbDeviceLabel">' + escapeHtml(i18n().t('lbDeviceLabel')) + '</span>'
-            + '<div class="aim-lb-device-switch" data-aim-lb-device-switch></div>'
+            + '<div class="aim-lb-device-switch" data-aim-lb-device-switch data-trainer="' + escapeHtml(trainer.id) + '"></div>'
             + '</div>'
             + '<a class="aim-link-btn aim-trainer-card__full-top" data-aim-ratings-link data-trainer="' + escapeHtml(trainer.id) + '" href="' + escapeHtml(ratingsHref(trainer.id)) + '" aria-label="' + escapeHtml(i18n().t('fullTop')) + '" title="' + escapeHtml(i18n().t('fullTop')) + '">'
             + '<i class="fas fa-trophy" aria-hidden="true"></i>'
@@ -58,16 +58,6 @@
             + '<div class="aim-trainer-card__top-body" id="aimMiniLb-' + escapeHtml(trainer.id) + '"></div>'
             + '</div>'
             + '</article>';
-    }
-
-    function refreshMiniLeaderboards() {
-        if (!lb()) return;
-        trainers.forEach((trainer) => {
-            const mini = document.getElementById('aimMiniLb-' + trainer.id);
-            if (mini) {
-                lb().renderMini(mini, trainer.id);
-            }
-        });
     }
 
     function renderTrainerGrid() {
@@ -115,7 +105,16 @@
                 lb().refreshMiniLayouts(trainers);
             }
         });
-        window.addEventListener('aim:lbviewchange', refreshMiniLeaderboards);
+        window.addEventListener('aim:lbviewchange', (event) => {
+            const trainerId = event?.detail?.trainerId;
+            if (!lb() || !trainerId) {
+                return;
+            }
+            const mini = document.getElementById('aimMiniLb-' + trainerId);
+            if (mini) {
+                lb().renderMini(mini, trainerId);
+            }
+        });
     }
 
     document.addEventListener('DOMContentLoaded', init);

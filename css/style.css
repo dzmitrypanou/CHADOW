@@ -4148,6 +4148,11 @@ footer {
     padding-top: 12px;
 }
 
+.page-landing .project-card-footer--actions {
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+
 .page-landing .project-card-action {
     display: inline-flex;
     align-items: center;
@@ -4155,6 +4160,11 @@ footer {
     font-size: 0.9rem;
     font-weight: 600;
     color: #8ecbff;
+    text-decoration: none;
+}
+
+.page-landing .project-card-action:hover {
+    color: #b8deff;
 }
 
 .page-landing .project-card-action--placeholder {
@@ -10561,7 +10571,7 @@ button.tactics-back-link {
     inset: 0;
     z-index: 4;
     pointer-events: none;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .tactics-remote-stroke {
@@ -11397,6 +11407,10 @@ button.tactics-back-link {
     z-index: 1;
     pointer-events: none;
     overflow: visible;
+}
+
+.tactics-cell-flashes-layer {
+    z-index: 5;
 }
 
 .tactics-cell-flash {

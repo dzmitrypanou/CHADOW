@@ -16,7 +16,15 @@ $absServiceHref = $lang === 'en' ? '/en/services/abs' : '/services/abs';
 $onlineServiceHref = $lang === 'en' ? '/en/services/online/' : '/services/online/';
 $recruitingServiceHref = $lang === 'en' ? '/en/services/recruiting' : '/services/recruiting';
 $bracketServiceHref = $lang === 'en' ? '/en/services/bracket' : '/services/bracket';
+$bracketCreateHref = $lang === 'en' ? '/en/services/bracket/create' : '/services/bracket/create';
+$bracketPublicHref = $bracketServiceHref;
+$bracketCreateLabel = $lang === 'en' ? 'Create bracket' : 'Создать сетку';
+$bracketPublicLabel = $lang === 'en' ? 'Public brackets' : 'Публичные сетки';
 $tacticsServiceHref = $lang === 'en' ? '/en/services/tactics' : '/services/tactics';
+$tacticsCreateHref = $tacticsServiceHref . '#tactics-create';
+$tacticsRoomsHref = $lang === 'en' ? '/en/services/tactics/rooms' : '/services/tactics/rooms';
+$tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать планшет';
+$tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
 $aimServiceHref = $lang === 'en' ? '/en/services/aim' : '/services/aim';
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
@@ -56,7 +64,7 @@ require __DIR__ . '/includes/site_header.php';
 
         <main class="projects-landing">
             <div class="projects-grid">
-                <a href="<?php echo htmlspecialchars($tacticsServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="tactics">
+                <div class="project-card project-card--active project-card--span-2" data-landing-id="tactics">
                     <i class="fas fa-map project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
@@ -74,13 +82,17 @@ require __DIR__ . '/includes/site_header.php';
                                 : 'Совместное планирование тактик на картах — открытые и закрытые комнаты.'; ?>
                         </p>
                     </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
+                    <div class="project-card-footer project-card-footer--actions">
+                        <a href="<?php echo htmlspecialchars($tacticsCreateHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card-action" data-landing-action="create">
+                            <?php echo htmlspecialchars($tacticsCreateLabel, ENT_QUOTES, 'UTF-8'); ?>
                             <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
+                        </a>
+                        <a href="<?php echo htmlspecialchars($tacticsRoomsHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card-action" data-landing-action="rooms">
+                            <?php echo htmlspecialchars($tacticsRoomsLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </a>
                     </div>
-                </a>
+                </div>
 
                 <a href="<?php echo htmlspecialchars($absServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" data-landing-id="abs">
                     <i class="fas fa-chart-bar project-card-bg-icon" aria-hidden="true"></i>
@@ -160,7 +172,7 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </div>
 
-                <a href="<?php echo htmlspecialchars($bracketServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="bracket">
+                <div class="project-card project-card--active project-card--span-2" data-landing-id="bracket">
                     <i class="fas fa-sitemap project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
@@ -178,13 +190,17 @@ require __DIR__ . '/includes/site_header.php';
                                 : 'Создание и редактирование турнирных сеток для клановых и командных ивентов.'; ?>
                         </p>
                     </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
+                    <div class="project-card-footer project-card-footer--actions">
+                        <a href="<?php echo htmlspecialchars($bracketCreateHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card-action" data-landing-action="create">
+                            <?php echo htmlspecialchars($bracketCreateLabel, ENT_QUOTES, 'UTF-8'); ?>
                             <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
+                        </a>
+                        <a href="<?php echo htmlspecialchars($bracketPublicHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card-action" data-landing-action="public">
+                            <?php echo htmlspecialchars($bracketPublicLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </a>
                     </div>
-                </a>
+                </div>
 
                 <div class="project-card project-card--disabled" aria-disabled="true" data-landing-id="mod-install">
                     <i class="fas fa-puzzle-piece project-card-bg-icon" aria-hidden="true"></i>

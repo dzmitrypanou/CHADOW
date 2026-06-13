@@ -1174,6 +1174,7 @@
         const finish = async (cancel) => {
             if (finishing || titleEl.dataset.editing !== '1') return;
             finishing = true;
+            cleanupListeners();
             titleEl.contentEditable = 'false';
             titleEl.classList.remove('is-editing');
             delete titleEl.dataset.editing;
@@ -1209,31 +1210,38 @@
             updateRoomTitle();
         };
 
+        const onInput = () => {
+            syncRoomDocumentTitle(titleEl.textContent || '');
+        };
         const onBlur = () => {
             void finish(false);
         };
-
-        titleEl.addEventListener('input', () => {
-            syncRoomDocumentTitle(titleEl.textContent || '');
-        });
-        titleEl.addEventListener('blur', onBlur);
-        titleEl.addEventListener('keydown', (ev) => {
+        const onKeydown = (ev) => {
             if (ev.key === 'Enter') {
                 ev.preventDefault();
-                titleEl.removeEventListener('blur', onBlur);
                 void finish(false);
             }
             if (ev.key === 'Escape') {
                 ev.preventDefault();
-                titleEl.removeEventListener('blur', onBlur);
                 void finish(true);
             }
-        });
-        titleEl.addEventListener('paste', (ev) => {
+        };
+        const onPaste = (ev) => {
             ev.preventDefault();
             const text = ev.clipboardData?.getData('text/plain') || '';
             document.execCommand('insertText', false, text.replace(/\s+/g, ' '));
-        });
+        };
+        const cleanupListeners = () => {
+            titleEl.removeEventListener('input', onInput);
+            titleEl.removeEventListener('blur', onBlur);
+            titleEl.removeEventListener('keydown', onKeydown);
+            titleEl.removeEventListener('paste', onPaste);
+        };
+
+        titleEl.addEventListener('input', onInput);
+        titleEl.addEventListener('blur', onBlur);
+        titleEl.addEventListener('keydown', onKeydown);
+        titleEl.addEventListener('paste', onPaste);
 
         titleEl.focus();
         const selection = window.getSelection();

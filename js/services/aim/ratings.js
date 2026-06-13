@@ -17,7 +17,7 @@
     }
 
     function updateRatingsUrl(trainerId) {
-        const device = lb() && lb().viewDevice ? lb().viewDevice() : '';
+        const device = lb() && lb().viewDevice ? lb().viewDevice(trainerId) : '';
         const url = i18n().buildRatingsHref(i18n().getLang(), trainerId || null, device);
         window.history.replaceState({}, '', url);
     }
@@ -73,7 +73,11 @@
         }
 
         if (lb() && lb().initViewDeviceFromUrl) {
-            lb().initViewDeviceFromUrl();
+            lb().initViewDeviceFromUrl(activeTrainer);
+        }
+
+        if (lb() && lb().setRatingsActiveTrainer) {
+            lb().setRatingsActiveTrainer(activeTrainer);
         }
 
         if (lb() && lb().mountAllDeviceSwitches) {
@@ -83,7 +87,11 @@
         renderLeaderboard();
         updateRatingsUrl(activeTrainer);
 
-        window.addEventListener('aim:lbviewchange', () => {
+        window.addEventListener('aim:lbviewchange', (event) => {
+            const trainerId = event?.detail?.trainerId;
+            if (trainerId && trainerId !== activeTrainer) {
+                return;
+            }
             updateRatingsUrl(activeTrainer);
         });
     }

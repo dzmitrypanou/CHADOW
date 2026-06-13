@@ -254,12 +254,12 @@
 
     function updateRatingsLinks() {
         const lang = getLang();
-        const viewDevice = window.AbsAimLeaderboard && window.AbsAimLeaderboard.viewDevice
-            ? window.AbsAimLeaderboard.viewDevice()
-            : '';
         document.querySelectorAll('[data-aim-ratings-link]').forEach((el) => {
             const trainerId = el.getAttribute('data-trainer') || '';
-            el.setAttribute('href', buildRatingsHref(lang, trainerId || null, viewDevice));
+            const device = window.AbsAimLeaderboard && window.AbsAimLeaderboard.viewDevice
+                ? window.AbsAimLeaderboard.viewDevice(trainerId)
+                : '';
+            el.setAttribute('href', buildRatingsHref(lang, trainerId || null, device));
         });
     }
 

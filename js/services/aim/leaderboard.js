@@ -5,7 +5,8 @@
     const core = () => window.AbsAimCore;
 
     const leaderboardCache = new Map();
-    const VIEW_STORAGE_KEY = 'abs_aim_lb_view_device';
+    const VIEW_STORAGE_KEY = 'abs_aim_lb_view_devices';
+    const VIEW_STORAGE_KEY_LEGACY = 'abs_aim_lb_view_device';
 
     let deviceSwitchBound = false;
     let ratingsPanelLoader = null;
@@ -20,30 +21,78 @@
         return hardwareDevice();
     }
 
-    function viewDevice() {
+    function readViewDevices() {
         try {
-            const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
-            if (stored === 'mobile' || stored === 'desktop') {
-                return stored;
+            const raw = sessionStorage.getItem(VIEW_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    return parsed;
+                }
             }
         } catch (e) {
             // ignore
         }
+
+        try {
+            const legacy = sessionStorage.getItem(VIEW_STORAGE_KEY_LEGACY);
+            if (legacy === 'mobile' || legacy === 'desktop') {
+                sessionStorage.removeItem(VIEW_STORAGE_KEY_LEGACY);
+                return { __default: legacy };
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        return {};
+    }
+
+    function writeViewDevices(map) {
+        try {
+            sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(map));
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function normalizeTrainerId(trainerId) {
+        return trainerId ? String(trainerId).toLowerCase() : '';
+    }
+
+    function viewDevice(trainerId) {
+        const id = normalizeTrainerId(trainerId);
+        if (id) {
+            const stored = readViewDevices()[id];
+            if (stored === 'mobile' || stored === 'desktop') {
+                return stored;
+            }
+        }
         return hardwareDevice();
     }
 
-    function syncDeviceSwitchUI() {
-        const active = viewDevice();
-        document.querySelectorAll('[data-aim-lb-device-switch] .aim-lb-device-btn').forEach((btn) => {
-            const device = btn.getAttribute('data-device');
-            const isActive = device === active;
-            btn.classList.toggle('is-active', isActive);
-            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    function syncDeviceSwitchUI(trainerId) {
+        const id = normalizeTrainerId(trainerId);
+        const switches = id
+            ? document.querySelectorAll('[data-aim-lb-device-switch][data-trainer="' + id + '"]')
+            : document.querySelectorAll('[data-aim-lb-device-switch]');
+
+        switches.forEach((wrap) => {
+            const switchTrainer = normalizeTrainerId(wrap.getAttribute('data-trainer'));
+            if (!switchTrainer) {
+                return;
+            }
+            const active = viewDevice(switchTrainer);
+            wrap.querySelectorAll('.aim-lb-device-btn').forEach((btn) => {
+                const device = btn.getAttribute('data-device');
+                const isActive = device === active;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
         });
     }
 
-    function deviceSwitchButtonsMarkup() {
-        const active = viewDevice();
+    function deviceSwitchButtonsMarkup(trainerId) {
+        const active = viewDevice(trainerId);
         const t = i18n().t;
         return '<button type="button" class="aim-lb-device-btn'
             + (active === 'desktop' ? ' is-active' : '')
@@ -70,39 +119,61 @@
         deviceSwitchBound = true;
         document.addEventListener('click', (event) => {
             const btn = event.target.closest('.aim-lb-device-btn[data-device]');
-            if (!btn || !btn.closest('[data-aim-lb-device-switch]')) {
+            const wrap = btn && btn.closest('[data-aim-lb-device-switch]');
+            if (!btn || !wrap) {
+                return;
+            }
+            const trainerId = normalizeTrainerId(wrap.getAttribute('data-trainer'));
+            if (!trainerId) {
                 return;
             }
             const device = btn.getAttribute('data-device');
             if (device === 'mobile' || device === 'desktop') {
-                setViewDevice(device);
+                setViewDevice(device, { trainerId });
             }
+        });
+    }
+
+    function updateRatingsLinksForTrainer(trainerId) {
+        const id = normalizeTrainerId(trainerId);
+        if (!id || !i18n()) {
+            return;
+        }
+        const lang = i18n().getLang();
+        document.querySelectorAll('[data-aim-ratings-link][data-trainer="' + id + '"]').forEach((el) => {
+            el.setAttribute('href', i18n().buildRatingsHref(lang, id, viewDevice(id)));
         });
     }
 
     function setViewDevice(device, options) {
         const opts = options || {};
+        const trainerId = normalizeTrainerId(opts.trainerId);
         if (device !== 'mobile' && device !== 'desktop') {
             return;
         }
-        try {
-            sessionStorage.setItem(VIEW_STORAGE_KEY, device);
-        } catch (e) {
-            // ignore
+        if (!trainerId) {
+            return;
         }
-        syncDeviceSwitchUI();
-        if (i18n() && i18n().updateRatingsLinks) {
-            i18n().updateRatingsLinks();
-        }
+
+        const map = readViewDevices();
+        map[trainerId] = device;
+        writeViewDevices(map);
+        syncDeviceSwitchUI(trainerId);
+        updateRatingsLinksForTrainer(trainerId);
+
         if (!opts.silent) {
-            window.dispatchEvent(new CustomEvent('aim:lbviewchange', { detail: { device } }));
+            window.dispatchEvent(new CustomEvent('aim:lbviewchange', {
+                detail: { trainerId, device },
+            }));
         }
     }
 
-    function initViewDeviceFromUrl() {
-        const device = String(new URLSearchParams(window.location.search).get('device') || '').toLowerCase();
-        if (device === 'mobile' || device === 'desktop') {
-            setViewDevice(device, { silent: true });
+    function initViewDeviceFromUrl(activeTrainer) {
+        const params = new URLSearchParams(window.location.search);
+        const device = String(params.get('device') || '').toLowerCase();
+        const trainer = normalizeTrainerId(activeTrainer || params.get('trainer'));
+        if ((device === 'mobile' || device === 'desktop') && trainer) {
+            setViewDevice(device, { trainerId: trainer, silent: true });
         }
     }
 
@@ -113,15 +184,33 @@
         }
         const groupLabel = i18n().t('lbDeviceGroup');
         document.querySelectorAll('[data-aim-lb-device-switch]').forEach((el) => {
+            const trainerId = normalizeTrainerId(el.getAttribute('data-trainer'));
+            if (!trainerId) {
+                return;
+            }
             el.setAttribute('role', 'group');
             el.setAttribute('aria-label', groupLabel);
-            el.innerHTML = deviceSwitchButtonsMarkup();
+            el.innerHTML = deviceSwitchButtonsMarkup(trainerId);
         });
-        syncDeviceSwitchUI();
+        document.querySelectorAll('[data-aim-lb-device-switch]').forEach((el) => {
+            const trainerId = normalizeTrainerId(el.getAttribute('data-trainer'));
+            if (trainerId) {
+                syncDeviceSwitchUI(trainerId);
+            }
+        });
+    }
+
+    function setRatingsActiveTrainer(trainerId) {
+        const id = normalizeTrainerId(trainerId);
+        const switchEl = document.querySelector('.aim-ratings-toolbar [data-aim-lb-device-switch]');
+        if (switchEl && id) {
+            switchEl.setAttribute('data-trainer', id);
+            syncDeviceSwitchUI(id);
+        }
     }
 
     function cacheKey(trainer, limit, device) {
-        return String(trainer) + ':' + String(limit || 50) + ':' + (device || viewDevice());
+        return String(trainer) + ':' + String(limit || 50) + ':' + (device || viewDevice(trainer));
     }
 
     function itemsEqual(a, b) {
@@ -131,7 +220,7 @@
     }
 
     function seedItems(trainer, limit) {
-        const device = viewDevice();
+        const device = viewDevice(trainer);
         const key = cacheKey(trainer, limit, device);
         if (leaderboardCache.has(key)) {
             return leaderboardCache.get(key);
@@ -204,7 +293,7 @@
 
     async function fetchLeaderboard(trainer, limit) {
         const api = window.ABS_AIM_API_LEADERBOARD || '/api/aim/leaderboard.php';
-        const device = viewDevice();
+        const device = viewDevice(trainer);
         const url = api
             + '?trainer=' + encodeURIComponent(trainer)
             + '&limit=' + encodeURIComponent(String(limit || 50))
@@ -261,12 +350,15 @@
         setViewDevice,
         initViewDeviceFromUrl,
         mountAllDeviceSwitches,
+        setRatingsActiveTrainer,
+        syncDeviceSwitchUI,
         fetchLeaderboard,
         mountTabs(container, panel, trainers, activeId, options) {
             if (!container || !panel || !trainers || !trainers.length) return;
 
             const opts = options || {};
             let current = activeId || trainers[0].id;
+            setRatingsActiveTrainer(current);
 
             function renderTabs() {
                 container.innerHTML = trainers.map((t) => {
@@ -281,6 +373,7 @@
                 container.querySelectorAll('.aim-lb-tab').forEach((btn) => {
                     btn.addEventListener('click', () => {
                         current = btn.getAttribute('data-trainer');
+                        setRatingsActiveTrainer(current);
                         renderTabs();
                         loadPanel();
                         if (typeof opts.onTabChange === 'function') {
@@ -292,7 +385,7 @@
 
             async function loadPanel() {
                 const limit = 50;
-                const device = viewDevice();
+                const device = viewDevice(current);
                 const cached = seedItems(current, limit) || leaderboardCache.get(cacheKey(current, limit, device));
                 if (cached) {
                     panel.innerHTML = renderTable(cached);
@@ -319,7 +412,13 @@
             if (deviceLayoutListener) {
                 window.removeEventListener('aim:devicechange', deviceLayoutListener);
             }
-            lbViewChangeListener = loadPanel;
+            lbViewChangeListener = (event) => {
+                const trainerId = normalizeTrainerId(event?.detail?.trainerId);
+                if (trainerId && trainerId !== normalizeTrainerId(current)) {
+                    return;
+                }
+                loadPanel();
+            };
             deviceLayoutListener = refreshRatingsPanelLayout;
             window.addEventListener('aim:lbviewchange', lbViewChangeListener);
             window.addEventListener('aim:devicechange', deviceLayoutListener);

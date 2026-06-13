@@ -686,6 +686,83 @@ function aim_admin_delete_player_scores($db, string $trainer, string $device, st
     return $stmt->rowCount();
 }
 
+function aim_admin_renamed_user_prefix(): string {
+    return 'RenamedUser_';
+}
+
+function aim_admin_is_renamed_user_name(string $playerName): bool {
+    return (bool) preg_match('/^RenamedUser_\d+$/', aim_normalize_player_name($playerName));
+}
+
+function aim_admin_allocate_renamed_user_name(PDO $pdo): string {
+    $prefix = aim_admin_renamed_user_prefix();
+    $stmt = $pdo->query(
+        "SELECT player_name FROM aim_scores WHERE player_name LIKE 'RenamedUser\\_%'"
+    );
+    $max = 0;
+    if ($stmt) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $name = (string) ($row['player_name'] ?? '');
+            if (preg_match('/^RenamedUser_(\d+)$/', $name, $matches)) {
+                $max = max($max, (int) $matches[1]);
+            }
+        }
+    }
+    return $prefix . ($max + 1);
+}
+
+/**
+ * @return array{success:bool,error?:string,old_name?:string,new_name?:string,updated?:int}
+ */
+function aim_admin_rename_player($db, string $oldName): array {
+    ensure_aim_scores_table($db);
+
+    $oldName = aim_normalize_player_name($oldName);
+    if (!aim_player_name_valid($oldName)) {
+        return ['success' => false, 'error' => 'invalid_player_name'];
+    }
+    if (aim_admin_is_renamed_user_name($oldName)) {
+        return ['success' => false, 'error' => 'already_renamed'];
+    }
+
+    $pdo = $db->getConnection();
+    $check = $pdo->prepare('SELECT COUNT(*) FROM aim_scores WHERE player_name = ?');
+    $check->execute([$oldName]);
+    if ((int) $check->fetchColumn() <= 0) {
+        return ['success' => false, 'error' => 'not_found'];
+    }
+
+    try {
+        $pdo->beginTransaction();
+        $newName = aim_admin_allocate_renamed_user_name($pdo);
+        if (!aim_player_name_valid($newName)) {
+            $pdo->rollBack();
+            return ['success' => false, 'error' => 'invalid_new_name'];
+        }
+
+        $update = $pdo->prepare('UPDATE aim_scores SET player_name = ? WHERE player_name = ?');
+        $update->execute([$newName, $oldName]);
+        $updated = $update->rowCount();
+        if ($updated <= 0) {
+            $pdo->rollBack();
+            return ['success' => false, 'error' => 'not_found'];
+        }
+
+        $pdo->commit();
+        return [
+            'success' => true,
+            'old_name' => $oldName,
+            'new_name' => $newName,
+            'updated' => $updated,
+        ];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return ['success' => false, 'error' => 'server_error'];
+    }
+}
+
 function aim_admin_trainer_label(string $trainer, string $lang = 'ru'): string {
     $meta = aim_trainer_meta($trainer, $lang);
     return $meta['title'] ?? $trainer;

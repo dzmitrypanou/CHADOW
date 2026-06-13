@@ -22,6 +22,8 @@
                 tactics: {
                     title: 'Тактический планшет',
                     desc: 'Совместное планирование тактик на картах — открытые и закрытые комнаты.',
+                    createLabel: 'Создать планшет',
+                    roomsLabel: 'Открытые комнаты',
                 },
                 'clan-reserve': {
                     title: 'Автоматическое включение клановых резервов',
@@ -30,6 +32,8 @@
                 bracket: {
                     title: 'Генератор турнирных сеток',
                     desc: 'Создание и редактирование турнирных сеток для клановых и командных ивентов.',
+                    createLabel: 'Создать сетку',
+                    publicLabel: 'Публичные сетки',
                 },
                 'mod-install': {
                     title: 'Установка модов',
@@ -45,7 +49,11 @@
                 recruiting: '/services/recruiting',
                 online: '/services/online/',
                 tactics: '/services/tactics',
+                'tactics-create': '/services/tactics#tactics-create',
+                'tactics-rooms': '/services/tactics/rooms',
                 bracket: '/services/bracket',
+                'bracket-create': '/services/bracket/create',
+                'bracket-public': '/services/bracket',
                 'aim-trainers': '/services/aim',
             },
         },
@@ -69,6 +77,8 @@
                 tactics: {
                     title: 'Tactical Board',
                     desc: 'Plan tactics together on map overlays — open or password-protected rooms.',
+                    createLabel: 'Create board',
+                    roomsLabel: 'Open rooms',
                 },
                 'clan-reserve': {
                     title: 'Automatic Clan Reserve Activation',
@@ -77,6 +87,8 @@
                 bracket: {
                     title: 'Tournament Bracket Generator',
                     desc: 'Create and edit tournament brackets for clan and team events.',
+                    createLabel: 'Create bracket',
+                    publicLabel: 'Public brackets',
                 },
                 'mod-install': {
                     title: 'Mod Installation',
@@ -92,10 +104,25 @@
                 recruiting: '/en/services/recruiting',
                 online: '/en/services/online/',
                 tactics: '/en/services/tactics',
+                'tactics-create': '/en/services/tactics#tactics-create',
+                'tactics-rooms': '/en/services/tactics/rooms',
                 bracket: '/en/services/bracket',
+                'bracket-create': '/en/services/bracket/create',
+                'bracket-public': '/en/services/bracket',
                 'aim-trainers': '/en/services/aim',
             },
         },
+    };
+
+    const MULTI_ACTION_CARDS = {
+        tactics: [
+            { action: 'create', hrefKey: 'tactics-create', labelKey: 'createLabel' },
+            { action: 'rooms', hrefKey: 'tactics-rooms', labelKey: 'roomsLabel' },
+        ],
+        bracket: [
+            { action: 'create', hrefKey: 'bracket-create', labelKey: 'createLabel' },
+            { action: 'public', hrefKey: 'bracket-public', labelKey: 'publicLabel' },
+        ],
     };
 
     function normalizeLang(lang) {
@@ -112,6 +139,16 @@
         return normalizeLang(window.ABS_LANG);
     }
 
+    function setActionLabel(actionEl, text) {
+        const icon = actionEl.querySelector('i');
+        actionEl.textContent = '';
+        actionEl.append(document.createTextNode(text));
+        if (icon) {
+            actionEl.appendChild(document.createTextNode(' '));
+            actionEl.appendChild(icon);
+        }
+    }
+
     function updateCard(cardEl, lang) {
         const id = cardEl.getAttribute('data-landing-id');
         if (!id) return;
@@ -126,17 +163,24 @@
         const descEl = cardEl.querySelector('.project-card-desc');
         if (descEl) descEl.textContent = card.desc;
 
-        const href = dict.hrefs[id];
-        if (href && cardEl.tagName === 'A') {
-            cardEl.href = href;
-        }
+        const multiActions = MULTI_ACTION_CARDS[id];
+        if (multiActions) {
+            multiActions.forEach(({ action, hrefKey, labelKey }) => {
+                const actionEl = cardEl.querySelector(`[data-landing-action="${action}"]`);
+                if (!actionEl) return;
+                actionEl.href = dict.hrefs[hrefKey];
+                setActionLabel(actionEl, card[labelKey]);
+            });
+        } else {
+            const href = dict.hrefs[id];
+            if (href && cardEl.tagName === 'A') {
+                cardEl.href = href;
+            }
 
-        const actionEl = cardEl.querySelector('.project-card-action');
-        if (actionEl && !actionEl.classList.contains('project-card-action--placeholder')) {
-            const icon = actionEl.querySelector('i');
-            actionEl.textContent = '';
-            if (icon) actionEl.appendChild(icon);
-            actionEl.append(` ${dict.open}`);
+            const actionEl = cardEl.querySelector('.project-card-action');
+            if (actionEl && !actionEl.classList.contains('project-card-action--placeholder')) {
+                setActionLabel(actionEl, dict.open);
+            }
         }
 
         cardEl.querySelectorAll('.project-card-badge').forEach((badge) => {

@@ -570,6 +570,7 @@
                 this.cursorsLayerEl = layer;
             }
             this.mountOverlayLayer(this.cursorsLayerEl, root);
+            this.syncMapContentLayerGeometry(this.cursorsLayerEl);
         }
 
         ensurePingsLayer() {
@@ -582,6 +583,7 @@
                 this.pingsLayerEl = layer;
             }
             this.mountOverlayLayer(this.pingsLayerEl, root);
+            this.syncMapContentLayerGeometry(this.pingsLayerEl);
         }
 
         clearPings() {
@@ -590,22 +592,59 @@
             }
         }
 
-        ensureCellFlashesLayer() {
-            const root = this.getOverlaysEl();
-            if (!root) return;
-            if (!this.cellFlashesLayerEl) {
-                const layer = document.createElement('div');
-                layer.className = 'tactics-cell-flashes-layer';
-                layer.setAttribute('aria-hidden', 'true');
-                this.cellFlashesLayerEl = layer;
-            }
-            this.mountOverlayLayer(this.cellFlashesLayerEl, root);
+        pinMapBoxElement(el, size) {
+            if (!el || !size) return;
+            el.style.inset = 'auto';
+            el.style.left = '0';
+            el.style.top = '0';
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+            el.style.width = `${size}px`;
+            el.style.height = `${size}px`;
+        }
+
+        syncOverlaysRootGeometry() {
+            const overlays = this.getOverlaysEl();
+            const wrap = this.getWrapEl();
+            if (!overlays || !wrap) return;
+            const width = wrap.offsetWidth;
+            const height = wrap.offsetHeight;
+            if (width <= 0 || height <= 0) return;
+            overlays.style.inset = 'auto';
+            overlays.style.left = '0';
+            overlays.style.top = '0';
+            overlays.style.right = 'auto';
+            overlays.style.bottom = 'auto';
+            overlays.style.width = `${width}px`;
+            overlays.style.height = `${height}px`;
+            overlays.style.overflow = 'visible';
+        }
+
+        isPointerOnMap(pointer) {
+            const size = this.getGridCanvasSize();
+            if (!pointer || size <= 0) return false;
+            return pointer.x >= 0
+                && pointer.x <= size
+                && pointer.y >= 0
+                && pointer.y <= size;
         }
 
         clearCellFlashes() {
+            if (!this.fabric) {
+                if (this.cellFlashesLayerEl) {
+                    this.cellFlashesLayerEl.innerHTML = '';
+                }
+                return;
+            }
+            this.isRemote = true;
+            this.fabric.getObjects()
+                .filter((obj) => obj.isCellFlash)
+                .forEach((obj) => this.fabric.remove(obj));
+            this.isRemote = false;
             if (this.cellFlashesLayerEl) {
                 this.cellFlashesLayerEl.innerHTML = '';
             }
+            this.fabric.requestRenderAll();
         }
 
         static GRID_DIVISIONS = 10;
@@ -656,77 +695,86 @@
             return Math.round(Math.max(400, Math.min(4000, ms)));
         }
 
-        getCellOverlaySize() {
-            const metrics = this.getMapContentMetrics();
-            if (metrics?.width > 0 && metrics?.height > 0) {
-                return {
-                    width: metrics.width,
-                    height: metrics.height,
-                };
-            }
-            const layer = this.cellFlashesLayerEl;
-            if (layer?.clientWidth > 0 && layer?.clientHeight > 0) {
-                return {
-                    width: layer.clientWidth,
-                    height: layer.clientHeight,
-                };
-            }
-            return this.getOverlaySize();
-        }
-
-        getCellFlashOverlayRect(col, row) {
-            const divisions = TacticsCanvas.GRID_DIVISIONS;
-            const space = TacticsCanvas.COORD_SPACE;
-            const topLeft = this.canvasPointToOverlay((col / divisions) * space, (row / divisions) * space);
-            const bottomRight = this.canvasPointToOverlay(((col + 1) / divisions) * space, ((row + 1) / divisions) * space);
-            const left = Math.round(topLeft.x);
-            const top = Math.round(topLeft.y);
-            const right = Math.round(bottomRight.x);
-            const bottom = Math.round(bottomRight.y);
-            return {
+        createCellFlashRect(col, row, color) {
+            const size = this.getGridCanvasSize();
+            if (size <= 0) return null;
+            const left = this.getGridLineCanvasCoord(col, size);
+            const top = this.getGridLineCanvasCoord(row, size);
+            const width = this.getGridLineCanvasCoord(col + 1, size) - left;
+            const height = this.getGridLineCanvasCoord(row + 1, size) - top;
+            if (width <= 0 || height <= 0) return null;
+            return new fabric.Rect({
                 left,
                 top,
-                width: Math.max(1, right - left),
-                height: Math.max(1, bottom - top),
-            };
+                width,
+                height,
+                fill: String(color || '#ff4444'),
+                opacity: 0,
+                selectable: false,
+                evented: false,
+                objectCaching: false,
+                excludeFromExport: true,
+                isCellFlash: true,
+            });
+        }
+
+        placeCellFlashAboveGrid(flash) {
+            if (!this.fabric || !flash) return;
+            const objects = this.fabric.getObjects();
+            const gridLines = objects.filter((obj) => obj.isGridLine);
+            let targetIndex = 0;
+            if (gridLines.length) {
+                targetIndex = objects.indexOf(gridLines[gridLines.length - 1]) + 1;
+            } else {
+                const bg = objects.find((obj) => obj.isBackground);
+                targetIndex = bg ? objects.indexOf(bg) + 1 : 0;
+            }
+            this.fabric.moveTo(flash, Math.max(0, targetIndex));
         }
 
         playCellFlash(col, row, color) {
-            this.ensureCellFlashesLayer();
-            if (!this.cellFlashesLayerEl) return null;
-
-            const cellRect = this.getCellFlashOverlayRect(col, row);
-            if (cellRect.width <= 0 || cellRect.height <= 0) return null;
+            if (!this.fabric) return null;
+            const rect = this.createCellFlashRect(col, row, color);
+            if (!rect) return null;
 
             const durationMs = this.getCellFlashDuration();
-
-            const flash = document.createElement('div');
-            flash.className = 'tactics-cell-flash';
-            flash.style.setProperty('--cell-flash-color', String(color || '#ff4444'));
-            flash.style.setProperty('--cell-flash-duration', `${durationMs}ms`);
-            flash.style.left = `${cellRect.left}px`;
-            flash.style.top = `${cellRect.top}px`;
-            flash.style.width = `${cellRect.width}px`;
-            flash.style.height = `${cellRect.height}px`;
-
-            this.cellFlashesLayerEl.appendChild(flash);
-
-            const cleanup = () => {
-                if (flash.isConnected) flash.remove();
+            const removeFlash = () => {
+                if (!rect?.canvas) return;
+                this.isRemote = true;
+                this.fabric.remove(rect);
+                this.isRemote = false;
+                this.fabric.requestRenderAll();
             };
 
+            this.isRemote = true;
+            this.fabric.add(rect);
+            this.placeCellFlashAboveGrid(rect);
+            this.isRemote = false;
+
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                flash.style.opacity = '0.45';
-                window.setTimeout(cleanup, durationMs);
-                return flash;
+                rect.set({ opacity: 0.45 });
+                this.fabric.requestRenderAll();
+                window.setTimeout(removeFlash, durationMs);
+                return rect;
             }
 
-            flash.addEventListener('animationend', cleanup, { once: true });
-            window.setTimeout(cleanup, durationMs + 80);
-            return flash;
+            rect.animate('opacity', 0.58, {
+                duration: Math.round(durationMs * 0.18),
+                onChange: () => this.fabric.requestRenderAll(),
+                onComplete: () => {
+                    rect.animate('opacity', 0, {
+                        duration: Math.round(durationMs * 0.82),
+                        onChange: () => this.fabric.requestRenderAll(),
+                        onComplete: removeFlash,
+                    });
+                },
+            });
+            window.setTimeout(removeFlash, durationMs + 80);
+            return rect;
         }
 
         fireCellFlashAtPointer(pointer) {
+            if (!this.isPointerOnMap(pointer)) return;
             const cell = this.getGridCellFromPointer(pointer);
             if (!cell) return;
 
@@ -755,6 +803,7 @@
                 this.rulerLayerEl = layer;
             }
             this.mountOverlayLayer(this.rulerLayerEl, root);
+            this.syncMapContentLayerGeometry(this.rulerLayerEl);
         }
 
         clearRuler() {
@@ -842,9 +891,48 @@
             const x = Math.max(0, Math.min(1, Number(nx) || 0));
             const y = Math.max(0, Math.min(1, Number(ny) || 0));
             return {
-                x: metrics.offsetX + (x * metrics.width),
-                y: metrics.offsetY + (y * metrics.height),
+                x: x * metrics.width,
+                y: y * metrics.height,
             };
+        }
+
+        syncMapContentLayerGeometry(layer) {
+            if (!layer) return;
+            const metrics = this.getMapContentMetrics();
+            layer.style.inset = 'auto';
+            layer.style.right = 'auto';
+            layer.style.bottom = 'auto';
+            layer.style.overflow = 'visible';
+            if (!metrics || metrics.width <= 0 || metrics.height <= 0) {
+                layer.style.left = '0';
+                layer.style.top = '0';
+                layer.style.width = '100%';
+                layer.style.height = '100%';
+                return;
+            }
+            layer.style.left = `${metrics.offsetX}px`;
+            layer.style.top = `${metrics.offsetY}px`;
+            layer.style.width = `${metrics.width}px`;
+            layer.style.height = `${metrics.height}px`;
+        }
+
+        syncCanvasWrapOverlayLayer(layer) {
+            if (!layer) return;
+            layer.style.inset = '0';
+            layer.style.left = '0';
+            layer.style.top = '0';
+            layer.style.right = '0';
+            layer.style.bottom = '0';
+            layer.style.width = '';
+            layer.style.height = '';
+            layer.style.overflow = 'visible';
+        }
+
+        syncAllMapOverlayLayers() {
+            this.syncOverlaysRootGeometry();
+            this.syncMapContentLayerGeometry(this.cursorsLayerEl);
+            this.syncMapContentLayerGeometry(this.pingsLayerEl);
+            this.syncMapContentLayerGeometry(this.rulerLayerEl);
         }
 
         formatRulerDistance(meters) {
@@ -915,8 +1003,8 @@
         updateRulerDisplay(x1, y1, x2, y2) {
             this.ensureRulerLayer();
             const metrics = this.getMapContentMetrics();
-            const overlayW = metrics?.overlayWidth || metrics?.width || 0;
-            const overlayH = metrics?.overlayHeight || metrics?.height || 0;
+            const overlayW = metrics?.width || 0;
+            const overlayH = metrics?.height || 0;
             if (!this.rulerLayerEl || overlayW <= 0 || overlayH <= 0) return;
 
             const start = this.canvasPointToOverlay(x1, y1);
@@ -1680,10 +1768,10 @@
 
         getRemoteStrokeRenderSize() {
             const metrics = this.getMapContentMetrics();
-            if (metrics) {
+            if (metrics?.width > 0 && metrics?.height > 0) {
                 return {
-                    width: metrics.overlayWidth || metrics.width,
-                    height: metrics.overlayHeight || metrics.height,
+                    width: metrics.width,
+                    height: metrics.height,
                 };
             }
             const stack = this.getStackEl();
@@ -1700,16 +1788,7 @@
         }
 
         syncRemoteStrokesLayerGeometry() {
-            const layer = this.remoteStrokesLayerEl;
-            if (!layer) return;
-            layer.style.inset = '0';
-            layer.style.left = '';
-            layer.style.top = '';
-            layer.style.right = '';
-            layer.style.bottom = '';
-            layer.style.width = '';
-            layer.style.height = '';
-            layer.style.overflow = 'visible';
+            this.syncMapContentLayerGeometry(this.remoteStrokesLayerEl);
         }
 
         getMapGridEl() {
@@ -1749,6 +1828,7 @@
                 zoomEl.style.transform = '';
                 zoomEl.style.transformOrigin = '';
                 viewport?.classList.remove('is-map-zoomed', 'is-map-panning');
+                this.syncAllMapOverlayLayers();
                 this.repositionRemoteCursors();
                 this.refreshRemoteStrokes();
                 this.refreshRulerOverlay();
@@ -1759,6 +1839,7 @@
             zoomEl.style.transformOrigin = '0 0';
             zoomEl.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
             viewport?.classList.add('is-map-zoomed');
+            this.syncAllMapOverlayLayers();
             this.repositionRemoteCursors();
             this.refreshRemoteStrokes();
             this.refreshRulerOverlay();
@@ -2107,15 +2188,14 @@
 
             container.style.width = size + 'px';
             container.style.height = size + 'px';
+            this.pinMapBoxElement(container, size);
 
             if (wrap) {
-                wrap.style.width = size + 'px';
-                wrap.style.height = size + 'px';
+                this.pinMapBoxElement(wrap, size);
             }
 
             if (stack) {
-                stack.style.width = size + 'px';
-                stack.style.height = size + 'px';
+                this.pinMapBoxElement(stack, size);
             }
 
             if (grid) {
@@ -2142,11 +2222,13 @@
             this.ensureLogicalCoordSpace();
             this.applyDisplayZoom(size);
             this.syncFabricContainer(size);
+            this.syncOverlaysRootGeometry();
             this.fitBackground();
             this.syncGridOverlay();
             this.ensureCursorsLayer();
             this.ensurePingsLayer();
             this.ensureRulerLayer();
+            this.syncAllMapOverlayLayers();
             this.repositionRemoteCursors();
             this.refreshRulerOverlay();
             this.refreshRemoteStrokes();
@@ -2326,7 +2408,7 @@
             this.fabric.skipTargetFind = (readonly && !canOverlayTool) || canOverlayTool;
 
             this.fabric.forEachObject((obj) => {
-                if (obj.isDrawingPreview || obj.isGridLine) {
+                if (obj.isDrawingPreview || obj.isRemoteStrokePreview || obj.isCellFlash || obj.isGridLine) {
                     obj.selectable = false;
                     obj.evented = false;
                     return;
@@ -2785,16 +2867,187 @@
         }
 
         ensureRemoteStrokesLayer() {
-            const root = this.getOverlaysEl();
-            if (!root) return;
-            if (!this.remoteStrokesLayerEl) {
-                const layer = document.createElement('div');
-                layer.className = 'tactics-remote-strokes-layer';
-                layer.setAttribute('aria-hidden', 'true');
-                this.remoteStrokesLayerEl = layer;
+            // Live stroke previews are rendered as Fabric objects on the canvas.
+        }
+
+        clearRemoteStrokeFabricPreview(entry) {
+            if (!entry?.fabricObjs?.length || !this.fabric) return;
+            this.isRemote = true;
+            entry.fabricObjs.forEach((obj) => this.fabric.remove(obj));
+            this.isRemote = false;
+            entry.fabricObjs = [];
+        }
+
+        createRemoteStrokeFabricShape(tool, segment, entry, capCtx = null) {
+            const space = TacticsCanvas.COORD_SPACE;
+            const color = entry.color || '#ff4444';
+            const logicalWidth = entry.width || 4;
+            const lineType = entry.lineType || 'solid';
+            const endType = entry.endType || 'none';
+            const isLine = tool === 'line';
+            const lineCap = this.resolveRemoteStrokeLineCap(endType, lineType, isLine);
+            const lineJoin = window.AbsTacticsToolSettings?.getStrokeLineJoin?.(lineType) || 'round';
+            const dash = window.AbsTacticsToolSettings?.getStrokeDashArray(lineType, logicalWidth);
+            const baseOpts = {
+                stroke: color,
+                strokeWidth: logicalWidth,
+                fill: 'transparent',
+                strokeLineCap: lineCap,
+                strokeLineJoin: lineJoin,
+                strokeDashArray: dash || null,
+                selectable: false,
+                evented: false,
+                opacity: 0.85,
+                isRemoteStrokePreview: true,
+            };
+
+            if (isLine && segment.length >= 2) {
+                const start = segment[0];
+                const end = segment[segment.length - 1];
+                let endX = (end.x || 0) * space;
+                let endY = (end.y || 0) * space;
+                if (capCtx && (endType === 'arrow' || endType === 'bar')) {
+                    endX = capCtx.geom.bodyX2;
+                    endY = capCtx.geom.bodyY2;
+                }
+                return new fabric.Line([
+                    (start.x || 0) * space,
+                    (start.y || 0) * space,
+                    endX,
+                    endY,
+                ], baseOpts);
             }
-            this.mountOverlayLayer(this.remoteStrokesLayerEl, root);
-            this.syncRemoteStrokesLayerGeometry();
+
+            if (segment.length < 2) {
+                if (segment.length !== 1) return null;
+                const p = segment[0];
+                const radius = Math.max(1.5, logicalWidth / 2);
+                return new fabric.Circle({
+                    left: (p.x || 0) * space - radius,
+                    top: (p.y || 0) * space - radius,
+                    radius,
+                    fill: color,
+                    stroke: null,
+                    selectable: false,
+                    evented: false,
+                    opacity: 0.85,
+                    isRemoteStrokePreview: true,
+                });
+            }
+
+            const fabricPoints = segment.map((p) => ({
+                x: (p.x || 0) * space,
+                y: (p.y || 0) * space,
+            }));
+            const normalized = this.normalizePolygonPoints(fabricPoints);
+            return new fabric.Polyline(normalized.points, {
+                ...baseOpts,
+                left: normalized.left,
+                top: normalized.top,
+            });
+        }
+
+        buildRemoteStrokeCapFabricContext(entry, previewPoints) {
+            const endType = entry?.endType || 'none';
+            if (endType !== 'arrow' && endType !== 'bar') return null;
+            if (!previewPoints || previewPoints.length < 2) return null;
+
+            const space = TacticsCanvas.COORD_SPACE;
+            const logicalWidth = entry.width || 4;
+            const mode = entry.tool === 'line' ? 'line' : 'pen';
+            const logicalPts = previewPoints.map((p) => ({
+                x: (p.x || 0) * space,
+                y: (p.y || 0) * space,
+            }));
+            const wt = this.resolveArrowEndpoints({
+                points: logicalPts,
+                mode,
+                strokeWidth: logicalWidth,
+            });
+            if (!wt) return null;
+
+            const geom = this.getLineEndGeometry(
+                wt.a.x,
+                wt.a.y,
+                wt.b.x,
+                wt.b.y,
+                endType,
+                logicalWidth,
+                { pen: mode === 'pen' && endType === 'arrow' },
+            );
+            if (!geom || geom.dist < 0.5) return null;
+
+            return {
+                wt,
+                geom,
+                endType,
+                mode,
+                logicalWidth,
+                color: entry.color || '#ff4444',
+                space,
+            };
+        }
+
+        createRemoteStrokeFabricCap(capCtx) {
+            if (!capCtx) return null;
+            const { wt, geom, endType, mode, logicalWidth, color } = capCtx;
+            const baseOpts = {
+                stroke: color,
+                strokeWidth: logicalWidth,
+                fill: 'transparent',
+                selectable: false,
+                evented: false,
+                opacity: 0.85,
+                isRemoteStrokePreview: true,
+            };
+
+            if (endType === 'arrow') {
+                let tipX = wt.b.x;
+                let tipY = wt.b.y;
+                if (mode === 'pen') {
+                    const forward = this.getPenArrowTipForward(logicalWidth);
+                    const offset = this.offsetPointAlong(
+                        tipX - wt.a.x,
+                        tipY - wt.a.y,
+                        forward,
+                    );
+                    if (offset) {
+                        tipX += offset.x;
+                        tipY += offset.y;
+                    }
+                }
+                const arrow = this.buildArrowFromEndpoints(wt.a, { x: tipX, y: tipY }, logicalWidth);
+                if (!arrow?.triangle) return null;
+                const triangle = arrow.triangle;
+                const normalized = this.normalizePolygonPoints([
+                    { x: triangle.leftX, y: triangle.leftY },
+                    { x: triangle.tipX, y: triangle.tipY },
+                    { x: triangle.rightX, y: triangle.rightY },
+                ]);
+                return new fabric.Polyline(normalized.points, {
+                    ...baseOpts,
+                    left: normalized.left,
+                    top: normalized.top,
+                    strokeLineCap: 'round',
+                    strokeLineJoin: 'round',
+                });
+            }
+
+            if (endType === 'bar') {
+                const half = this.getBarCapHalfLength(logicalWidth);
+                const perp = geom.angle + Math.PI / 2;
+                return new fabric.Line([
+                    geom.tipX - half * Math.cos(perp),
+                    geom.tipY - half * Math.sin(perp),
+                    geom.tipX + half * Math.cos(perp),
+                    geom.tipY + half * Math.sin(perp),
+                ], {
+                    ...baseOpts,
+                    strokeLineCap: 'butt',
+                });
+            }
+
+            return null;
         }
 
         normalizePoint(pointer) {
@@ -3173,8 +3426,10 @@
                 cancelAnimationFrame(entry.renderRaf);
                 entry.renderRaf = 0;
             }
+            this.clearRemoteStrokeFabricPreview(entry);
             entry.el?.remove();
             this.remoteStrokes.delete(key);
+            this.fabric?.requestRenderAll();
         }
 
         scheduleRemoteStrokeRender(entry) {
@@ -3190,7 +3445,6 @@
         }
 
         refreshRemoteStrokes() {
-            this.syncRemoteStrokesLayerGeometry();
             this.remoteStrokes.forEach((entry) => this.scheduleRemoteStrokeRender(entry));
         }
 
@@ -3487,58 +3741,53 @@
             const hasPoints = Array.isArray(entry?.segments)
                 ? entry.segments.some((seg) => seg.length)
                 : entry.points?.length;
-            if (!entry?.el || !hasPoints) return;
-            this.syncRemoteStrokesLayerGeometry();
-            const { width: overlayW, height: overlayH } = this.getRemoteStrokeRenderSize();
-            if (overlayW <= 0 || overlayH <= 0) {
-                this.scheduleRemoteStrokeRender(entry);
-                return;
-            }
-            const parts = this.buildRemoteStrokeSvgParts(entry);
-            if (!parts.length) return;
+            if (!this.fabric || !entry || !hasPoints) return;
 
-            let svg = entry.svgEl;
-            if (!svg || !svg.isConnected) {
-                entry.el.textContent = '';
-                svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.style.position = 'absolute';
-                svg.style.left = '0';
-                svg.style.top = '0';
-                svg.style.overflow = 'visible';
-                svg.style.pointerEvents = 'none';
-                entry.el.appendChild(svg);
-                entry.svgEl = svg;
-                entry.shapeEls = [];
-            }
-            svg.setAttribute('width', String(overlayW));
-            svg.setAttribute('height', String(overlayH));
-            svg.setAttribute('viewBox', `0 0 ${overlayW} ${overlayH}`);
+            const previewSegments = this.getRemoteStrokeBodyPreviewSegments(entry);
+            if (!previewSegments.length) return;
 
-            if (!Array.isArray(entry.shapeEls)) {
-                entry.shapeEls = [];
-            }
+            const capSourcePoints = this.getRemoteStrokeCapSourcePoints(entry);
+            const capCtx = this.buildRemoteStrokeCapFabricContext(entry, capSourcePoints);
+            const space = TacticsCanvas.COORD_SPACE;
 
-            while (entry.shapeEls.length < parts.length) {
-                const el = document.createElementNS('http://www.w3.org/2000/svg', parts[entry.shapeEls.length].tag);
-                svg.appendChild(el);
-                entry.shapeEls.push(el);
-            }
-            while (entry.shapeEls.length > parts.length) {
-                entry.shapeEls.pop()?.remove();
-            }
-
-            parts.forEach((part, index) => {
-                let el = entry.shapeEls[index];
-                if (el.tagName.toLowerCase() !== part.tag) {
-                    const next = document.createElementNS('http://www.w3.org/2000/svg', part.tag);
-                    el.replaceWith(next);
-                    entry.shapeEls[index] = next;
-                    el = next;
-                }
-                Object.entries(part.attrs).forEach(([name, value]) => {
-                    el.setAttribute(name, String(value));
+            this.clearRemoteStrokeFabricPreview(entry);
+            const fabricObjs = [];
+            this.isRemote = true;
+            try {
+                const lastSegIdx = previewSegments.length - 1;
+                previewSegments.forEach((segment, segIdx) => {
+                    if (!segment.length) return;
+                    let seg = segment;
+                    if (capCtx && segIdx === lastSegIdx && seg.length >= 2 && entry.tool !== 'line') {
+                        seg = seg.slice();
+                        seg[seg.length - 1] = {
+                            x: capCtx.geom.bodyX2 / space,
+                            y: capCtx.geom.bodyY2 / space,
+                        };
+                    }
+                    const shape = this.createRemoteStrokeFabricShape(
+                        entry.tool,
+                        seg,
+                        entry,
+                        entry.tool === 'line' ? capCtx : null,
+                    );
+                    if (!shape) return;
+                    this.fabric.add(shape);
+                    fabricObjs.push(shape);
                 });
-            });
+
+                const capShape = this.createRemoteStrokeFabricCap(capCtx);
+                if (capShape) {
+                    this.fabric.add(capShape);
+                    fabricObjs.push(capShape);
+                }
+
+                entry.fabricObjs = fabricObjs;
+            } finally {
+                this.isRemote = false;
+                this.syncInteractionState();
+                this.fabric.requestRenderAll();
+            }
         }
 
         removeRemoteStrokesFromClient(clientId) {
@@ -3549,14 +3798,15 @@
                     cancelAnimationFrame(entry.renderRaf);
                     entry.renderRaf = 0;
                 }
+                this.clearRemoteStrokeFabricPreview(entry);
                 entry.el?.remove();
                 this.remoteStrokes.delete(key);
             }
+            this.fabric?.requestRenderAll();
         }
 
         applyRemoteStrokeOp(msg) {
-            this.ensureRemoteStrokesLayer();
-            if (!this.remoteStrokesLayerEl || !msg?.payload) return;
+            if (!msg?.payload) return;
             const from = String(msg.from || msg.clientId || '');
             if (from && from === String(this.clientId || '')) return;
 
@@ -3568,14 +3818,10 @@
                 if (entry) {
                     this.removeRemoteStroke(from, p.strokeId);
                 }
-                const el = document.createElement('div');
-                el.className = 'tactics-remote-stroke';
-                this.remoteStrokesLayerEl.appendChild(el);
                 const segments = Array.isArray(p.segments) && p.segments.length
                     ? p.segments.map((seg) => (Array.isArray(seg) ? seg.slice() : []))
                     : (Array.isArray(p.points) && p.points.length ? [p.points.slice()] : [[]]);
                 entry = {
-                    el,
                     tool: p.tool || 'pen',
                     segments,
                     points: segments.flat(),
@@ -3583,8 +3829,7 @@
                     width: p.width,
                     endType: p.endType || 'none',
                     lineType: p.lineType || 'solid',
-                    svgEl: null,
-                    shapeEls: [],
+                    fabricObjs: [],
                     renderRaf: 0,
                 };
                 this.remoteStrokes.set(key, entry);
@@ -3634,12 +3879,14 @@
                 if (entry.renderRaf) {
                     cancelAnimationFrame(entry.renderRaf);
                 }
+                this.clearRemoteStrokeFabricPreview(entry);
                 entry.el?.remove();
             });
             this.remoteStrokes.clear();
             if (this.remoteStrokesLayerEl) {
                 this.remoteStrokesLayerEl.innerHTML = '';
             }
+            this.fabric?.requestRenderAll();
         }
 
         insertImageFromFile(file) {
@@ -4856,7 +5103,7 @@
         }
 
         isPreviewObject(obj) {
-            return !!(obj?.isDrawingPreview || obj?.isGridLine || obj?.isBackground);
+            return !!(obj?.isDrawingPreview || obj?.isRemoteStrokePreview || obj?.isCellFlash || obj?.isGridLine || obj?.isBackground);
         }
 
         clearShapePreview() {
@@ -5646,6 +5893,7 @@
             }
 
             if (this.tool === 'cell') {
+                if (!this.isPointerOnMap(pointer)) return;
                 this.fireCellFlashAtPointer(pointer);
                 return;
             }
