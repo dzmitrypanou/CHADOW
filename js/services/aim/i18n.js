@@ -122,14 +122,14 @@
             flick: 'Кликайте по появляющимся целям как можно быстрее и точнее.',
             tracking: 'Держите прицел на движущейся цели как можно дольше.',
             reaction: '10 раундов: дождитесь зелёного сигнала и кликните.',
-            lead: 'Попадайте в зону упреждения перед движущейся целью.',
+            lead: 'Попадайте в зону упреждения перед движущейся целью (нажимайте ЛКМ по зеленому кругу).',
             gridshot: 'Три мелкие цели одновременно — сбивайте их подряд.',
         },
         en: {
             flick: 'Click targets as they appear — speed and accuracy matter.',
             tracking: 'Keep your crosshair on the moving target as long as possible.',
             reaction: '10 rounds: wait for green, then click as fast as you can.',
-            lead: 'Hit the lead zone ahead of the moving target.',
+            lead: 'Hit the lead zone ahead of the moving target (left-click the green circle).',
             gridshot: 'Three small targets at once — clear them as fast as you can.',
         },
     };

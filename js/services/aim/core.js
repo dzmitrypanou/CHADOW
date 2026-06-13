@@ -20,14 +20,19 @@
         return String(s);
     }
 
+    const AIM_ARENA_WIDTH = 1280;
+    const AIM_ARENA_HEIGHT = 720;
+
     function pointerPos(canvas, event) {
         const rect = canvas.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
             return { x: 0, y: 0 };
         }
+        const logicalW = Number(canvas.dataset.aimLogicalWidth) || AIM_ARENA_WIDTH;
+        const logicalH = Number(canvas.dataset.aimLogicalHeight) || AIM_ARENA_HEIGHT;
         return {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
+            x: (event.clientX - rect.left) * (logicalW / rect.width),
+            y: (event.clientY - rect.top) * (logicalH / rect.height),
         };
     }
 
@@ -50,6 +55,8 @@
     }
 
     window.AbsAimCore = {
+        AIM_ARENA_WIDTH,
+        AIM_ARENA_HEIGHT,
         computeGrade,
         formatTime,
         pointerPos,
@@ -96,18 +103,15 @@
             };
         },
         resizeCanvas(canvas) {
-            const parent = canvas.parentElement;
-            if (!parent) {
-                return { width: 0, height: 0, dpr: 1 };
-            }
-            const rect = parent.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-            const w = Math.max(1, Math.floor(rect.width));
-            const h = Math.max(1, Math.floor(rect.height));
-            canvas.style.width = '';
-            canvas.style.height = '';
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const w = AIM_ARENA_WIDTH;
+            const h = AIM_ARENA_HEIGHT;
             canvas.width = Math.max(1, Math.floor(w * dpr));
             canvas.height = Math.max(1, Math.floor(h * dpr));
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.dataset.aimLogicalWidth = String(w);
+            canvas.dataset.aimLogicalHeight = String(h);
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

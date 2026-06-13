@@ -15,7 +15,7 @@ const AIM_SCORE_RANGES = [
     'flick' => [0, 15000],
     'tracking' => [0, 1000],
     'reaction' => [0, 10000],
-    'lead' => [0, 15000],
+    'lead' => [0, 55000],
     'gridshot' => [0, 5000],
 ];
 
@@ -23,9 +23,9 @@ const AIM_GRADE_ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
 
 const AIM_GRADE_THRESHOLDS = [
     'flick' => ['SSS' => 9000, 'SS' => 7000, 'S' => 5000, 'A' => 3500, 'B' => 2000, 'C' => 800, 'D' => 0],
-    'tracking' => ['SSS' => 970, 'SS' => 920, 'S' => 850, 'A' => 700, 'B' => 500, 'C' => 250, 'D' => 0],
+    'tracking' => ['SSS' => 900, 'SS' => 850, 'S' => 780, 'A' => 620, 'B' => 420, 'C' => 180, 'D' => 0],
     'reaction' => ['SSS' => 9900, 'SS' => 9600, 'S' => 9200, 'A' => 8500, 'B' => 7500, 'C' => 6000, 'D' => 0],
-    'lead' => ['SSS' => 8500, 'SS' => 6500, 'S' => 4500, 'A' => 3000, 'B' => 1500, 'C' => 500, 'D' => 0],
+    'lead' => ['SSS' => 38000, 'SS' => 28000, 'S' => 18000, 'A' => 10000, 'B' => 5000, 'C' => 1500, 'D' => 0],
     'gridshot' => ['SSS' => 125, 'SS' => 105, 'S' => 85, 'A' => 65, 'B' => 45, 'C' => 20, 'D' => 0],
 ];
 
@@ -80,11 +80,11 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'duration_sec' => 60,
             'ru' => [
                 'title' => 'Упреждение',
-                'desc' => 'Попадайте в зону упреждения перед движущейся целью.',
+                'desc' => 'Попадайте в зону упреждения перед движущейся целью (нажимайте ЛКМ по зеленому кругу).',
             ],
             'en' => [
                 'title' => 'Lead Shot',
-                'desc' => 'Hit the lead zone ahead of the moving target.',
+                'desc' => 'Hit the lead zone ahead of the moving target (left-click the green circle).',
             ],
         ],
         'gridshot' => [

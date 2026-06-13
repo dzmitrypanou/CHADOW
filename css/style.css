@@ -15532,13 +15532,13 @@ body.tactics-confirm-open {
     gap: 16px;
     flex-wrap: wrap;
 }
-}
 
 .aim-play-title-wrap {
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 4px;
+    flex: 1;
     min-width: 0;
 }
 
@@ -15577,9 +15577,29 @@ body.tactics-confirm-open {
     width: 100%;
     min-height: 240px;
     min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    container-type: size;
+}
+
+.aim-play-viewport {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    width: min(100cqw, calc(100cqh * 16 / 9), 1280px);
+    max-height: 100cqh;
+    flex-shrink: 0;
     border: 1px solid rgba(113, 163, 230, 0.28);
     background: rgba(8, 14, 28, 0.92);
     overflow: hidden;
+}
+
+@supports not (width: 100cqw) {
+    .aim-play-viewport {
+        width: 100%;
+        max-width: 1280px;
+    }
 }
 
 .aim-canvas {
@@ -15596,22 +15616,21 @@ body.tactics-confirm-open {
 }
 
 .aim-hud {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    right: 12px;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    pointer-events: none;
-    z-index: 2;
+    margin-left: auto;
+    justify-content: flex-end;
+    align-items: stretch;
+    flex-shrink: 0;
 }
 
 .aim-hud-stat {
     padding: 8px 12px;
     border: 1px solid rgba(113, 163, 230, 0.28);
     background: rgba(10, 18, 36, 0.78);
-    min-width: 88px;
+    min-width: 72px;
+    text-align: center;
 }
 
 .aim-hud-label {
@@ -15784,13 +15803,109 @@ body.tactics-confirm-open {
     }
 
     .aim-play-stage {
-        min-height: 200px;
+        flex: 0 0 auto;
+        min-height: 0;
+        align-items: stretch;
+        justify-content: stretch;
+        container-type: normal;
+    }
+
+    .aim-play-viewport {
+        width: 100%;
+        max-width: none;
+        max-height: none;
+        aspect-ratio: 16 / 9;
+    }
+
+    .page-aim-play .container {
+        padding: 10px 12px;
     }
 
     .page-aim-play .aim-play {
-        min-height: calc(100dvh - var(--site-header-height) - 32px);
-        height: calc(100dvh - var(--site-header-height) - 32px);
-        max-height: calc(100dvh - var(--site-header-height) - 32px);
+        min-height: auto;
+        height: auto;
+        max-height: none;
+        gap: 8px;
+    }
+
+    .aim-play-toolbar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 6px 8px;
+        align-items: center;
+    }
+
+    .aim-play-title-wrap {
+        display: contents;
+    }
+
+    .aim-back-link {
+        grid-column: 1;
+        grid-row: 1;
+        padding: 7px 10px;
+        font-size: 0.8rem;
+        align-self: center;
+    }
+
+    .aim-play-title {
+        grid-column: 2;
+        grid-row: 1;
+        font-size: 1rem;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .aim-play-title-wrap .aim-play-desc,
+    .aim-play-desc {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin: 0;
+        font-size: 0.76rem;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .aim-play-toolbar .aim-hud {
+        grid-column: 3;
+        grid-row: 1;
+        width: auto;
+        margin-left: 0;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    .aim-hud-stat {
+        min-width: 54px;
+        padding: 5px 8px;
+    }
+
+    .aim-hud-label {
+        font-size: 0.62rem;
+        letter-spacing: 0.02em;
+    }
+
+    .aim-hud-value {
+        font-size: 0.92rem;
+        margin-top: 0;
+    }
+
+    .aim-overlay-card {
+        padding: 18px 16px;
+    }
+
+    .aim-overlay-card--start {
+        padding: 12px 14px;
+    }
+
+    .aim-overlay-hint {
+        font-size: 0.88rem;
+        line-height: 1.4;
     }
 
     .aim-trainer-card {

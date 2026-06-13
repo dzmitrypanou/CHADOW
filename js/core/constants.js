@@ -1,5 +1,5 @@
 const AppConstants = {
-    VERSION: '3.2.2 EVA04',
+    VERSION: '3.2.2 starlight',
     LANG: (typeof window !== 'undefined' && window.ABS_LANG === 'en') ? 'en' : 'ru',
     DEFAULT_VISIBLE_COLUMNS: {
         battles: true,

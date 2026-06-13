@@ -1,12 +1,14 @@
 (() => {
     'use strict';
 
-    const { dist, rand, clamp, pointerPos } = window.AbsAimCore;
+    const { dist, clamp, pointerPos } = window.AbsAimCore;
 
     function createLeadTrainer() {
         const DURATION_SEC = 60;
         const DISTANCE_MIN = 0.12;
         const DISTANCE_MAX = 0.92;
+        const SPEED_MIN = 180;
+        const SPEED_MAX = 480;
         let canvas = null;
         let ctx = null;
         let width = 0;
@@ -17,11 +19,9 @@
         let hits = 0;
         let misses = 0;
         let pointer = { x: 0, y: 0 };
-        let body = { x: 0, y: 0, vx: 180 };
+        let body = { x: 0, y: 0, vx: SPEED_MIN };
         let lastUpdate = 0;
-        let distance = 0.5;
-        let distanceTarget = 0.5;
-        let nextDistanceChangeAt = 0;
+        let distance = DISTANCE_MIN;
         let distanceSamples = 0;
         let distanceSum = 0;
 
@@ -29,26 +29,21 @@
             return Math.max(0, (endAt - performance.now()) / 1000);
         }
 
-        function pickDistanceTarget() {
-            return rand(DISTANCE_MIN, DISTANCE_MAX);
+        function sessionProgress(now) {
+            const elapsed = (now - startAt) / 1000;
+            const t = clamp(elapsed / DURATION_SEC, 0, 1);
+            return t * t * (3 - 2 * t);
         }
 
-        function scheduleDistanceChange(now) {
-            nextDistanceChangeAt = now + rand(1800, 4200);
-            distanceTarget = pickDistanceTarget();
+        function currentSpeed(now) {
+            return SPEED_MIN + (SPEED_MAX - SPEED_MIN) * sessionProgress(now);
         }
 
-        function updateDistance(now, dt) {
-            if (now >= nextDistanceChangeAt) {
-                scheduleDistanceChange(now);
-            }
-            const lerp = 1 - Math.pow(0.001, dt);
-            distance += (distanceTarget - distance) * clamp(lerp, 0.02, 0.18);
-            distance = clamp(distance, DISTANCE_MIN, DISTANCE_MAX);
-            if (running) {
-                distanceSum += distance;
-                distanceSamples += 1;
-            }
+        function updateDistance(now) {
+            if (!running) return;
+            distance = DISTANCE_MIN + (DISTANCE_MAX - DISTANCE_MIN) * sessionProgress(now);
+            distanceSum += distance;
+            distanceSamples += 1;
         }
 
         function bodyRadius() {
@@ -66,18 +61,21 @@
         function updateBody(now) {
             const dt = lastUpdate > 0 ? (now - lastUpdate) / 1000 : 0;
             lastUpdate = now;
-            updateDistance(now, Math.max(dt, 1 / 120));
+            updateDistance(now);
             const t = (now - startAt) / 1000;
             const laneY = height * (0.38 + distance * 0.22);
             body.y = laneY + Math.sin(t * 0.8) * (height * 0.04);
+            const dir = body.vx >= 0 ? 1 : -1;
+            const speed = currentSpeed(now);
+            body.vx = dir * speed;
             body.x += body.vx * dt;
             const margin = 48 + distance * 24;
             if (body.x > width - margin) {
                 body.x = width - margin;
-                body.vx = -Math.abs(body.vx);
+                body.vx = -speed;
             } else if (body.x < margin) {
                 body.x = margin;
-                body.vx = Math.abs(body.vx);
+                body.vx = speed;
             }
         }
 
@@ -119,9 +117,8 @@
                 ctx = context;
                 width = size.width;
                 height = size.height;
-                body = { x: width * 0.25, y: height / 2, vx: 180 };
-                distance = pickDistanceTarget();
-                distanceTarget = pickDistanceTarget();
+                body = { x: width * 0.25, y: height / 2, vx: SPEED_MIN };
+                distance = DISTANCE_MIN;
             },
             resize(size) {
                 width = size.width;
@@ -134,12 +131,10 @@
                 startAt = performance.now();
                 lastUpdate = startAt;
                 endAt = startAt + DURATION_SEC * 1000;
-                body = { x: width * 0.25, y: height / 2, vx: 180 };
-                distance = pickDistanceTarget();
-                distanceTarget = pickDistanceTarget();
+                body = { x: width * 0.25, y: height / 2, vx: SPEED_MIN };
+                distance = DISTANCE_MIN;
                 distanceSamples = 0;
                 distanceSum = 0;
-                scheduleDistanceChange(startAt);
             },
             stop() {
                 running = false;
@@ -193,7 +188,7 @@
 
                 ctx.save();
                 ctx.setLineDash([6, 6]);
-                ctx.strokeStyle = 'rgba(255, 193, 7, 0.45)';
+                ctx.strokeStyle = 'rgba(76, 175, 80, 0.45)';
                 ctx.beginPath();
                 ctx.moveTo(body.x, body.y);
                 ctx.lineTo(lead.x, lead.y);
@@ -202,9 +197,9 @@
 
                 ctx.beginPath();
                 ctx.arc(lead.x, lead.y, leadR, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 193, 7, 0.28)';
+                ctx.fillStyle = 'rgba(76, 175, 80, 0.28)';
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(255, 213, 79, 0.9)';
+                ctx.strokeStyle = 'rgba(200, 230, 201, 0.9)';
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
@@ -225,10 +220,6 @@
                 ctx.closePath();
                 ctx.fill();
 
-                ctx.font = '11px Inter, sans-serif';
-                ctx.fillStyle = 'rgba(175, 200, 228, 0.65)';
-                ctx.textAlign = 'center';
-                ctx.fillText(Math.round(leadOffset()) + 'px', (body.x + lead.x) / 2, body.y - leadR - 8);
                 ctx.restore();
 
                 window.AbsAimCore.drawCrosshair(ctx, pointer.x, pointer.y);

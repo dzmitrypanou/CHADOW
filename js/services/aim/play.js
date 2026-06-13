@@ -292,11 +292,15 @@
         }
         window.addEventListener('resize', handleStageResize);
         const stage = $('aimPlayStage');
+        const viewport = $('aimPlayViewport');
         if (stage && typeof ResizeObserver !== 'undefined') {
             const observer = new ResizeObserver(() => {
                 handleStageResize();
             });
             observer.observe(stage);
+            if (viewport) {
+                observer.observe(viewport);
+            }
         }
     }
 

@@ -15,7 +15,7 @@
         let onTargetMs = 0;
         let lastTick = 0;
         let pointer = { x: 0, y: 0 };
-        const TARGET_RADIUS = 36;
+        const TARGET_RADIUS = 42;
         let target = { x: 0, y: 0 };
 
         function remainingSec() {
@@ -25,8 +25,8 @@
         function updateTarget(now) {
             const t = (now - startAt) / 1000;
             const margin = 60;
-            target.x = width / 2 + Math.sin(t * 1.4) * (width / 2 - margin);
-            target.y = height / 2 + Math.sin(t * 2.1 + 1.2) * (height / 2 - margin);
+            target.x = width / 2 + Math.sin(t * 1.15) * (width / 2 - margin);
+            target.y = height / 2 + Math.sin(t * 1.7 + 1.2) * (height / 2 - margin);
         }
 
         function getScore() {
@@ -103,7 +103,9 @@
             render(now) {
                 if (!ctx) return;
                 window.AbsAimCore.clearArena(ctx, width, height);
-                if (running) updateTarget(now || performance.now());
+                if (!running) return;
+
+                updateTarget(now || performance.now());
 
                 ctx.save();
                 ctx.beginPath();

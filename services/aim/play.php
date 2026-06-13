@@ -60,12 +60,6 @@ require __DIR__ . '/../../includes/site_header.php';
                     <h2 class="aim-play-title" id="aimPlayTitle"><?php echo htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
                     <p class="aim-play-desc" id="aimPlayDesc"><?php echo htmlspecialchars($meta['desc'], ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
-            </div>
-
-            <div class="aim-play-stage" id="aimPlayStage">
-                <canvas id="aimCanvas" class="aim-canvas" aria-label="<?php echo htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8'); ?>"></canvas>
-                <div class="aim-crosshair" id="aimCrosshair" hidden aria-hidden="true"></div>
-
                 <div class="aim-hud" id="aimHud" hidden>
                     <div class="aim-hud-stat">
                         <span class="aim-hud-label" data-aim-i18n="hudTime"><?php echo $lang === 'en' ? 'Time' : 'Время'; ?></span>
@@ -80,8 +74,14 @@ require __DIR__ . '/../../includes/site_header.php';
                         <span class="aim-hud-value" id="aimHudExtra">—</span>
                     </div>
                 </div>
+            </div>
 
-                <div class="aim-overlay" id="aimOverlay">
+            <div class="aim-play-stage" id="aimPlayStage">
+                <div class="aim-play-viewport" id="aimPlayViewport">
+                    <canvas id="aimCanvas" class="aim-canvas" aria-label="<?php echo htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8'); ?>"></canvas>
+                    <div class="aim-crosshair" id="aimCrosshair" hidden aria-hidden="true"></div>
+
+                    <div class="aim-overlay" id="aimOverlay">
                     <div class="aim-overlay-card aim-overlay-card--start" id="aimOverlayIdle">
                         <p class="aim-overlay-hint" data-aim-i18n="clickToStart">
                             <?php echo $lang === 'en'
@@ -128,6 +128,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         </div>
                         <p class="aim-results-note" id="aimSubmitNote" hidden></p>
                     </div>
+                </div>
                 </div>
             </div>
         </main>
