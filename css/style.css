@@ -15290,7 +15290,7 @@ body.tactics-confirm-open {
     grid-column: span 6;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0;
     padding: 20px;
     border: 1px solid rgba(113, 163, 230, 0.24);
     background: rgba(10, 18, 36, 0.42);
@@ -15301,6 +15301,7 @@ body.tactics-confirm-open {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+    margin-bottom: 12px;
 }
 
 .aim-trainer-card__title {
@@ -15328,16 +15329,16 @@ body.tactics-confirm-open {
 }
 
 .aim-trainer-card__desc {
-    margin: 0;
+    margin: 0 0 10px;
     color: rgba(175, 200, 228, 0.78);
     font-size: 0.9rem;
     line-height: 1.45;
-    flex: 1;
 }
 
 .aim-trainer-card__top {
+    margin-top: auto;
     border-top: 1px solid rgba(113, 163, 230, 0.18);
-    padding-top: 12px;
+    padding-top: 14px;
 }
 
 .aim-trainer-card__top-head {
@@ -15519,9 +15520,9 @@ body.tactics-confirm-open {
 .page-aim-play .aim-play {
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - var(--site-header-height) - 48px);
-    height: calc(100vh - var(--site-header-height) - 48px);
-    max-height: calc(100vh - var(--site-header-height) - 48px);
+    min-height: auto;
+    height: auto;
+    max-height: none;
     box-sizing: border-box;
 }
 
@@ -15573,33 +15574,18 @@ body.tactics-confirm-open {
 
 .aim-play-stage {
     position: relative;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     width: 100%;
-    min-height: 240px;
     min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    container-type: size;
 }
 
 .aim-play-viewport {
     position: relative;
+    width: 100%;
     aspect-ratio: 16 / 9;
-    width: min(100cqw, calc(100cqh * 16 / 9), 1280px);
-    max-height: 100cqh;
-    flex-shrink: 0;
     border: 1px solid rgba(113, 163, 230, 0.28);
     background: rgba(8, 14, 28, 0.92);
     overflow: hidden;
-}
-
-@supports not (width: 100cqw) {
-    .aim-play-viewport {
-        width: 100%;
-        max-width: 1280px;
-    }
 }
 
 .aim-canvas {
@@ -15804,16 +15790,10 @@ body.tactics-confirm-open {
 
     .aim-play-stage {
         flex: 0 0 auto;
-        min-height: 0;
-        align-items: stretch;
-        justify-content: stretch;
-        container-type: normal;
     }
 
     .aim-play-viewport {
         width: 100%;
-        max-width: none;
-        max-height: none;
         aspect-ratio: 16 / 9;
     }
 
