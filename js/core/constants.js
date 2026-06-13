@@ -1,5 +1,5 @@
 const AppConstants = {
-    VERSION: '3.2.2 Stage VII',
+    VERSION: '3.2.2 Stage VIII',
     LANG: (typeof window !== 'undefined' && window.ABS_LANG === 'en') ? 'en' : 'ru',
     DEFAULT_VISIBLE_COLUMNS: {
         battles: true,

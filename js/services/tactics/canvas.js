@@ -166,6 +166,11 @@
             this.pingHoldActive = false;
             this.pingHoldTimer = null;
             this.pingHoldPointer = null;
+            this.cellDragActive = false;
+            this.cellDragSeen = new Set();
+            this.cellDragLastCol = null;
+            this.cellDragLastRow = null;
+            this.cellDragReleaseBound = false;
             this.rulerLayerEl = null;
             this.rulerDragStart = null;
             this.rulerDragActive = false;
@@ -541,6 +546,7 @@
             this.bindCursorTracking();
             this.bindContextMenuBlock();
             this.bindPingHoldRelease();
+            this.bindCellDragRelease();
             this.bindEraserStrokeRelease();
             this.bindDeleteKey();
             this.bindUndoRedoKeys();
@@ -548,6 +554,7 @@
             this.fabric.on('mouse:out', () => {
                 this.stopPingHold();
                 this.stopRulerDrag();
+                this.stopCellDrag();
             });
 
             this.setTool('select');
@@ -776,14 +783,10 @@
             return rect;
         }
 
-        fireCellFlashAtPointer(pointer) {
-            if (!this.isPointerOnMap(pointer)) return;
-            const cell = this.getGridCellFromPointer(pointer);
-            if (!cell) return;
-
+        fireCellFlashAtCell(col, row) {
             const payload = {
-                col: cell.col,
-                row: cell.row,
+                col,
+                row,
                 color: this.getStrokeColor(),
             };
             this.playCellFlash(payload.col, payload.row, payload.color);
@@ -794,6 +797,79 @@
                     payload,
                 });
             }
+        }
+
+        tryFireCellFlashAtCell(col, row) {
+            const key = `${col},${row}`;
+            if (this.cellDragSeen.has(key)) return false;
+            this.cellDragSeen.add(key);
+            this.fireCellFlashAtCell(col, row);
+            return true;
+        }
+
+        visitGridCellsAlongLine(col0, row0, col1, row1, visitor) {
+            let x = col0;
+            let y = row0;
+            const dx = Math.abs(col1 - col0);
+            const dy = Math.abs(row1 - row0);
+            const sx = col0 < col1 ? 1 : -1;
+            const sy = row0 < row1 ? 1 : -1;
+            let err = dx - dy;
+            while (true) {
+                visitor(x, y);
+                if (x === col1 && y === row1) break;
+                const e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    x += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    y += sy;
+                }
+            }
+        }
+
+        startCellDrag(pointer) {
+            this.cellDragActive = true;
+            this.cellDragSeen = new Set();
+            this.cellDragLastCol = null;
+            this.cellDragLastRow = null;
+            this.updateCellDrag(pointer);
+        }
+
+        updateCellDrag(pointer) {
+            if (!this.cellDragActive || !this.isPointerOnMap(pointer)) return;
+            const cell = this.getGridCellFromPointer(pointer);
+            if (!cell) return;
+
+            if (this.cellDragLastCol == null || this.cellDragLastRow == null) {
+                this.tryFireCellFlashAtCell(cell.col, cell.row);
+                this.cellDragLastCol = cell.col;
+                this.cellDragLastRow = cell.row;
+                return;
+            }
+
+            if (cell.col === this.cellDragLastCol && cell.row === this.cellDragLastRow) {
+                return;
+            }
+
+            this.visitGridCellsAlongLine(
+                this.cellDragLastCol,
+                this.cellDragLastRow,
+                cell.col,
+                cell.row,
+                (col, row) => this.tryFireCellFlashAtCell(col, row),
+            );
+            this.cellDragLastCol = cell.col;
+            this.cellDragLastRow = cell.row;
+        }
+
+        stopCellDrag() {
+            this.cellDragActive = false;
+            this.cellDragSeen.clear();
+            this.cellDragLastCol = null;
+            this.cellDragLastRow = null;
         }
 
         ensureRulerLayer() {
@@ -1194,6 +1270,12 @@
             if (this.pingHoldReleaseBound) return;
             this.pingHoldReleaseBound = true;
             window.addEventListener('mouseup', () => this.stopPingHold());
+        }
+
+        bindCellDragRelease() {
+            if (this.cellDragReleaseBound) return;
+            this.cellDragReleaseBound = true;
+            window.addEventListener('mouseup', () => this.stopCellDrag());
         }
 
         bindEraserStrokeRelease() {
@@ -4036,6 +4118,7 @@
 
             if (strictDisabled) {
                 this.stopPingHold();
+                this.stopCellDrag();
                 if (this.tool !== 'select') {
                     this.setTool('select');
                 }
@@ -4092,6 +4175,7 @@
             }
             if (!this.drawEnabled && tool !== 'select' && tool !== 'cell' && tool !== 'ping' && tool !== 'ruler') return;
             this.stopPingHold();
+            this.stopCellDrag();
             if (tool !== 'ruler') {
                 this.clearRuler();
             }
@@ -5965,8 +6049,7 @@
             }
 
             if (this.tool === 'cell') {
-                if (!this.isPointerOnMap(pointer)) return;
-                this.fireCellFlashAtPointer(pointer);
+                this.startCellDrag(pointer);
                 return;
             }
 
@@ -6074,6 +6157,11 @@
                 return;
             }
 
+            if (this.tool === 'cell' && this.cellDragActive) {
+                this.updateCellDrag(this.fabric.getPointer(opt.e));
+                return;
+            }
+
             if (this.tool === 'ruler' && this.rulerDragActive && this.rulerDragStart) {
                 const pointer = this.fabric.getPointer(opt.e);
                 this.updateRulerDisplay(
@@ -6106,6 +6194,11 @@
             }
             if (this.tool === 'ping') {
                 this.stopPingHold();
+                return;
+            }
+
+            if (this.tool === 'cell') {
+                this.stopCellDrag();
                 return;
             }
 
@@ -6458,6 +6551,7 @@
             this.cancelPenStroke();
             try {
                 this.stopPingHold();
+                this.stopCellDrag();
                 this.clearRemoteCursors();
                 this.clearRemoteStrokes();
                 this.clearPings();
