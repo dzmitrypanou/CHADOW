@@ -31,6 +31,14 @@
                     title: 'Генератор турнирных сеток',
                     desc: 'Создание и редактирование турнирных сеток для клановых и командных ивентов.',
                 },
+                'mod-install': {
+                    title: 'Установка модов',
+                    desc: 'Пошаговая установка и настройка модов для World of Tanks и Мира танков.',
+                },
+                'aim-trainers': {
+                    title: 'Aim тренажёры',
+                    desc: 'Мини-игры для тренировки прицеливания и реакции.',
+                },
             },
             hrefs: {
                 abs: '/services/abs',
@@ -68,6 +76,14 @@
                 bracket: {
                     title: 'Tournament Bracket Generator',
                     desc: 'Create and edit tournament brackets for clan and team events.',
+                },
+                'mod-install': {
+                    title: 'Mod Installation',
+                    desc: 'Step-by-step mod installation and setup for World of Tanks and Mir Tankov.',
+                },
+                'aim-trainers': {
+                    title: 'Aim Trainer Games',
+                    desc: 'Mini-games for aim and reaction training.',
                 },
             },
             hrefs: {
