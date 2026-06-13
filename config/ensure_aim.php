@@ -59,6 +59,38 @@ function ensure_aim_scores_table($db) {
 
     aim_ensure_scores_foreign_key($pdo);
     aim_ensure_scores_grade_column($pdo);
+    aim_ensure_trainer_enum_column($pdo);
+    aim_ensure_scores_device_column($pdo);
+}
+
+function aim_ensure_scores_device_column($pdo): void {
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM aim_scores LIKE 'device'");
+        if ($stmt && $stmt->fetch(PDO::FETCH_ASSOC)) {
+            return;
+        }
+        $pdo->exec(
+            "ALTER TABLE aim_scores
+             ADD COLUMN device ENUM('desktop', 'mobile') NOT NULL DEFAULT 'desktop' AFTER trainer"
+        );
+        $pdo->exec(
+            'ALTER TABLE aim_scores
+             ADD INDEX idx_trainer_device_score (trainer, device, score DESC)'
+        );
+    } catch (Throwable $e) {
+        // Column may already exist.
+    }
+}
+
+function aim_ensure_trainer_enum_column($pdo): void {
+    try {
+        $pdo->exec(
+            "ALTER TABLE aim_scores MODIFY COLUMN trainer
+             ENUM('flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt') NOT NULL"
+        );
+    } catch (Throwable $e) {
+        // Column may already include all trainers.
+    }
 }
 
 function aim_ensure_scores_grade_column($pdo): void {

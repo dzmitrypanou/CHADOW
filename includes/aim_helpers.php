@@ -4,7 +4,7 @@ if (!function_exists('ensure_aim_scores_table')) {
     require_once __DIR__ . '/../config/ensure_aim.php';
 }
 
-const AIM_TRAINERS = ['flick', 'tracking', 'reaction', 'lead', 'gridshot'];
+const AIM_TRAINERS = ['flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt'];
 
 const AIM_PLAYER_NAME_MIN = 2;
 const AIM_PLAYER_NAME_MAX = 32;
@@ -17,6 +17,7 @@ const AIM_SCORE_RANGES = [
     'reaction' => [0, 10000],
     'lead' => [0, 55000],
     'gridshot' => [0, 5000],
+    'duckhunt' => [0, 12000],
 ];
 
 const AIM_GRADE_ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
@@ -27,7 +28,35 @@ const AIM_GRADE_THRESHOLDS = [
     'reaction' => ['SSS' => 9900, 'SS' => 9600, 'S' => 9200, 'A' => 8500, 'B' => 7500, 'C' => 6000, 'D' => 0],
     'lead' => ['SSS' => 38000, 'SS' => 28000, 'S' => 18000, 'A' => 10000, 'B' => 5000, 'C' => 1500, 'D' => 0],
     'gridshot' => ['SSS' => 125, 'SS' => 105, 'S' => 85, 'A' => 65, 'B' => 45, 'C' => 20, 'D' => 0],
+    'duckhunt' => ['SSS' => 7500, 'SS' => 5500, 'S' => 4000, 'A' => 2800, 'B' => 1500, 'C' => 500, 'D' => 0],
 ];
+
+function aim_device_sniff_script(): string
+{
+    return '<script>(function(){var d=document.documentElement,ua=navigator.userAgent||"",ss=Math.min(screen.width||0,screen.height||0,innerWidth,innerHeight),m=(navigator.userAgentData&&navigator.userAgentData.mobile===true)||/iPhone|iPod/i.test(ua)||(/Android/i.test(ua)&&(/Mobile/i.test(ua)||ss<=940))||/Windows Phone|IEMobile|Opera Mini/i.test(ua)||(ss<=1024&&matchMedia("(hover:none) and (pointer:coarse)").matches);if(m){d.classList.add("aim-device-mobile");d.classList.remove("aim-device-desktop");}})();</script>';
+}
+
+function aim_normalize_device(string $device): string {
+    $device = strtolower(trim($device));
+    return $device === 'mobile' ? 'mobile' : 'desktop';
+}
+
+function aim_detect_request_device(): string {
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if ($ua === '') {
+        return 'desktop';
+    }
+    if (preg_match('/iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|Opera Mini|webOS|BlackBerry/i', $ua)) {
+        return 'mobile';
+    }
+    if (preg_match('/Android/i', $ua)) {
+        return 'mobile';
+    }
+    if (preg_match('/iPad/i', $ua) || (stripos($ua, 'Macintosh') !== false && stripos($ua, 'Mobile') !== false)) {
+        return 'mobile';
+    }
+    return 'desktop';
+}
 
 function aim_trainer_valid(string $trainer): bool {
     return in_array($trainer, AIM_TRAINERS, true);
@@ -97,6 +126,18 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'en' => [
                 'title' => 'Gridshot',
                 'desc' => 'Three small targets at once — clear them as fast as you can.',
+            ],
+        ],
+        'duckhunt' => [
+            'icon' => 'fa-dove',
+            'duration_sec' => 60,
+            'ru' => [
+                'title' => 'Утиная охота',
+                'desc' => 'Стреляйте по уткам, пролетающим через поле. Чем быстрее и точнее — тем выше счёт.',
+            ],
+            'en' => [
+                'title' => 'Duck Hunt',
+                'desc' => 'Shoot ducks flying across the field. Speed and accuracy raise your score.',
             ],
         ],
     ];
@@ -266,6 +307,7 @@ function aim_save_score($db, array $payload, ?int $userId = null): array {
 
     $grade = aim_compute_grade($trainer, $score);
     $ipHash = aim_ip_hash();
+    $device = aim_detect_request_device();
 
     if (aim_submit_rate_limited($db, $ipHash)) {
         return ['success' => false, 'error' => 'rate_limited'];
@@ -273,11 +315,12 @@ function aim_save_score($db, array $payload, ?int $userId = null): array {
 
     $pdo = $db->getConnection();
     $stmt = $pdo->prepare(
-        'INSERT INTO aim_scores (trainer, player_name, user_id, score, grade, metrics, ip_hash)
-         VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO aim_scores (trainer, device, player_name, user_id, score, grade, metrics, ip_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
     $stmt->execute([
         $trainer,
+        $device,
         $playerName,
         $userId,
         $score,
@@ -288,6 +331,7 @@ function aim_save_score($db, array $payload, ?int $userId = null): array {
 
     $entry = [
         'trainer' => $trainer,
+        'device' => $device,
         'player_name' => $playerName,
         'score' => $score,
         'grade' => $grade,
@@ -302,7 +346,7 @@ function aim_save_score($db, array $payload, ?int $userId = null): array {
 /**
  * @return array{success:bool,error?:string,items?:array,trainer?:string}
  */
-function aim_fetch_leaderboard($db, string $trainer, int $limit = 50): array {
+function aim_fetch_leaderboard($db, string $trainer, int $limit = 50, string $device = 'desktop'): array {
     ensure_aim_scores_table($db);
 
     $trainer = strtolower(trim($trainer));
@@ -310,6 +354,7 @@ function aim_fetch_leaderboard($db, string $trainer, int $limit = 50): array {
         return ['success' => false, 'error' => 'invalid_trainer'];
     }
 
+    $device = aim_normalize_device($device);
     $limit = max(1, min(100, $limit));
     $pdo = $db->getConnection();
 
@@ -319,21 +364,23 @@ function aim_fetch_leaderboard($db, string $trainer, int $limit = 50): array {
          INNER JOIN (
             SELECT player_name, MAX(score) AS max_score
             FROM aim_scores
-            WHERE trainer = ?
+            WHERE trainer = ? AND device = ?
             GROUP BY player_name
          ) AS best ON best.player_name = s.player_name AND best.max_score = s.score
          WHERE s.trainer = ?
+           AND s.device = ?
            AND s.id = (
                SELECT MIN(s2.id)
                FROM aim_scores AS s2
                WHERE s2.trainer = ?
+                 AND s2.device = ?
                  AND s2.player_name = s.player_name
                  AND s2.score = s.score
            )
          ORDER BY s.score DESC, s.created_at ASC
          LIMIT ' . (int) $limit
     );
-    $stmt->execute([$trainer, $trainer, $trainer]);
+    $stmt->execute([$trainer, $device, $trainer, $device, $trainer, $device]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $items = [];
@@ -360,7 +407,39 @@ function aim_fetch_leaderboard($db, string $trainer, int $limit = 50): array {
     return [
         'success' => true,
         'trainer' => $trainer,
+        'device' => $device,
         'items' => $items,
+    ];
+}
+
+/**
+ * @param array<int, string> $trainerIds
+ * @return array<string, array<int, array<string, mixed>>>
+ */
+function aim_fetch_mini_leaderboards($db, array $trainerIds, int $limit = 3, string $device = 'desktop'): array {
+    $device = aim_normalize_device($device);
+    $out = [];
+    foreach ($trainerIds as $trainerId) {
+        $trainerId = strtolower(trim((string) $trainerId));
+        if ($trainerId === '') {
+            continue;
+        }
+        $result = aim_fetch_leaderboard($db, $trainerId, $limit, $device);
+        if (!empty($result['success'])) {
+            $out[$trainerId] = is_array($result['items'] ?? null) ? $result['items'] : [];
+        }
+    }
+    return $out;
+}
+
+/**
+ * @param array<int, string> $trainerIds
+ * @return array{desktop: array<string, array<int, array<string, mixed>>>, mobile: array<string, array<int, array<string, mixed>>>}
+ */
+function aim_fetch_mini_leaderboards_by_device($db, array $trainerIds, int $limit = 3): array {
+    return [
+        'desktop' => aim_fetch_mini_leaderboards($db, $trainerIds, $limit, 'desktop'),
+        'mobile' => aim_fetch_mini_leaderboards($db, $trainerIds, $limit, 'mobile'),
     ];
 }
 

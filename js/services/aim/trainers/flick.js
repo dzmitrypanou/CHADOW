@@ -57,9 +57,24 @@
                 height = size.height;
             },
             resize(size) {
+                if (size.width === width && size.height === height) {
+                    return;
+                }
+                const oldW = width || size.width;
+                const oldH = height || size.height;
                 width = size.width;
                 height = size.height;
-                if (target) spawnTarget();
+                if (!target || oldW <= 0 || oldH <= 0) {
+                    return;
+                }
+                const margin = 48;
+                const radius = target.radius;
+                const minX = margin + radius;
+                const minY = margin + radius;
+                const maxX = width - margin - radius;
+                const maxY = height - margin - radius;
+                target.x = Math.min(maxX, Math.max(minX, (target.x / oldW) * width));
+                target.y = Math.min(maxY, Math.max(minY, (target.y / oldH) * height));
             },
             start() {
                 hits = 0;

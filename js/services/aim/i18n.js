@@ -25,6 +25,7 @@
             roundsDuration: '10 раундов',
             backToHub: 'К выбору',
             clickToStart: 'Кликните в любой точку поля, чтобы начать',
+            rotateForFullscreen: 'Поверните экран, чтобы играть в полноэкранном режиме',
             start: 'Начать',
             hudTime: 'Время',
             hudScore: 'Очки',
@@ -73,6 +74,7 @@
             roundsDuration: '10 rounds',
             backToHub: 'All trainers',
             clickToStart: 'Click anywhere on the field to start',
+            rotateForFullscreen: 'Rotate your device for fullscreen play',
             start: 'Start',
             hudTime: 'Time',
             hudScore: 'Score',
@@ -107,6 +109,7 @@
             reaction: 'Реакция',
             lead: 'Упреждение',
             gridshot: 'Точечная серия',
+            duckhunt: 'Утиная охота',
         },
         en: {
             flick: 'Flick',
@@ -114,6 +117,7 @@
             reaction: 'Reaction',
             lead: 'Lead Shot',
             gridshot: 'Gridshot',
+            duckhunt: 'Duck Hunt',
         },
     };
 
@@ -124,6 +128,7 @@
             reaction: '10 раундов: дождитесь зелёного сигнала и кликните.',
             lead: 'Попадайте в зону упреждения перед движущейся целью (нажимайте ЛКМ по зеленому кругу).',
             gridshot: 'Три мелкие цели одновременно — сбивайте их подряд.',
+            duckhunt: 'Стреляйте по уткам, пролетающим через поле. Чем быстрее и точнее — тем выше счёт.',
         },
         en: {
             flick: 'Click targets as they appear — speed and accuracy matter.',
@@ -131,6 +136,7 @@
             reaction: '10 rounds: wait for green, then click as fast as you can.',
             lead: 'Hit the lead zone ahead of the moving target (left-click the green circle).',
             gridshot: 'Three small targets at once — clear them as fast as you can.',
+            duckhunt: 'Shoot ducks flying across the field. Speed and accuracy raise your score.',
         },
     };
 

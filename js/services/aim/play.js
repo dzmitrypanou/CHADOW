@@ -13,6 +13,7 @@
     let phase = 'idle';
     let lastResult = null;
     let submitSaved = false;
+    let lastCanvasDownAt = 0;
 
     const els = {};
 
@@ -134,7 +135,7 @@
         phase = 'countdown';
         setArenaInteractive(false);
         showOverlay('aimOverlayCountdown');
-        els.hud.hide();
+        els.hud.showIdle();
         let n = 3;
         if (els.aimCountdownNum) els.aimCountdownNum.textContent = String(n);
         const tick = () => {
@@ -215,6 +216,7 @@
                     score: lastResult.score,
                     grade: lastResult.grade,
                     metrics: lastResult.metrics,
+                    device: core().isMobileDevice() ? 'mobile' : 'desktop',
                 }),
             });
             const data = await res.json();
@@ -245,8 +247,7 @@
         phase = 'idle';
         lastResult = null;
         setSubmitBtnDefault();
-        els.hud.hide();
-        els.hud.reset();
+        els.hud.showIdle();
         showOverlay('aimOverlayIdle');
         setArenaInteractive(false);
         if (trainer) {
@@ -257,13 +258,27 @@
 
     function handleStageResize() {
         if (!canvas || !core()) return;
-        size = core().resizeCanvas(canvas);
-        if (trainer && trainer.resize) {
+        const next = core().resizeCanvas(canvas);
+        const changed = next.width !== size.width || next.height !== size.height;
+        size = next;
+        if (changed && trainer && trainer.resize) {
             trainer.resize(size);
         }
         if (trainer) {
             trainer.render(performance.now());
         }
+    }
+
+    function updatePlayLayout() {
+        const root = document.documentElement;
+        const mobile = core() && core().isMobileDevice();
+        const landscape = window.matchMedia('(orientation: landscape)').matches;
+        root.classList.toggle('aim-play-landscape', mobile && landscape);
+        root.classList.toggle('aim-play-portrait', mobile && !landscape);
+        if (els.hud && els.hud.refreshLayout) {
+            els.hud.refreshLayout(phase);
+        }
+        handleStageResize();
     }
 
     function bindEvents() {
@@ -281,16 +296,68 @@
             els.aimSubmitBtn.addEventListener('click', submitScore);
         }
         if (canvas) {
+            const handleCanvasDown = (e) => {
+                if (phase !== 'playing' || !trainer || !trainer.onPointerDown) {
+                    return;
+                }
+                const now = performance.now();
+                if (now - lastCanvasDownAt < 320) {
+                    return;
+                }
+                lastCanvasDownAt = now;
+                trainer.onPointerDown(e);
+            };
+            const mobileInput = () => core() && core().isMobileDevice();
+            const handlePointerMove = (e) => {
+                if (phase !== 'playing' || !trainer || !trainer.onPointerMove) {
+                    return;
+                }
+                trainer.onPointerMove(e);
+            };
             canvas.addEventListener('pointermove', (e) => {
-                if (trainer && trainer.onPointerMove) trainer.onPointerMove(e);
+                if (mobileInput()) {
+                    return;
+                }
+                handlePointerMove(e);
             });
             canvas.addEventListener('pointerdown', (e) => {
-                if (phase === 'playing' && trainer && trainer.onPointerDown) {
-                    trainer.onPointerDown(e);
+                if (mobileInput()) {
+                    return;
                 }
+                handleCanvasDown(e);
             });
+            canvas.addEventListener('touchstart', (e) => {
+                if (!mobileInput()) {
+                    return;
+                }
+                if (phase !== 'playing' || !trainer) {
+                    return;
+                }
+                e.preventDefault();
+                handlePointerMove(e);
+                if (trainer.onPointerDown) {
+                    handleCanvasDown(e);
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => {
+                if (!mobileInput()) {
+                    return;
+                }
+                if (phase !== 'playing' || !trainer) {
+                    return;
+                }
+                e.preventDefault();
+                handlePointerMove(e);
+            }, { passive: false });
         }
-        window.addEventListener('resize', handleStageResize);
+        window.addEventListener('resize', updatePlayLayout);
+        window.addEventListener('orientationchange', () => {
+            window.setTimeout(updatePlayLayout, 150);
+        });
+        window.addEventListener('aim:devicechange', updatePlayLayout);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updatePlayLayout);
+        }
         const stage = $('aimPlayStage');
         const viewport = $('aimPlayViewport');
         if (stage && typeof ResizeObserver !== 'undefined') {
@@ -337,7 +404,9 @@
         trainer.render(performance.now());
         showOverlay('aimOverlayIdle');
         setArenaInteractive(false);
+        els.hud.showIdle();
         bindEvents();
+        updatePlayLayout();
     });
 
     function relocalizeView() {

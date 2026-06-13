@@ -43,13 +43,24 @@
             + '<div class="aim-trainer-card__top">'
             + '<div class="aim-trainer-card__top-head">'
             + '<span class="aim-trainer-card__top-title">' + escapeHtml(i18n().t('top3')) + '</span>'
-            + '<a class="aim-link-btn aim-trainer-card__full-top" data-aim-ratings-link data-trainer="' + escapeHtml(trainer.id) + '" href="' + escapeHtml(ratingsHref(trainer.id)) + '">'
-            + escapeHtml(i18n().t('fullTop'))
+            + '<a class="aim-link-btn aim-trainer-card__full-top" data-aim-ratings-link data-trainer="' + escapeHtml(trainer.id) + '" href="' + escapeHtml(ratingsHref(trainer.id)) + '" aria-label="' + escapeHtml(i18n().t('fullTop')) + '" title="' + escapeHtml(i18n().t('fullTop')) + '">'
+            + '<i class="fas fa-trophy" aria-hidden="true"></i>'
+            + '<span class="aim-trainer-card__full-top-label" data-aim-i18n="fullTop">' + escapeHtml(i18n().t('fullTop')) + '</span>'
             + '</a>'
             + '</div>'
             + '<div class="aim-trainer-card__top-body" id="aimMiniLb-' + escapeHtml(trainer.id) + '"></div>'
             + '</div>'
             + '</article>';
+    }
+
+    function refreshMiniLeaderboards() {
+        if (!lb()) return;
+        trainers.forEach((trainer) => {
+            const mini = document.getElementById('aimMiniLb-' + trainer.id);
+            if (mini) {
+                lb().renderMini(mini, trainer.id);
+            }
+        });
     }
 
     function renderTrainerGrid() {
@@ -88,6 +99,7 @@
         }
 
         renderTrainerGrid();
+        window.addEventListener('aim:devicechange', refreshMiniLeaderboards);
     }
 
     document.addEventListener('DOMContentLoaded', init);

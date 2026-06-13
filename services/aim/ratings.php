@@ -25,10 +25,11 @@ $ratingsHref = abs_build_lang_href($lang, 'services/aim/ratings');
 $pageTitle = $lang === 'en' ? 'Leaderboards' : 'Таблицы лидеров';
 abs_set_page_titles('Таблицы лидеров — Аим-тренажеры', 'Leaderboards — Aim Trainers');
 $metaDescription = $lang === 'en'
-    ? 'Global aim trainer leaderboards: flick, tracking, reaction, lead shot, and gridshot top scores.'
-    : 'Глобальные таблицы лидеров аим-тренажёров: flick, tracking, reaction, lead shot и gridshot.';
+    ? 'Global aim trainer leaderboards: flick, tracking, reaction, lead shot, gridshot, and duck hunt top scores.'
+    : 'Глобальные таблицы лидеров аим-тренажёров: flick, tracking, reaction, lead shot, gridshot и утиная охота.';
 $bodyClass = 'page-aim page-aim-ratings';
 $seoSlug = 'services/aim/ratings';
+$extraHeadHtml = aim_device_sniff_script();
 
 require __DIR__ . '/../../includes/site_header.php';
 ?>
@@ -63,6 +64,7 @@ require __DIR__ . '/../../includes/site_header.php';
         window.ABS_AIM_RATINGS_BASE = <?php echo json_encode($ratingsHref); ?>;
         window.ABS_AIM_API_LEADERBOARD = <?php echo json_encode(user_api_path('/api/aim/leaderboard.php')); ?>;
     </script>
+    <script src="/js/services/aim/core.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/leaderboard.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/ratings.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>

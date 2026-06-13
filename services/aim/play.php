@@ -46,6 +46,7 @@ abs_set_page_titles(
 $metaDescription = $meta['desc'] ?? ($lang === 'en' ? 'Aim training mini-game.' : 'Мини-игра для тренировки прицела.');
 $bodyClass = 'page-aim page-aim-play';
 $seoSlug = 'services/aim/' . $trainer;
+$extraHeadHtml = aim_device_sniff_script();
 
 require __DIR__ . '/../../includes/site_header.php';
 ?>
@@ -130,6 +131,26 @@ require __DIR__ . '/../../includes/site_header.php';
                     </div>
                 </div>
                 </div>
+                <aside class="aim-play-side-hud" id="aimPlaySideHud" hidden aria-hidden="true">
+                    <div class="aim-hud-stat">
+                        <span class="aim-hud-label" data-aim-i18n="hudTime"><?php echo $lang === 'en' ? 'Time' : 'Время'; ?></span>
+                        <span class="aim-hud-value" id="aimHudSideTime">—</span>
+                    </div>
+                    <div class="aim-hud-stat">
+                        <span class="aim-hud-label" data-aim-i18n="hudScore"><?php echo $lang === 'en' ? 'Score' : 'Очки'; ?></span>
+                        <span class="aim-hud-value" id="aimHudSideScore">0</span>
+                    </div>
+                    <div class="aim-hud-stat" id="aimHudSideExtraWrap" hidden>
+                        <span class="aim-hud-label" id="aimHudSideExtraLabel"></span>
+                        <span class="aim-hud-value" id="aimHudSideExtra">—</span>
+                    </div>
+                </aside>
+                <p class="aim-play-rotate-hint">
+                    <i class="fas fa-mobile-screen-button" aria-hidden="true"></i>
+                    <span data-aim-i18n="rotateForFullscreen"><?php echo $lang === 'en'
+                        ? 'Rotate your device for fullscreen play'
+                        : 'Поверните экран, чтобы играть в полноэкранном режиме'; ?></span>
+                </p>
             </div>
         </main>
 
@@ -154,6 +175,7 @@ require __DIR__ . '/../../includes/site_header.php';
     <script src="/js/services/aim/trainers/reaction.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/lead.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/gridshot.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/trainers/duckhunt.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/play.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
 </body>
 </html>

@@ -23,6 +23,25 @@
     const AIM_ARENA_WIDTH = 1280;
     const AIM_ARENA_HEIGHT = 720;
 
+    function eventClientPos(event) {
+        if (event.touches && event.touches.length > 0) {
+            return {
+                x: event.touches[0].clientX,
+                y: event.touches[0].clientY,
+            };
+        }
+        if (event.changedTouches && event.changedTouches.length > 0) {
+            return {
+                x: event.changedTouches[0].clientX,
+                y: event.changedTouches[0].clientY,
+            };
+        }
+        return {
+            x: event.clientX,
+            y: event.clientY,
+        };
+    }
+
     function pointerPos(canvas, event) {
         const rect = canvas.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
@@ -30,10 +49,93 @@
         }
         const logicalW = Number(canvas.dataset.aimLogicalWidth) || AIM_ARENA_WIDTH;
         const logicalH = Number(canvas.dataset.aimLogicalHeight) || AIM_ARENA_HEIGHT;
+        const client = eventClientPos(event);
         return {
-            x: (event.clientX - rect.left) * (logicalW / rect.width),
-            y: (event.clientY - rect.top) * (logicalH / rect.height),
+            x: (client.x - rect.left) * (logicalW / rect.width),
+            y: (client.y - rect.top) * (logicalH / rect.height),
         };
+    }
+
+    let mobileDeviceCache = null;
+    let mobileDeviceCacheKey = '';
+
+    function viewportShortSide() {
+        const w = window.innerWidth || 0;
+        const h = window.innerHeight || 0;
+        const sw = (window.screen && window.screen.width) || w;
+        const sh = (window.screen && window.screen.height) || h;
+        return Math.min(w, h, sw, sh);
+    }
+
+    function viewportCacheKey() {
+        return [
+            window.innerWidth,
+            window.innerHeight,
+            window.screen && window.screen.width,
+            window.screen && window.screen.height,
+            window.matchMedia('(orientation: landscape)').matches ? 'l' : 'p',
+        ].join(':');
+    }
+
+    function isMobileDevice() {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+        const cacheKey = viewportCacheKey();
+        if (mobileDeviceCache !== null && mobileDeviceCacheKey === cacheKey) {
+            return mobileDeviceCache;
+        }
+
+        const ua = navigator.userAgent || '';
+        const shortSide = viewportShortSide();
+        let mobile = false;
+
+        if (navigator.userAgentData && navigator.userAgentData.mobile === true) {
+            mobile = true;
+        } else if (/iPhone|iPod/i.test(ua)) {
+            mobile = true;
+        } else if (/Android/i.test(ua)) {
+            mobile = /Mobile/i.test(ua) || shortSide <= 940;
+        } else if (/Windows Phone|IEMobile|Opera Mini|webOS|BlackBerry/i.test(ua)) {
+            mobile = true;
+        } else if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+            mobile = shortSide <= 900;
+        } else {
+            const coarsePointer = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+            const touchPoints = navigator.maxTouchPoints || 0;
+            const noHover = window.matchMedia('(hover: none)').matches;
+            mobile = (coarsePointer && shortSide <= 1024)
+                || (noHover && touchPoints > 0 && shortSide <= 940);
+        }
+
+        mobileDeviceCache = mobile;
+        mobileDeviceCacheKey = cacheKey;
+        return mobile;
+    }
+
+    function applyDeviceClasses() {
+        if (typeof document === 'undefined') {
+            return isMobileDevice();
+        }
+        const mobile = isMobileDevice();
+        document.documentElement.classList.toggle('aim-device-mobile', mobile);
+        document.documentElement.classList.toggle('aim-device-desktop', !mobile);
+        return mobile;
+    }
+
+    let lastMobileState = null;
+
+    function refreshDeviceDetection() {
+        mobileDeviceCache = null;
+        mobileDeviceCacheKey = '';
+        const mobile = applyDeviceClasses();
+        if (lastMobileState === mobile) {
+            return;
+        }
+        lastMobileState = mobile;
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('aim:devicechange'));
+        }
     }
 
     function dist(ax, ay, bx, by) {
@@ -64,6 +166,12 @@
         rand,
         randInt,
         clamp,
+        isMobileDevice,
+        applyDeviceClasses,
+        refreshDeviceDetection,
+        shouldShowCrosshair() {
+            return !isMobileDevice();
+        },
         createHudController(options) {
             const hudTime = document.getElementById('aimHudTime');
             const hudScore = document.getElementById('aimHudScore');
@@ -71,34 +179,94 @@
             const hudExtraLabel = document.getElementById('aimHudExtraLabel');
             const hudExtra = document.getElementById('aimHudExtra');
             const hud = document.getElementById('aimHud');
+            const hudSide = document.getElementById('aimPlaySideHud');
+            const hudSideTime = document.getElementById('aimHudSideTime');
+            const hudSideScore = document.getElementById('aimHudSideScore');
+            const hudSideExtraWrap = document.getElementById('aimHudSideExtraWrap');
+            const hudSideExtraLabel = document.getElementById('aimHudSideExtraLabel');
+            const hudSideExtra = document.getElementById('aimHudSideExtra');
+
+            function useSideHud() {
+                return isMobileDevice()
+                    && window.matchMedia('(orientation: landscape)').matches;
+            }
+
+            function applyBaselineValues() {
+                this.setTime(options.durationSec || '—');
+                this.setScore(0);
+                this.setExtra(null);
+            }
 
             return {
+                showIdle() {
+                    applyBaselineValues.call(this);
+                    const side = useSideHud();
+                    const mobile = isMobileDevice();
+                    if (hud) {
+                        hud.hidden = side || !mobile;
+                    }
+                    if (hudSide) {
+                        const showSide = side;
+                        hudSide.hidden = !showSide;
+                        hudSide.setAttribute('aria-hidden', showSide ? 'false' : 'true');
+                    }
+                },
                 show() {
-                    if (hud) hud.hidden = false;
+                    const side = useSideHud();
+                    if (hud) {
+                        hud.hidden = side;
+                    }
+                    if (hudSide) {
+                        hudSide.hidden = !side;
+                        hudSide.setAttribute('aria-hidden', side ? 'false' : 'true');
+                    }
                 },
                 hide() {
-                    if (hud) hud.hidden = true;
+                    if (hud) {
+                        hud.hidden = true;
+                    }
+                    if (hudSide) {
+                        hudSide.hidden = true;
+                        hudSide.setAttribute('aria-hidden', 'true');
+                    }
                 },
                 setTime(sec) {
-                    if (hudTime) hudTime.textContent = formatTime(sec);
+                    const text = formatTime(sec);
+                    if (hudTime) hudTime.textContent = text;
+                    if (hudSideTime) hudSideTime.textContent = text;
                 },
                 setScore(value) {
-                    if (hudScore) hudScore.textContent = String(Math.round(value));
+                    const text = String(Math.round(value));
+                    if (hudScore) hudScore.textContent = text;
+                    if (hudSideScore) hudSideScore.textContent = text;
                 },
                 setExtra(label, value) {
-                    if (!hudExtraWrap || !hudExtraLabel || !hudExtra) return;
-                    if (label == null) {
-                        hudExtraWrap.hidden = true;
-                        return;
-                    }
-                    hudExtraWrap.hidden = false;
-                    hudExtraLabel.textContent = label;
-                    hudExtra.textContent = value;
+                    const pairs = [
+                        [hudExtraWrap, hudExtraLabel, hudExtra],
+                        [hudSideExtraWrap, hudSideExtraLabel, hudSideExtra],
+                    ];
+                    pairs.forEach(([wrap, labelEl, valueEl]) => {
+                        if (!wrap || !labelEl || !valueEl) return;
+                        if (label == null) {
+                            wrap.hidden = true;
+                            return;
+                        }
+                        wrap.hidden = false;
+                        labelEl.textContent = label;
+                        valueEl.textContent = value;
+                    });
                 },
                 reset() {
-                    this.setTime(options.durationSec || '—');
-                    this.setScore(0);
-                    this.setExtra(null);
+                    applyBaselineValues.call(this);
+                },
+                refreshLayout(phase) {
+                    if (phase === 'playing') {
+                        this.show();
+                    } else if (phase === 'results') {
+                        this.hide();
+                    } else {
+                        this.showIdle();
+                    }
                 },
             };
         },
@@ -106,16 +274,20 @@
             const dpr = Math.min(window.devicePixelRatio || 1, 2);
             const w = AIM_ARENA_WIDTH;
             const h = AIM_ARENA_HEIGHT;
-            canvas.width = Math.max(1, Math.floor(w * dpr));
-            canvas.height = Math.max(1, Math.floor(h * dpr));
+            const pixelW = Math.max(1, Math.floor(w * dpr));
+            const pixelH = Math.max(1, Math.floor(h * dpr));
+            const ctx = canvas.getContext('2d');
+            if (canvas.width !== pixelW || canvas.height !== pixelH) {
+                canvas.width = pixelW;
+                canvas.height = pixelH;
+                if (ctx) {
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+            }
             canvas.style.width = '100%';
             canvas.style.height = '100%';
             canvas.dataset.aimLogicalWidth = String(w);
             canvas.dataset.aimLogicalHeight = String(h);
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            }
             return { width: w, height: h, dpr };
         },
         drawCrosshair(ctx, x, y, color) {
@@ -164,4 +336,25 @@
             }
         },
     };
+
+    if (typeof document !== 'undefined') {
+        const initDeviceState = () => {
+            lastMobileState = applyDeviceClasses();
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDeviceState);
+        } else {
+            initDeviceState();
+        }
+        let resizeTimer = 0;
+        const scheduleRefresh = () => {
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(refreshDeviceDetection, 120);
+        };
+        window.addEventListener('orientationchange', scheduleRefresh);
+        window.addEventListener('resize', scheduleRefresh);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', scheduleRefresh);
+        }
+    }
 })();

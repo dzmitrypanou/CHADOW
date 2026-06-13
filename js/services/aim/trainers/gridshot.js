@@ -58,9 +58,27 @@
                 height = size.height;
             },
             resize(size) {
+                if (size.width === width && size.height === height) {
+                    return;
+                }
+                const oldW = width || size.width;
+                const oldH = height || size.height;
                 width = size.width;
                 height = size.height;
-                if (targets.length) spawnAll();
+                if (!targets.length || oldW <= 0 || oldH <= 0) {
+                    return;
+                }
+                const margin = 40;
+                const radius = 14;
+                const minX = margin + radius;
+                const minY = margin + radius;
+                const maxX = width - margin - radius;
+                const maxY = height - margin - radius;
+                targets.forEach((t) => {
+                    if (!t) return;
+                    t.x = Math.min(maxX, Math.max(minX, (t.x / oldW) * width));
+                    t.y = Math.min(maxY, Math.max(minY, (t.y / oldH) * height));
+                });
             },
             start() {
                 hits = 0;

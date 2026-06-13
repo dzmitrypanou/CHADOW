@@ -11,14 +11,22 @@ require_once __DIR__ . '/../../includes/user_bootstrap.php';
 require_once __DIR__ . '/../../includes/user_auth.php';
 require_once __DIR__ . '/../../includes/aim_helpers.php';
 
+$trainers = aim_all_trainers_meta($lang);
+$miniLeaderboards = ['desktop' => [], 'mobile' => []];
 try {
     require_once __DIR__ . '/../../config/ensure_aim.php';
     ensure_aim_scores_table($userDb);
+    $miniLeaderboards = aim_fetch_mini_leaderboards_by_device(
+        $userDb,
+        array_map(static function (array $trainer): string {
+            return (string) ($trainer['id'] ?? '');
+        }, $trainers),
+        3
+    );
 } catch (Throwable $e) {
     // lobby still renders without DB
 }
 
-$trainers = aim_all_trainers_meta($lang);
 $defaultNickname = '';
 if (user_is_logged_in()) {
     $uid = user_current_id();
@@ -31,10 +39,11 @@ if (user_is_logged_in()) {
 $pageTitle = $lang === 'en' ? 'Aim Trainers' : 'Аим-тренажеры';
 abs_set_page_titles('Аим-тренажеры', 'Aim Trainers');
 $metaDescription = $lang === 'en'
-    ? 'Mini-games for aim and reaction training: flick, tracking, reaction, lead shot, and gridshot with global leaderboards.'
-    : 'Мини-игры для тренировки прицеливания и реакции: flick, tracking, reaction, lead shot и gridshot с глобальным топом.';
+    ? 'Mini-games for aim and reaction training: flick, tracking, reaction, lead shot, gridshot, and duck hunt with global leaderboards.'
+    : 'Мини-игры для тренировки прицеливания и реакции: flick, tracking, reaction, lead shot, gridshot и утиная охота с глобальным топом.';
 $bodyClass = 'page-aim';
 $seoSlug = 'services/aim';
+$extraHeadHtml = aim_device_sniff_script();
 
 require __DIR__ . '/../../includes/site_header.php';
 ?>
@@ -96,12 +105,14 @@ require __DIR__ . '/../../includes/site_header.php';
         window.ABS_AIM_LANG = <?php echo json_encode($lang); ?>;
         window.ABS_AIM_CSRF = <?php echo json_encode(user_csrf_token()); ?>;
         window.ABS_AIM_TRAINERS = <?php echo json_encode($trainers, JSON_UNESCAPED_UNICODE); ?>;
+        window.ABS_AIM_MINI_LEADERBOARDS = <?php echo json_encode($miniLeaderboards, JSON_UNESCAPED_UNICODE); ?>;
         window.ABS_AIM_HUB_BASE = <?php echo json_encode(abs_build_lang_href($lang, 'services/aim')); ?>;
         window.ABS_AIM_API_LEADERBOARD = <?php echo json_encode(user_api_path('/api/aim/leaderboard.php')); ?>;
         window.ABS_AIM_API_SUBMIT = <?php echo json_encode(user_api_path('/api/aim/submit.php')); ?>;
         window.ABS_AIM_DEFAULT_NICKNAME = <?php echo json_encode($defaultNickname); ?>;
     </script>
     <script src="/js/site-toast.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/core.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/nickname.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/leaderboard.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>

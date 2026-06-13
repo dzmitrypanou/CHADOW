@@ -7,9 +7,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 $trainer = isset($_GET['trainer']) ? trim((string) $_GET['trainer']) : '';
 $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 50;
+$device = isset($_GET['device']) ? aim_normalize_device((string) $_GET['device']) : 'desktop';
 
 try {
-    $result = aim_fetch_leaderboard($userDb, $trainer, $limit);
+    $result = aim_fetch_leaderboard($userDb, $trainer, $limit, $device);
     if (!$result['success']) {
         aim_json_error(aim_error_message((string) ($result['error'] ?? 'server_error'), aim_detect_lang()));
     }
