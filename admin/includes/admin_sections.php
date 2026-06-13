@@ -9,13 +9,13 @@ function admin_panel_sections(): array {
         [
             'id' => 'index',
             'href' => '/admin/tanks',
-            'label' => 'Редактор танков',
+            'label' => 'Редактор названий танков',
             'icon' => 'fas fa-tools',
         ],
         [
             'id' => 'dictionaries',
             'href' => '/admin/dictionaries',
-            'label' => 'Нации и типы техники',
+            'label' => 'Справочники наций и типов техники',
             'icon' => 'fas fa-book',
         ],
         [
@@ -33,13 +33,13 @@ function admin_panel_sections(): array {
         [
             'id' => 'maps',
             'href' => '/admin/maps',
-            'label' => 'Карты',
+            'label' => 'Редактор названий карт',
             'icon' => 'fas fa-map',
         ],
         [
             'id' => 'recruiting',
             'href' => '/admin/recruiting',
-            'label' => 'Рекрутинг',
+            'label' => 'Модерация рекрутинга',
             'icon' => 'fas fa-bullhorn',
         ],
         [
@@ -51,46 +51,33 @@ function admin_panel_sections(): array {
         [
             'id' => 'tactics-rooms',
             'href' => '/admin/tactics-rooms',
-            'label' => 'Тактика: комнаты',
+            'label' => 'Тактический планшет — комнаты',
             'icon' => 'fas fa-chalkboard',
         ],
         [
             'id' => 'tactics-maps',
             'href' => '/admin/tactics-maps',
-            'label' => 'Тактика: карты',
+            'label' => 'Тактический планшет — карты',
             'icon' => 'fas fa-map-marked-alt',
         ],
         [
             'id' => 'aim-leaderboards',
             'href' => '/admin/aim-leaderboards',
-            'label' => 'Аим: лидерборды',
+            'label' => 'Аим-тренажёры — таблицы лидеров',
             'icon' => 'fas fa-trophy',
         ],
         [
             'id' => 'wgsrt',
             'href' => '/admin/wgsrt',
-            'label' => 'WGSRT',
+            'label' => 'WGSRT Редактор',
             'icon' => 'fas fa-chart-line',
         ],
         [
             'id' => 'users',
             'href' => '/admin/users',
-            'label' => 'Пользователи',
+            'label' => 'Пользователи админ-панели',
             'icon' => 'fas fa-users-cog',
             'admin_only' => true,
         ],
     ];
-}
-
-function admin_panel_section_nav_label(string $id, string $fullLabel): string {
-    static $short = [
-        'dictionaries' => 'Нации и типы',
-        'pages' => 'Страницы',
-        'site-menu' => 'Меню сайта',
-        'tactics-rooms' => 'Тактика',
-        'tactics-maps' => 'Карты планшета',
-        'aim-leaderboards' => 'Аим: топ',
-    ];
-
-    return $short[$id] ?? $fullLabel;
 }

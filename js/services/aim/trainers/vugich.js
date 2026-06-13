@@ -13,7 +13,15 @@
         const LANE_MARGIN_TOP = 72;
         const LANE_MARGIN_BOTTOM = 72;
         const SIGHT_IMAGE_SRC = '/assets/aim/vugich-sight.png';
-        const BGM_SRC = '/assets/aim/vugich.m4a?v=2';
+        const AUDIO_V = '?v=3';
+        const BGM_SRC = `/assets/aim/vugich.m4a${AUDIO_V}`;
+        const SFX_SHOT_SRC = `/assets/aim/wot_bigboom_in.mp3${AUDIO_V}`;
+        const SFX_MISS_SRC = `/assets/aim/ne-probil.mp3${AUDIO_V}`;
+        const SFX_HIT_SRC = `/assets/aim/tank-unichtozhen.mp3${AUDIO_V}`;
+        const SFX_BATTLE_START_SRC = `/assets/aim/wot-boi-nachinaetsia.mp3${AUDIO_V}`;
+        const SFX_SRCS = [SFX_SHOT_SRC, SFX_MISS_SRC, SFX_HIT_SRC, SFX_BATTLE_START_SRC];
+        const BGM_VOLUME = 0.825;
+        const SFX_VOLUME = 0.15;
         const SIGHT_SCALE = 0.5;
         const SHAKE_MULT = 2.5;
         const TANK_SEPARATION = 88;
@@ -50,6 +58,11 @@
         let sightImage = null;
         let sightImageReady = false;
         let bgmAudio = null;
+        let bgmUnlocked = false;
+        let audioCtx = null;
+        const sfxBuffers = {};
+        const sfxLoadPromises = {};
+        const sfxHtml5Pools = {};
         let lanes = [];
         let laneHeight = 0;
         let yMin = 0;
@@ -200,6 +213,18 @@
             sightImage.src = SIGHT_IMAGE_SRC;
         }
 
+        function ensureAudioCtx() {
+            if (audioCtx) {
+                return audioCtx;
+            }
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) {
+                return null;
+            }
+            audioCtx = new Ctx();
+            return audioCtx;
+        }
+
         function ensureBgm() {
             if (!bgmAudio) {
                 bgmAudio = new Audio(BGM_SRC);
@@ -208,10 +233,86 @@
             return bgmAudio;
         }
 
+        function ensureHtml5Sfx(src) {
+            if (!sfxHtml5Pools[src]) {
+                const audio = new Audio(src);
+                audio.preload = 'auto';
+                sfxHtml5Pools[src] = audio;
+            }
+            return sfxHtml5Pools[src];
+        }
+
+        function loadSfxBuffer(src) {
+            if (sfxBuffers[src]) {
+                return Promise.resolve(sfxBuffers[src]);
+            }
+            if (sfxLoadPromises[src]) {
+                return sfxLoadPromises[src];
+            }
+            const ctx = ensureAudioCtx();
+            if (!ctx) {
+                return Promise.resolve(null);
+            }
+            sfxLoadPromises[src] = fetch(src)
+                .then((res) => {
+                    if (!res.ok) {
+                        throw new Error(`sfx fetch failed: ${src}`);
+                    }
+                    return res.arrayBuffer();
+                })
+                .then((ab) => ctx.decodeAudioData(ab))
+                .then((buf) => {
+                    sfxBuffers[src] = buf;
+                    return buf;
+                })
+                .catch(() => null);
+            return sfxLoadPromises[src];
+        }
+
+        function preloadAllAudio() {
+            ensureBgm();
+            SFX_SRCS.forEach((src) => {
+                loadSfxBuffer(src);
+                ensureHtml5Sfx(src);
+            });
+        }
+
+        function unlockHtml5Audio(audio) {
+            const prevVolume = audio.volume;
+            audio.volume = 0.001;
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            if (!playPromise || typeof playPromise.then !== 'function') {
+                audio.volume = prevVolume || 1;
+                return;
+            }
+            playPromise.then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = prevVolume || 1;
+            }).catch(() => {
+                audio.volume = prevVolume || 1;
+            });
+        }
+
+        function warmupAudio() {
+            preloadAllAudio();
+            const ctx = ensureAudioCtx();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume().catch(() => {});
+            }
+            if (!bgmUnlocked) {
+                unlockHtml5Audio(ensureBgm());
+                SFX_SRCS.forEach((src) => unlockHtml5Audio(ensureHtml5Sfx(src)));
+                bgmUnlocked = true;
+            }
+        }
+
         function playBgm() {
             const audio = ensureBgm();
             audio.currentTime = 0;
             audio.loop = false;
+            audio.volume = BGM_VOLUME;
             const playPromise = audio.play();
             if (playPromise && typeof playPromise.catch === 'function') {
                 playPromise.catch(() => {});
@@ -224,6 +325,78 @@
             }
             bgmAudio.pause();
             bgmAudio.currentTime = 0;
+        }
+
+        function playSfxHtml5(src, volume) {
+            const audio = ensureHtml5Sfx(src);
+            try {
+                if (!audio.paused && audio.currentTime > 0 && !audio.ended) {
+                    const clone = new Audio(src);
+                    clone.volume = volume;
+                    const playPromise = clone.play();
+                    if (playPromise && typeof playPromise.catch === 'function') {
+                        playPromise.catch(() => {});
+                    }
+                    return;
+                }
+                audio.volume = volume;
+                audio.currentTime = 0;
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(() => {});
+                }
+            } catch (e) {
+                // ignore playback errors
+            }
+        }
+
+        function playSfx(src) {
+            const ctx = ensureAudioCtx();
+            if (!ctx) {
+                playSfxHtml5(src, SFX_VOLUME);
+                return;
+            }
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(() => {});
+            }
+            const buffer = sfxBuffers[src];
+            if (!buffer) {
+                loadSfxBuffer(src).then((buf) => {
+                    if (buf) {
+                        playSfx(src);
+                    } else {
+                        playSfxHtml5(src, SFX_VOLUME);
+                    }
+                });
+                return;
+            }
+            try {
+                const source = ctx.createBufferSource();
+                const gain = ctx.createGain();
+                source.buffer = buffer;
+                gain.gain.value = SFX_VOLUME;
+                source.connect(gain);
+                gain.connect(ctx.destination);
+                source.start(0);
+            } catch (e) {
+                playSfxHtml5(src, SFX_VOLUME);
+            }
+        }
+
+        function playShotSfx() {
+            playSfx(SFX_SHOT_SRC);
+        }
+
+        function playMissSfx() {
+            playSfx(SFX_MISS_SRC);
+        }
+
+        function playHitSfx() {
+            playSfx(SFX_HIT_SRC);
+        }
+
+        function playBattleStartSfx() {
+            playSfx(SFX_BATTLE_START_SRC);
         }
 
         function spawnExplosion(x, y) {
@@ -778,7 +951,7 @@
                 rebuildLanes();
                 buildFieldDecor();
                 loadSightImage();
-                ensureBgm();
+                preloadAllAudio();
             },
             resize(size) {
                 if (size.width === width && size.height === height) {
@@ -810,7 +983,8 @@
                 nextSpawnAt = startAt + 220;
                 rebuildLanes();
                 buildFieldDecor();
-                playBgm();
+                playBattleStartSfx();
+                window.setTimeout(playBgm, 350);
             },
             stop() {
                 running = false;
@@ -830,6 +1004,7 @@
             getScore,
             getMetrics,
             getRemainingSec: remainingSec,
+            warmupAudio,
             onPointerMove(event) {
                 rawPointer = pointerPos(canvas, event);
                 if (window.AbsAimCore.isMobileDevice()) {
@@ -847,6 +1022,7 @@
                     pos = pointer;
                 }
                 const tankIndex = findTankAt(pos);
+                playShotSfx();
                 if (tankIndex >= 0) {
                     const tank = tanks[tankIndex];
                     spawnExplosion(tank.x, tank.y);
@@ -854,11 +1030,13 @@
                     hits += 1;
                     streak += 1;
                     bestStreak = Math.max(bestStreak, streak);
+                    playHitSfx();
                     return;
                 }
                 if (!window.AbsAimCore.isMobileDevice()) {
                     misses += 1;
                     streak = 0;
+                    playMissSfx();
                 }
             },
             update(now) {

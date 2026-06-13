@@ -46,14 +46,16 @@ $isAdmin = function_exists('admin_is_admin') && admin_is_admin();
             <div class="admin-nav-menu-divider" role="separator"></div>
             <div class="admin-nav-menu-group">
                 <div class="admin-nav-menu-caption">Разделы админки</div>
+                <div class="admin-nav-menu-grid">
                 <?php foreach (admin_panel_sections() as $section): ?>
                     <?php if (!empty($section['admin_only']) && !$isAdmin) continue; ?>
                     <a href="<?php echo htmlspecialchars($section['href'], ENT_QUOTES, 'UTF-8'); ?>"
                         class="admin-nav-menu-item<?php echo $navCurrent === $section['id'] ? ' is-active' : ''; ?>">
                         <i class="<?php echo htmlspecialchars($section['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                        <?php echo htmlspecialchars(admin_panel_section_nav_label($section['id'], $section['label']), ENT_QUOTES, 'UTF-8'); ?>
+                        <?php echo htmlspecialchars($section['label'], ENT_QUOTES, 'UTF-8'); ?>
                     </a>
                 <?php endforeach; ?>
+                </div>
             </div>
         </div>
     </details>

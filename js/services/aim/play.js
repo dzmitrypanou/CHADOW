@@ -133,6 +133,9 @@
 
     function startCountdown() {
         if (phase !== 'idle') return;
+        if (trainer && typeof trainer.warmupAudio === 'function') {
+            trainer.warmupAudio();
+        }
         phase = 'countdown';
         setArenaInteractive(false);
         showOverlay('aimOverlayCountdown');
