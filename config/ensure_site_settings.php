@@ -28,6 +28,15 @@ function ensure_site_settings_table($db): void
     $stmt->execute(['site_name_en', 'Chadow']);
     $stmt->execute(['wg_application_id', '']);
     $stmt->execute(['lesta_application_id', '']);
+    $stmt->execute(['mc_enabled', '0']);
+    $stmt->execute(['mc_server_host', '']);
+    $stmt->execute(['mc_server_port', '25565']);
+    $stmt->execute(['mc_server_name', 'Chadow SMP']);
+    $stmt->execute(['mc_minecraft_version', '1.20.4']);
+    $stmt->execute(['mc_java_major', '21']);
+    $stmt->execute(['mc_wg_application_id', '']);
+    $stmt->execute(['mc_lesta_application_id', '']);
+    $stmt->execute(['mc_launcher_version', '1']);
 }
 
 function get_site_setting($db, string $key, $default = null)

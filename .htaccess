@@ -114,6 +114,10 @@ ErrorDocument 404 /404.php
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
+    # Extensionless PHP: /api/foo/bar → api/foo/bar.php, если файл существует
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.+?)/?$ $1.php [L]
+
     # ЧПУ CMS: /test → page.php?slug=test
     RewriteRule ^([a-z0-9\-]+)/?$ page.php?slug=$1 [L,QSA]
 </IfModule>

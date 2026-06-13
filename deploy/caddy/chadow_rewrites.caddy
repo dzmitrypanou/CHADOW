@@ -1,6 +1,10 @@
 # Snippet for /etc/caddy/Caddyfile — import via: import deploy/caddy/chadow_rewrites.caddy
 # Or copy the (chadow_rewrites) block into your server config.
 #
+# Extensionless PHP (@php_ext): any path without .php is rewritten to {path}.php when
+# that file exists — covers /api/*, /auth/*, /admin/*, etc. without per-route rules.
+# Place after service-specific rewrites; before CMS catch-all.
+#
 # Aim trainers: slug is captured generically; play.php validates trainer id.
 # ratings and index are matched before the generic trainer rule.
 # play.php?trainer=foo → 301 → /services/aim/foo (canonical URL).
@@ -18,14 +22,10 @@
     handle {
         rewrite /auth/wg/callback /auth/wg_callback.php
         rewrite /en/auth/wg/callback /auth/wg_callback.php
-        @auth path_regexp auth ^/auth/([a-z0-9_-]+)/?$
-        rewrite @auth /auth/{re.auth.1}.php
         @auth_en path_regexp auth_en ^/en/auth/([a-z0-9_-]+)/?$
         rewrite @auth_en /auth/{re.auth_en.1}.php
 
         rewrite /admin /admin/dashboard.php
-        @admin path_regexp admin ^/admin/([a-z0-9-]+)/?$
-        rewrite @admin /admin/{re.admin.1}.php
 
         rewrite /services/abs /services/abs/index.php
         rewrite /en/services/abs /services/abs/index.php
@@ -77,6 +77,13 @@
         rewrite @aim_trainer_en /services/aim/play.php?trainer={re.aim_en.1}
         rewrite /services/aim /services/aim/index.php
         rewrite /en/services/aim /services/aim/index.php
+
+        @php_ext {
+            not path *.php
+            not path */
+            file {path}.php
+        }
+        rewrite @php_ext {path}.php
 
         rewrite /en /index.php
         @cms_en path_regexp cms_en ^/en/([a-z0-9-]+)/?$

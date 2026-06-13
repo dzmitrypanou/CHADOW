@@ -67,6 +67,13 @@ function admin_panel_sections(): array {
             'icon' => 'fas fa-trophy',
         ],
         [
+            'id' => 'minecraft',
+            'href' => '/admin/minecraft',
+            'label' => 'Minecraft сервер',
+            'icon' => 'fas fa-cube',
+            'admin_only' => true,
+        ],
+        [
             'id' => 'wgsrt',
             'href' => '/admin/wgsrt',
             'label' => 'WGSRT Редактор',
