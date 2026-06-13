@@ -1584,6 +1584,14 @@
             return this.canvasEl?.closest('.tactics-map-canvas-stack') || this.getWrapEl();
         }
 
+        getMapViewportEl() {
+            return this.getStackEl()?.querySelector('.tactics-map-viewport') || this.getStackEl();
+        }
+
+        getMapZoomEl() {
+            return this.getMapViewportEl()?.querySelector('.tactics-map-zoom-layer') || this.getMapViewportEl();
+        }
+
         getOverlaysEl() {
             return document.getElementById('tacticsCanvasOverlays') || this.getStackEl();
         }
@@ -1656,30 +1664,30 @@
         }
 
         applyMapCssZoom() {
-            const stack = this.getStackEl();
-            const grid = this.getMapGridEl();
-            if (!stack) return;
+            const zoomEl = this.getMapZoomEl();
+            const viewport = this.getMapViewportEl();
+            if (!zoomEl) return;
 
             const zoom = this.mapCssZoom;
             if (Math.abs(zoom - 1) < 0.001) {
                 this.mapCssPanX = 0;
                 this.mapCssPanY = 0;
-                stack.style.transform = '';
-                stack.style.transformOrigin = '';
-                grid?.classList.remove('is-map-zoomed', 'is-map-panning');
+                zoomEl.style.transform = '';
+                zoomEl.style.transformOrigin = '';
+                viewport?.classList.remove('is-map-zoomed', 'is-map-panning');
                 return;
             }
 
             this.clampMapCssPan();
-            stack.style.transformOrigin = '0 0';
-            stack.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
-            grid?.classList.add('is-map-zoomed');
+            zoomEl.style.transformOrigin = '0 0';
+            zoomEl.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
+            viewport?.classList.add('is-map-zoomed');
         }
 
         endMapPan() {
             if (!this.mapPanActive) return;
             this.mapPanActive = false;
-            this.getMapGridEl()?.classList.remove('is-map-panning');
+            this.getMapViewportEl()?.classList.remove('is-map-panning');
             if (this.mapPanMoveHandler) {
                 window.removeEventListener('mousemove', this.mapPanMoveHandler);
                 this.mapPanMoveHandler = null;
@@ -1698,7 +1706,7 @@
             this.mapPanStartY = ev.clientY;
             this.mapPanOriginX = this.mapCssPanX;
             this.mapPanOriginY = this.mapCssPanY;
-            this.getMapGridEl()?.classList.add('is-map-panning');
+            this.getMapViewportEl()?.classList.add('is-map-panning');
 
             this.mapPanMoveHandler = (moveEv) => {
                 if (!this.mapPanActive) return;
@@ -1767,11 +1775,11 @@
 
         bindMapWheelZoom() {
             if (this.mapWheelBound) return;
-            const grid = this.getMapGridEl();
-            if (!grid) return;
-            grid.addEventListener('wheel', (ev) => this.handleMapWheel(ev), { passive: false });
-            grid.addEventListener('mousedown', (ev) => this.handleMapPanDown(ev));
-            grid.addEventListener('auxclick', (ev) => {
+            const viewport = this.getMapViewportEl();
+            if (!viewport) return;
+            viewport.addEventListener('wheel', (ev) => this.handleMapWheel(ev), { passive: false });
+            viewport.addEventListener('mousedown', (ev) => this.handleMapPanDown(ev));
+            viewport.addEventListener('auxclick', (ev) => {
                 if (ev.button === 1) ev.preventDefault();
             });
             this.mapWheelBound = true;
@@ -2810,10 +2818,10 @@
 
         sendCursorFromPointerEvent(ev, visible) {
             if (!this.slideId || !ev) return;
-            const stack = this.getStackEl();
-            if (!stack) return;
+            const canvas = this.fabric?.upperCanvasEl || this.canvasEl;
+            if (!canvas) return;
 
-            const bounds = stack.getBoundingClientRect();
+            const bounds = canvas.getBoundingClientRect();
             if (bounds.width <= 0 || bounds.height <= 0) return;
 
             const x = (ev.clientX - bounds.left) / bounds.width;

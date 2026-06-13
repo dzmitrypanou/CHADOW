@@ -11165,19 +11165,31 @@ button.tactics-back-link {
     min-height: 0;
     aspect-ratio: 1 / 1;
     isolation: isolate;
+    overflow: visible;
+}
+
+.tactics-map-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
     overflow: hidden;
 }
 
-.tactics-map-grid.is-map-zoomed {
-    overflow: hidden;
+.tactics-map-zoom-layer {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
+}
+
+.tactics-map-viewport.is-map-zoomed {
     cursor: grab;
 }
 
-.tactics-map-grid.is-map-panning {
+.tactics-map-viewport.is-map-panning {
     cursor: grabbing;
 }
 
-.tactics-map-grid.is-map-panning .upper-canvas {
+.tactics-map-viewport.is-map-panning .upper-canvas {
     cursor: grabbing !important;
 }
 
@@ -13564,10 +13576,6 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     margin: 0 auto;
     align-self: center;
     overflow: visible;
-}
-
-.page-tactics-room .tactics-map-grid.is-map-zoomed {
-    overflow: hidden;
 }
 
 .page-tactics-room .tactics-map-canvas-stack {
