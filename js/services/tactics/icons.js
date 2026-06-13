@@ -1,19 +1,29 @@
 (() => {
     'use strict';
 
+    const MARKER_OUTLINE = '#000000';
+    const MARKER_STRIPE = '#000000';
+
+    const DIAMOND_LG = 'M 7 0 L 14 9 L 7 18 L 0 9 Z';
+    const DIAMOND_SM = 'M 5 0 L 10 7 L 5 14 L 0 7 Z';
+
+    const MASK_HEAVY = 'M 7 0 L 12.02 6.45 L 5.02 15.45 L 0 9 Z M 11.49 5.77 L 9.51 3.22 L 2.51 12.22 L 4.49 14.77 Z M 14 9 L 8.98 2.55 L 1.98 11.55 L 7 18 Z';
+    const MASK_MEDIUM = 'M 5 0 L 10 7 L 5 14 L 0 7 Z M 1.63 13.18 L 0.82 12.60 L 8.37 0.82 L 9.18 1.41 Z';
+
     const MARKERS = {
         heavy: {
             viewBox: '0 0 14 18',
-            path: 'M 7 0 L 12.02 6.45 L 5.02 15.45 L 0 9 Z M 11.49 5.77 L 9.51 3.22 L 2.51 12.22 L 4.49 14.77 Z M 14 9 L 8.98 2.55 L 1.98 11.55 L 7 18 Z',
-            striped: true,
+            path: DIAMOND_LG,
+            mask: MASK_HEAVY,
         },
         medium: {
             viewBox: '0 0 10 14',
-            path: 'M 5 0 L 10 7 L 5 14 L 0 7 Z',
+            path: DIAMOND_SM,
+            mask: MASK_MEDIUM,
         },
         light: {
             viewBox: '0 0 10 14',
-            path: 'M 5 0 L 7.75 3.85 L 2.75 10.85 L 0 7 Z M 10 7 L 7.25 3.15 L 2.25 10.15 L 5 14 Z',
+            path: DIAMOND_SM,
         },
         td: {
             viewBox: '0 0 12 11',
@@ -86,6 +96,8 @@
         MARKERS,
         ICONS,
         GLYPHS,
+        MARKER_OUTLINE,
+        MARKER_STRIPE,
         markerKeys: () => Object.keys(MARKERS),
         getGlyph: (faClass) => GLYPHS[faClass] || '',
     };

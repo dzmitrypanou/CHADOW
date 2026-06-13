@@ -289,10 +289,46 @@
                     `translate(${offsetX} ${offsetY}) scale(${markerSizeScale})`,
                 );
             }
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', marker.path);
-            path.setAttribute('fill', 'currentColor');
-            svg.appendChild(path);
+            const outline = icons.MARKER_OUTLINE || '#000000';
+            const stripe = icons.MARKER_STRIPE || '#000000';
+
+            if (marker.mask) {
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+                const clipId = `tactics-marker-clip-${key}`;
+                clip.setAttribute('id', clipId);
+                const clipShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                clipShape.setAttribute('d', marker.path);
+                clip.appendChild(clipShape);
+                defs.appendChild(clip);
+                svg.appendChild(defs);
+
+                const basePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                basePath.setAttribute('d', marker.path);
+                basePath.setAttribute('fill', stripe);
+                svg.appendChild(basePath);
+
+                const maskPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                maskPath.setAttribute('d', marker.mask);
+                maskPath.setAttribute('fill', 'currentColor');
+                maskPath.setAttribute('fill-rule', 'evenodd');
+                maskPath.setAttribute('clip-path', `url(#${clipId})`);
+                svg.appendChild(maskPath);
+            } else {
+                const fillPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                fillPath.setAttribute('d', marker.path);
+                fillPath.setAttribute('fill', 'currentColor');
+                fillPath.setAttribute('stroke', 'none');
+                svg.appendChild(fillPath);
+            }
+
+            const outlinePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            outlinePath.setAttribute('d', marker.path);
+            outlinePath.setAttribute('fill', 'none');
+            outlinePath.setAttribute('stroke', outline);
+            outlinePath.setAttribute('stroke-width', '0.75');
+            outlinePath.setAttribute('stroke-linejoin', 'miter');
+            svg.appendChild(outlinePath);
             btn.appendChild(svg);
             wrap.appendChild(btn);
         });

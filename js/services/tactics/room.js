@@ -915,7 +915,7 @@
             }
         } finally {
             drawSettingsSaveInFlight = false;
-            updatePresentationBtn();
+            updatePresentBtn();
         }
     }
 
@@ -1107,12 +1107,16 @@
         }
     }
 
-    async function saveRoomTitle(rawTitle) {
+    async function saveRoomTitle(rawTitle, previousTitle) {
         if (!canManage || !roomState || !accessToken) return false;
 
         const clean = String(rawTitle || '').trim();
         const newTitle = clean || i18n().t('roomTitlePlaceholder');
-        if (newTitle === roomState.title) return true;
+        const prevRaw = previousTitle !== undefined
+            ? String(previousTitle || '').trim()
+            : String(roomState.title || '').trim();
+        const prevNorm = prevRaw || i18n().t('roomTitlePlaceholder');
+        if (newTitle === prevNorm) return true;
 
         setSaveStatus('saving');
         const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
@@ -1191,12 +1195,9 @@
             const previousTitle = String(roomState?.title || '').trim();
 
             titleEl.textContent = displayTitle;
-            if (roomState) {
-                roomState.title = displayTitle;
-            }
             syncRoomDocumentTitle(displayTitle);
 
-            const saved = await saveRoomTitle(nextTitle);
+            const saved = await saveRoomTitle(nextTitle, previousTitle);
             if (!saved) {
                 const rollbackTitle = previousTitle || i18n().t('roomTitlePlaceholder');
                 titleEl.textContent = rollbackTitle;
@@ -1205,6 +1206,7 @@
                 }
                 syncRoomDocumentTitle(rollbackTitle);
             }
+            updateRoomTitle();
         };
 
         const onBlur = () => {
@@ -1306,7 +1308,7 @@
     async function togglePresentationMode() {
         if (!canControlPresentation() || presentationToggleInFlight) return;
         presentationToggleInFlight = true;
-        updatePresentationBtn();
+        updatePresentBtn();
 
         const settings = getDrawSettings();
         const enabling = !isPresentationMode();
@@ -1331,7 +1333,7 @@
             await pushDrawSettingsChange();
         } finally {
             presentationToggleInFlight = false;
-            updatePresentationBtn();
+            updatePresentBtn();
         }
     }
 
@@ -2034,6 +2036,7 @@
     }
 
     function persistCanvasToSlide() {
+        syncRoomDataFromSlides();
         if (!slidesCtrl || !canvasCtrl || canvasCtrl.isSlideLoading) return;
         const slideId = canvasCtrl.slideId;
         if (!slideId) return;
@@ -2050,6 +2053,13 @@
         await canvasCtrl.applyCanvasState(slide.canvas);
     }
 
+    function syncRoomDataFromSlides() {
+        if (!roomState || !slidesCtrl?.roomData) return;
+        if (roomState.room_data !== slidesCtrl.roomData) {
+            roomState.room_data = slidesCtrl.roomData;
+        }
+    }
+
     function mergePendingDrawSettings(localRoomData, incomingRoomData) {
         if (!drawSettingsSaveInFlight || !localRoomData?.settings) {
             return incomingRoomData;
@@ -2063,43 +2073,36 @@
         };
     }
 
-    function mergeLocalSlideMeta(localSlide, serverSlide) {
-        const merged = { ...serverSlide };
-        if (!localSlide || !dirty) return merged;
-
-        const localTitle = typeof localSlide.title === 'string' ? localSlide.title.trim() : '';
-        const serverTitle = typeof serverSlide.title === 'string' ? serverSlide.title.trim() : '';
-        if (localTitle !== serverTitle) {
-            if (localTitle) {
-                merged.title = localTitle;
-            } else {
-                delete merged.title;
-            }
-        }
-        return merged;
-    }
-
     function mergeLocalCanvasRoomData(localRoomData, incomingRoomData) {
         if (!localRoomData?.slides || !incomingRoomData?.slides) {
             return incomingRoomData;
         }
 
         const localSlides = localRoomData.slides;
+        const incomingIds = new Set(
+            incomingRoomData.slides.map((s) => s.id).filter(Boolean),
+        );
         const mergedSlides = incomingRoomData.slides.map((nextSlide) => {
             const localSlide = localSlides.find((s) => s.id === nextSlide.id);
             if (!localSlide) {
                 return nextSlide;
             }
-            let merged = mergeLocalSlideMeta(localSlide, nextSlide);
             if (canvasStateHasObjects(localSlide.canvas)) {
-                merged = { ...merged, canvas: localSlide.canvas };
+                return { ...nextSlide, canvas: localSlide.canvas };
             }
-            return merged;
+            return nextSlide;
+        });
+
+        localSlides.forEach((localSlide) => {
+            if (localSlide?.id && !incomingIds.has(localSlide.id)) {
+                mergedSlides.push(localSlide);
+            }
         });
 
         return {
             ...incomingRoomData,
             slides: mergedSlides,
+            active_slide_id: localRoomData.active_slide_id || incomingRoomData.active_slide_id,
         };
     }
 
@@ -2115,23 +2118,33 @@
         }
 
         const localSlides = previousRoomData.slides;
+        const incomingIds = new Set(
+            incomingRoomData.slides.map((s) => s.id).filter(Boolean),
+        );
         const mergedSlides = incomingRoomData.slides.map((nextSlide) => {
             const localSlide = localSlides.find((s) => s.id === nextSlide.id);
             if (!localSlide) {
                 return nextSlide;
             }
-            let merged = mergeLocalSlideMeta(localSlide, nextSlide);
             if (activeSlideId && nextSlide.id === activeSlideId && canvasCtrl) {
-                merged = { ...merged, canvas: canvasCtrl.getCanvasState() };
-            } else if (localSlide.canvas) {
-                merged = { ...merged, canvas: localSlide.canvas };
+                return { ...nextSlide, canvas: canvasCtrl.getCanvasState() };
             }
-            return merged;
+            if (localSlide.canvas) {
+                return { ...nextSlide, canvas: localSlide.canvas };
+            }
+            return nextSlide;
+        });
+
+        localSlides.forEach((localSlide) => {
+            if (localSlide?.id && !incomingIds.has(localSlide.id)) {
+                mergedSlides.push(localSlide);
+            }
         });
 
         return {
             ...incomingRoomData,
             slides: mergedSlides,
+            active_slide_id: previousRoomData.active_slide_id || incomingRoomData.active_slide_id,
         };
     }
 

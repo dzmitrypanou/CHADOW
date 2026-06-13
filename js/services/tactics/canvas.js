@@ -177,6 +177,12 @@
             this.clipboardPasteCount = 0;
             this.eyedropperActive = false;
             this.eyedropperPickInFlight = false;
+            this.eraserStrokeActive = false;
+            this.eraserDragStarted = false;
+            this.eraserDeferSync = false;
+            this.eraserStartPointer = null;
+            this.eraserStartEvent = null;
+            this.eraserErasedKeys = new Set();
             this.hueSliderEl = options.hueSliderEl || document.getElementById('tacticsHueSlider');
             this.imageUploadEl = options.imageUploadEl || document.getElementById('tacticsImageUpload');
             this.applyToolPrefs();
@@ -205,6 +211,7 @@
         static PEN_MIN_STROKE_LENGTH = 1.5;
         static PEN_DOUBLE_CLICK_MS = 320;
         static PEN_DOUBLE_CLICK_DIST = 5;
+        static ERASER_DRAG_THRESHOLD = 5;
         static PEN_DECIMATE_FACTOR = 0.5;
         static CLIPBOARD_PASTE_STEP = 18;
 
@@ -518,6 +525,7 @@
             this.bindCursorTracking();
             this.bindContextMenuBlock();
             this.bindPingHoldRelease();
+            this.bindEraserStrokeRelease();
             this.bindDeleteKey();
             this.bindUndoRedoKeys();
             this.bindCopyPasteKeys();
@@ -992,6 +1000,12 @@
             if (this.pingHoldReleaseBound) return;
             this.pingHoldReleaseBound = true;
             window.addEventListener('mouseup', () => this.stopPingHold());
+        }
+
+        bindEraserStrokeRelease() {
+            if (this.eraserStrokeReleaseBound) return;
+            this.eraserStrokeReleaseBound = true;
+            window.addEventListener('mouseup', () => this.finishEraserStroke());
         }
 
         shouldIgnoreCanvasHotkey(ev) {
@@ -4803,7 +4817,7 @@
             });
         }
 
-        removeDrawingTarget(target) {
+        removeDrawingTarget(target, options = {}) {
             if (!this.fabric || !target || this.isPreviewObject(target)) return;
 
             this.isRemote = true;
@@ -4819,15 +4833,91 @@
 
             this.fabric.discardActiveObject();
             this.fabric.requestRenderAll();
-            this.pushHistory();
-            this.onChange();
-            if (this.slideId) {
-                this.onOp({
-                    op: 'full',
-                    slideId: this.slideId,
-                    payload: this.exportDrawingsJson(),
-                });
+            if (!options.deferSync) {
+                this.pushHistory();
+                this.onChange();
+                if (this.slideId) {
+                    this.onOp({
+                        op: 'full',
+                        slideId: this.slideId,
+                        payload: this.exportDrawingsJson(),
+                    });
+                }
             }
+        }
+
+        isErasableTarget(target) {
+            return !!(target && !this.isPreviewObject(target));
+        }
+
+        getEraserTargetKey(target) {
+            if (!target) return '';
+            if (target.tacticsId) return String(target.tacticsId);
+            if (target.tacticsParentId) return `parent:${target.tacticsParentId}`;
+            return `${target.type}:${target.left}:${target.top}`;
+        }
+
+        tryEraseAtEvent(event, options = {}) {
+            if (!this.fabric || !event) return false;
+            const target = this.fabric.findTarget(event, false);
+            if (!this.isErasableTarget(target)) return false;
+            const key = this.getEraserTargetKey(target);
+            if (this.eraserErasedKeys.has(key)) return false;
+            this.eraserErasedKeys.add(key);
+            this.removeDrawingTarget(target, options);
+            return true;
+        }
+
+        startEraserStroke(opt) {
+            this.eraserStrokeActive = true;
+            this.eraserDragStarted = false;
+            this.eraserDeferSync = false;
+            this.eraserErasedKeys = new Set();
+            this.eraserStartPointer = this.fabric.getPointer(opt.e);
+            this.eraserStartEvent = opt.e;
+        }
+
+        updateEraserStroke(opt) {
+            if (!this.eraserStrokeActive || !this.drawEnabled || !opt?.e) return;
+
+            const pointer = this.fabric.getPointer(opt.e);
+            if (!this.eraserDragStarted && this.eraserStartPointer) {
+                const dx = pointer.x - this.eraserStartPointer.x;
+                const dy = pointer.y - this.eraserStartPointer.y;
+                if (Math.hypot(dx, dy) >= TacticsCanvas.ERASER_DRAG_THRESHOLD) {
+                    this.eraserDragStarted = true;
+                    this.eraserDeferSync = true;
+                }
+            }
+
+            if (this.eraserDragStarted) {
+                this.tryEraseAtEvent(opt.e, { deferSync: true });
+            }
+        }
+
+        finishEraserStroke() {
+            if (!this.eraserStrokeActive) return;
+
+            if (!this.eraserDragStarted && this.eraserStartEvent) {
+                this.tryEraseAtEvent(this.eraserStartEvent);
+            } else if (this.eraserDeferSync && this.eraserErasedKeys.size > 0) {
+                this.pushHistory();
+                this.onChange();
+                if (this.slideId) {
+                    this.onOp({
+                        op: 'full',
+                        slideId: this.slideId,
+                        payload: this.exportDrawingsJson(),
+                    });
+                }
+            }
+
+            this.eraserStrokeActive = false;
+            this.eraserDragStarted = false;
+            this.eraserDeferSync = false;
+            this.eraserStartPointer = null;
+            this.eraserStartEvent = null;
+            this.eraserErasedKeys.clear();
         }
 
         getMarkerViewBoxSize(markerDef) {
@@ -5100,6 +5190,83 @@
             });
         }
 
+        createMarkerClipPath(diamondPath, markerLayout) {
+            return new fabric.Path(diamondPath, {
+                originX: markerLayout.originX,
+                originY: markerLayout.originY,
+                left: 0,
+                top: 0,
+                scaleX: markerLayout.scaleX,
+                scaleY: markerLayout.scaleY,
+            });
+        }
+
+        createMarkerFabricParts(markerDef, color, markerLayout) {
+            const outline = window.AbsTacticsIcons?.MARKER_OUTLINE || '#000000';
+            const stripeColor = window.AbsTacticsIcons?.MARKER_STRIPE || '#000000';
+            const innerParts = [];
+            const diamondPath = markerDef.path;
+            const pathLayout = {
+                originX: markerLayout.originX,
+                originY: markerLayout.originY,
+                left: 0,
+                top: 0,
+                scaleX: 1,
+                scaleY: 1,
+            };
+            const outlineOpts = {
+                ...pathLayout,
+                fill: 'transparent',
+                stroke: outline,
+                strokeWidth: 1,
+                strokeUniform: true,
+                strokeLineJoin: 'miter',
+            };
+            let bodyPart = null;
+
+            if (markerDef.mask) {
+                innerParts.push(new fabric.Path(diamondPath, {
+                    ...pathLayout,
+                    fill: stripeColor,
+                    stroke: null,
+                    strokeWidth: 0,
+                }));
+                bodyPart = new fabric.Path(markerDef.mask, {
+                    ...pathLayout,
+                    fill: color,
+                    stroke: null,
+                    strokeWidth: 0,
+                    fillRule: 'evenodd',
+                    clipPath: this.createMarkerClipPath(diamondPath, {
+                        ...markerLayout,
+                        scaleX: 1,
+                        scaleY: 1,
+                    }),
+                });
+                innerParts.push(bodyPart);
+            } else {
+                bodyPart = new fabric.Path(diamondPath, {
+                    ...pathLayout,
+                    fill: color,
+                    stroke: null,
+                    strokeWidth: 0,
+                });
+                innerParts.push(bodyPart);
+            }
+
+            innerParts.push(new fabric.Path(diamondPath, outlineOpts));
+
+            const markerGroup = new fabric.Group(innerParts, {
+                originX: 'center',
+                originY: 'center',
+                left: 0,
+                top: 0,
+                scaleX: markerLayout.scaleX,
+                scaleY: markerLayout.scaleY,
+            });
+            return { parts: [markerGroup], bodyPart: markerGroup };
+        }
+
         insertIconAt(x, y) {
             if (!this.fabric || !this.drawEnabled) return;
 
@@ -5123,16 +5290,15 @@
             let bodyPart = null;
 
             if (markerDef) {
-                bodyPart = new fabric.Path(markerDef.path, {
-                    fill: color,
-                    stroke: color,
-                    strokeWidth: 0.5,
+                const markerLayout = {
                     originX: 'center',
                     originY: 'center',
                     scaleX: markerScale,
                     scaleY: markerScale,
-                });
-                parts.push(bodyPart);
+                };
+                const markerParts = this.createMarkerFabricParts(markerDef, color, markerLayout);
+                bodyPart = markerParts.bodyPart;
+                parts.push(...markerParts.parts);
             }
 
             if (iconDef) {
@@ -5223,10 +5389,7 @@
 
             if (this.tool === 'eraser') {
                 if (!this.drawEnabled) return;
-                const target = this.fabric.findTarget(opt.e, false);
-                if (target && !target.isBackground && !target.isGridLine) {
-                    this.removeDrawingTarget(target);
-                }
+                this.startEraserStroke(opt);
                 return;
             }
 
@@ -5339,6 +5502,11 @@
         handleMouseMove(opt) {
             if (!this.fabric || this.isRemote) return;
 
+            if (this.tool === 'eraser' && this.eraserStrokeActive) {
+                this.updateEraserStroke(opt);
+                return;
+            }
+
             if (this.tool === 'ruler' && this.rulerDragActive && this.rulerDragStart) {
                 const pointer = this.fabric.getPointer(opt.e);
                 this.updateRulerDisplay(
@@ -5365,6 +5533,10 @@
 
         handleMouseUp(opt) {
             if (!this.fabric || this.isRemote) return;
+            if (this.tool === 'eraser') {
+                this.finishEraserStroke();
+                return;
+            }
             if (this.tool === 'ping') {
                 this.stopPingHold();
                 return;

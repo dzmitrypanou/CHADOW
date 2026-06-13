@@ -488,6 +488,22 @@ function tactics_normalize_draw_settings(array $settings): array {
     $mode = trim((string) ($settings['cursors_mode'] ?? 'open'));
     $settings['cursors_mode'] = $mode === 'off' ? 'off' : 'open';
 
+    $settings['presentation_mode'] = !empty($settings['presentation_mode']);
+    if ($settings['presentation_mode']) {
+        $hostId = trim((string) ($settings['presentation_host_id'] ?? ''));
+        if ($hostId !== '' && preg_match('/^[a-zA-Z0-9_-]{8,64}$/', $hostId)) {
+            $settings['presentation_host_id'] = $hostId;
+        } else {
+            unset($settings['presentation_host_id']);
+        }
+    } else {
+        unset($settings['presentation_mode'], $settings['presentation_host_id']);
+    }
+
+    if (array_key_exists('show_grid', $settings)) {
+        $settings['show_grid'] = ($settings['show_grid'] !== false);
+    }
+
     return $settings;
 }
 

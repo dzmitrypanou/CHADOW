@@ -830,8 +830,13 @@
                 }
 
                 const displayName = this.applySlideTitle(slideId, input.value);
+                if (!displayName) {
+                    restoreNameEl(this.getSlideDisplayName(slide));
+                    return;
+                }
+
                 restoreNameEl(displayName);
-                if (!displayName) return;
+                this.updateSlideNameInDom(slideId, displayName);
 
                 this.onChange();
                 this.onRenamed(slideId);
