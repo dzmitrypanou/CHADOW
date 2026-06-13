@@ -13036,10 +13036,11 @@ button.tactics-back-link {
     .page-tactics-room-shell .tactics-map-canvas-stack {
         grid-column: 1;
         grid-row: 1;
-        width: 100%;
-        height: 100%;
+        width: auto;
+        height: auto;
         max-width: 100%;
         max-height: 100%;
+        margin: 0 auto;
         aspect-ratio: unset;
     }
 
@@ -13511,10 +13512,11 @@ button.tactics-back-link {
     .page-tactics-room-shell .tactics-editor .tactics-map-canvas-stack {
         grid-column: 1;
         grid-row: 1;
-        width: 100%;
-        height: 100%;
+        width: auto;
+        height: auto;
         max-width: 100%;
         max-height: 100%;
+        margin: 0 auto;
         aspect-ratio: unset;
     }
 
@@ -15288,6 +15290,10 @@ body.tactics-confirm-open {
     min-width: 0;
 }
 
+.aim-ratings-toolbar .aim-lb-device-field {
+    margin-left: auto;
+}
+
 .aim-nick-inline {
     display: flex;
     align-items: center;
@@ -15461,6 +15467,74 @@ body.tactics-confirm-open {
     letter-spacing: 0.04em;
 }
 
+.aim-trainer-card__top-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.aim-lb-device-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.aim-lb-device-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(175, 200, 228, 0.72);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.aim-lb-device-switch {
+    display: inline-flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(10, 18, 36, 0.55);
+}
+
+.aim-lb-device-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: rgba(175, 200, 228, 0.72);
+    cursor: pointer;
+    font-size: 0.82rem;
+    line-height: 1;
+    font-family: inherit;
+}
+
+.aim-lb-device-btn + .aim-lb-device-btn {
+    border-left: 1px solid rgba(113, 163, 230, 0.24);
+}
+
+.aim-lb-device-btn.is-active {
+    background: rgba(30, 51, 89, 0.88);
+    color: #8ecbff;
+}
+
+.aim-lb-device-btn:hover {
+    color: #b8deff;
+}
+
+.aim-lb-device-btn:focus-visible {
+    outline: 2px solid rgba(100, 181, 246, 0.65);
+    outline-offset: -2px;
+    z-index: 1;
+}
+
 .aim-link-btn {
     border: none;
     background: none;
@@ -15504,11 +15578,7 @@ body.tactics-confirm-open {
     color: #ffe082;
 }
 
-html.aim-device-mobile .aim-trainer-card__full-top-label {
-    display: none;
-}
-
-html.aim-device-mobile .aim-trainer-card__full-top {
+html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-top {
     padding: 5px 8px;
     border: 1px solid rgba(113, 163, 230, 0.28);
     border-radius: 6px;
@@ -15933,40 +16003,85 @@ html.aim-device-mobile .aim-trainer-card__full-top {
     text-align: left;
 }
 
+.aim-device-mobile .aim-overlay.aim-overlay--results {
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    overflow-y: auto;
+}
+
 .aim-device-mobile .aim-overlay.aim-overlay--results .aim-overlay-card {
-    max-width: min(92%, 300px);
-    padding: 14px 14px 16px;
+    max-width: min(94%, 252px);
+    max-height: 100%;
+    padding: 10px 12px 12px;
+    overflow-y: auto;
+}
+
+.aim-device-mobile .aim-results-label {
+    margin: 0 0 4px;
+    font-size: 0.78rem;
 }
 
 .aim-device-mobile .aim-results-score {
-    font-size: 2rem;
+    font-size: 1.55rem;
+    line-height: 1.05;
+}
+
+.aim-device-mobile #aimResultsGrade.aim-grade {
+    margin-top: 4px;
+    padding: 3px 10px;
+    font-size: 0.82rem;
 }
 
 .aim-device-mobile .aim-results-metrics {
-    margin-top: 10px;
-    gap: 6px;
+    margin-top: 6px;
+    gap: 4px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.aim-device-mobile .aim-results-metric dt {
+    font-size: 0.66rem;
+}
+
+.aim-device-mobile .aim-results-metric dd {
+    margin-top: 1px;
+    font-size: 0.88rem;
+}
+
 .aim-device-mobile .aim-results-nickname {
-    margin-top: 10px;
-    max-width: 200px;
-    margin-left: auto;
-    margin-right: auto;
+    margin-top: 8px;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .aim-device-mobile .aim-results-nickname .aim-field-label {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
+    margin-bottom: 2px;
 }
 
 .aim-device-mobile .aim-results-nickname .aim-input {
-    padding: 6px 10px;
-    font-size: 0.86rem;
+    padding: 5px 8px;
+    font-size: 0.82rem;
 }
 
 .aim-device-mobile .aim-results-actions {
-    margin-top: 12px;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 8px;
+    gap: 6px;
+}
+
+.aim-device-mobile .aim-results-actions #aimSubmitBtn {
+    grid-column: 1 / -1;
+}
+
+.aim-device-mobile .aim-results-actions .aim-btn {
+    width: auto;
+    min-width: 0;
+    padding: 7px 8px;
+    font-size: 0.8rem;
+    gap: 5px;
 }
 
 .aim-results-metric dt {
@@ -16423,11 +16538,8 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
         grid-column: span 12;
     }
 
-    .aim-trainer-card__full-top-label {
-        display: none;
-    }
-
-    .aim-trainer-card__full-top {
+    html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-top,
+    .aim-trainer-card__top-actions .aim-trainer-card__full-top {
         padding: 5px 8px;
         border: 1px solid rgba(113, 163, 230, 0.28);
         border-radius: 6px;
@@ -16444,31 +16556,71 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     }
 
     body.page-aim-play .aim-overlay.aim-overlay--results .aim-overlay-card {
-        max-width: min(92%, 300px);
-        padding: 14px 14px 16px;
+        max-width: min(94%, 252px);
+        padding: 10px 12px 12px;
     }
 
     body.page-aim-play .aim-results-score {
-        font-size: 2rem;
+        font-size: 1.55rem;
     }
 
     body.page-aim-play .aim-results-nickname {
-        max-width: 200px;
-        margin-top: 10px;
-        margin-left: auto;
-        margin-right: auto;
+        max-width: none;
+        margin-top: 8px;
+        margin-left: 0;
+        margin-right: 0;
     }
 
     body.page-aim-play .aim-results-nickname .aim-field-label {
-        font-size: 0.76rem;
+        font-size: 0.72rem;
     }
 
     body.page-aim-play .aim-results-nickname .aim-input {
-        padding: 6px 10px;
-        font-size: 0.86rem;
+        padding: 5px 8px;
+        font-size: 0.82rem;
     }
 
     body.page-aim-play .aim-results-actions {
-        margin-top: 12px;
+        margin-top: 8px;
+        gap: 6px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-overlay.aim-overlay--results .aim-overlay-card {
+        max-width: min(96%, 236px);
+        padding: 8px 10px 10px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-label {
+        font-size: 0.72rem;
+        margin-bottom: 2px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-score {
+        font-size: 1.35rem;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play #aimResultsGrade.aim-grade {
+        margin-top: 2px;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-metrics {
+        margin-top: 4px;
+        gap: 3px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-nickname {
+        margin-top: 6px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-actions {
+        margin-top: 6px;
+        gap: 5px;
+    }
+
+    html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-results-actions .aim-btn {
+        padding: 6px 7px;
+        font-size: 0.76rem;
     }
 }

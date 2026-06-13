@@ -657,6 +657,13 @@
         }
 
         getCellOverlaySize() {
+            const metrics = this.getMapContentMetrics();
+            if (metrics?.width > 0 && metrics?.height > 0) {
+                return {
+                    width: metrics.width,
+                    height: metrics.height,
+                };
+            }
             const layer = this.cellFlashesLayerEl;
             if (layer?.clientWidth > 0 && layer?.clientHeight > 0) {
                 return {
@@ -668,16 +675,14 @@
         }
 
         getCellFlashOverlayRect(col, row) {
-            const { width, height } = this.getCellOverlaySize();
-            if (width <= 0 || height <= 0) {
-                return { left: 0, top: 0, width: 0, height: 0 };
-            }
-
             const divisions = TacticsCanvas.GRID_DIVISIONS;
-            const left = Math.round((col * width) / divisions);
-            const top = Math.round((row * height) / divisions);
-            const right = Math.round(((col + 1) * width) / divisions);
-            const bottom = Math.round(((row + 1) * height) / divisions);
+            const space = TacticsCanvas.COORD_SPACE;
+            const topLeft = this.canvasPointToOverlay((col / divisions) * space, (row / divisions) * space);
+            const bottomRight = this.canvasPointToOverlay(((col + 1) / divisions) * space, ((row + 1) / divisions) * space);
+            const left = Math.round(topLeft.x);
+            const top = Math.round(topLeft.y);
+            const right = Math.round(bottomRight.x);
+            const bottom = Math.round(bottomRight.y);
             return {
                 left,
                 top,
@@ -773,14 +778,72 @@
         }
 
         canvasPointToOverlay(x, y) {
-            const canvasSize = this.fabric?.getWidth() || 0;
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
-            if (canvasSize <= 0 || overlayW <= 0 || overlayH <= 0) {
+            const canvasSize = this.fabric?.getWidth() || TacticsCanvas.COORD_SPACE;
+            if (canvasSize <= 0) {
                 return { x: 0, y: 0 };
             }
+            return this.normalizedMapPointToOverlay(x / canvasSize, y / canvasSize);
+        }
+
+        getMapContentMetrics() {
+            const overlays = this.getOverlaysEl();
+            const canvas = this.fabric?.upperCanvasEl || this.canvasEl;
+            if (canvas && overlays) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const overlayRect = overlays.getBoundingClientRect();
+                const width = canvasRect.width;
+                const height = canvasRect.height;
+                if (width > 0 && height > 0) {
+                    return {
+                        width,
+                        height,
+                        offsetX: canvasRect.left - overlayRect.left,
+                        offsetY: canvasRect.top - overlayRect.top,
+                        overlayWidth: overlayRect.width,
+                        overlayHeight: overlayRect.height,
+                    };
+                }
+            }
+
+            const wrap = this.getWrapEl();
+            if (wrap) {
+                const width = wrap.clientWidth;
+                const height = wrap.clientHeight;
+                if (width > 0 && height > 0) {
+                    return {
+                        width,
+                        height,
+                        offsetX: 0,
+                        offsetY: 0,
+                        overlayWidth: width,
+                        overlayHeight: height,
+                    };
+                }
+            }
+
+            const stack = this.getStackEl();
+            const width = stack?.clientWidth || 0;
+            const height = stack?.clientHeight || 0;
             return {
-                x: (x / canvasSize) * overlayW,
-                y: (y / canvasSize) * overlayH,
+                width,
+                height,
+                offsetX: 0,
+                offsetY: 0,
+                overlayWidth: width,
+                overlayHeight: height,
+            };
+        }
+
+        normalizedMapPointToOverlay(nx, ny) {
+            const metrics = this.getMapContentMetrics();
+            if (!metrics || metrics.width <= 0 || metrics.height <= 0) {
+                return { x: 0, y: 0 };
+            }
+            const x = Math.max(0, Math.min(1, Number(nx) || 0));
+            const y = Math.max(0, Math.min(1, Number(ny) || 0));
+            return {
+                x: metrics.offsetX + (x * metrics.width),
+                y: metrics.offsetY + (y * metrics.height),
             };
         }
 
@@ -851,7 +914,9 @@
 
         updateRulerDisplay(x1, y1, x2, y2) {
             this.ensureRulerLayer();
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
+            const metrics = this.getMapContentMetrics();
+            const overlayW = metrics?.overlayWidth || metrics?.width || 0;
+            const overlayH = metrics?.overlayHeight || metrics?.height || 0;
             if (!this.rulerLayerEl || overlayW <= 0 || overlayH <= 0) return;
 
             const start = this.canvasPointToOverlay(x1, y1);
@@ -940,21 +1005,22 @@
 
         playPing(nx, ny, color, size, strokeWidth) {
             this.ensurePingsLayer();
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
-            if (!this.pingsLayerEl || overlayW <= 0 || overlayH <= 0) return null;
+            const metrics = this.getMapContentMetrics();
+            if (!this.pingsLayerEl || !metrics || metrics.width <= 0 || metrics.height <= 0) return null;
 
             const x = Math.max(0, Math.min(1, Number(nx) || 0));
             const y = Math.max(0, Math.min(1, Number(ny) || 0));
             const pingColor = String(color || '#ff4444');
             const sizePx = this.pingSizePx(size);
             const strokePx = this.pingStrokePx(strokeWidth);
+            const point = this.normalizedMapPointToOverlay(x, y);
 
             const ping = document.createElement('div');
             ping.className = 'tactics-ping';
             ping.style.setProperty('--ping-color', pingColor);
             ping.style.setProperty('--ping-size', `${sizePx}px`);
             ping.style.setProperty('--ping-stroke', `${strokePx}px`);
-            ping.style.transform = `translate(${Math.round(x * overlayW)}px, ${Math.round(y * overlayH)}px)`;
+            ping.style.transform = `translate(${Math.round(point.x)}px, ${Math.round(point.y)}px)`;
 
             const ring = document.createElement('span');
             ring.className = 'tactics-ping__ring';
@@ -1522,15 +1588,9 @@
 
         positionRemoteCursor(entry) {
             if (!entry?.el) return;
-            const { width: overlayW, height: overlayH } = this.getOverlaySize();
-            if (overlayW <= 0 || overlayH <= 0) return;
-
-            const px = Math.round(
-                (entry.x * overlayW) - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_X,
-            );
-            const py = Math.round(
-                (entry.y * overlayH) - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_Y,
-            );
+            const point = this.normalizedMapPointToOverlay(entry.x, entry.y);
+            const px = Math.round(point.x - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_X);
+            const py = Math.round(point.y - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_Y);
             entry.el.style.transform = `translate3d(${px}px, ${py}px, 0)`;
         }
 
@@ -1597,6 +1657,13 @@
         }
 
         getOverlaySize() {
+            const metrics = this.getMapContentMetrics();
+            if (metrics?.width > 0 && metrics?.height > 0) {
+                return {
+                    width: metrics.width,
+                    height: metrics.height,
+                };
+            }
             const stack = this.getStackEl();
             if (stack) {
                 return {
@@ -1612,6 +1679,13 @@
         }
 
         getRemoteStrokeRenderSize() {
+            const metrics = this.getMapContentMetrics();
+            if (metrics) {
+                return {
+                    width: metrics.overlayWidth || metrics.width,
+                    height: metrics.overlayHeight || metrics.height,
+                };
+            }
             const stack = this.getStackEl();
             const w = stack?.clientWidth || 0;
             const h = stack?.clientHeight || 0;
@@ -1675,6 +1749,9 @@
                 zoomEl.style.transform = '';
                 zoomEl.style.transformOrigin = '';
                 viewport?.classList.remove('is-map-zoomed', 'is-map-panning');
+                this.repositionRemoteCursors();
+                this.refreshRemoteStrokes();
+                this.refreshRulerOverlay();
                 return;
             }
 
@@ -1682,6 +1759,9 @@
             zoomEl.style.transformOrigin = '0 0';
             zoomEl.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
             viewport?.classList.add('is-map-zoomed');
+            this.repositionRemoteCursors();
+            this.refreshRemoteStrokes();
+            this.refreshRulerOverlay();
         }
 
         endMapPan() {
@@ -3195,14 +3275,14 @@
             return [preview[0], ...preview.slice(-(capMax - 1))];
         }
 
-        buildRemoteStrokeCapPreview(entry, previewPoints, overlayW) {
+        buildRemoteStrokeCapPreview(entry, previewPoints, contentWidth) {
             const endType = entry?.endType || 'none';
             if (endType !== 'arrow' && endType !== 'bar') return null;
             if (!previewPoints || previewPoints.length < 2) return null;
 
             const space = TacticsCanvas.COORD_SPACE;
             const logicalWidth = entry.width || 4;
-            const scale = overlayW / space;
+            const scale = contentWidth / space;
             const mode = entry.tool === 'line' ? 'line' : 'pen';
             const logicalPts = previewPoints.map((p) => ({
                 x: (p.x || 0) * space,
@@ -3226,10 +3306,7 @@
             );
             if (!geom || geom.dist < 0.5) return null;
 
-            const toCanvasLogical = (pt) => ({
-                x: pt.x * scale,
-                y: pt.y * scale,
-            });
+            const toCanvasLogical = (pt) => this.canvasPointToOverlay(pt.x, pt.y);
 
             return {
                 wt,
@@ -3242,20 +3319,18 @@
             };
         }
 
-        buildRemoteStrokeSvgParts(entry, overlayW, overlayH) {
+        buildRemoteStrokeSvgParts(entry) {
+            const metrics = this.getMapContentMetrics();
             const previewSegments = this.getRemoteStrokeBodyPreviewSegments(entry);
             const previewPoints = previewSegments.flat();
             const capSourcePoints = this.getRemoteStrokeCapSourcePoints(entry);
-            if (!previewPoints.length || overlayW <= 0 || overlayH <= 0) return [];
+            if (!previewPoints.length || !metrics || metrics.width <= 0 || metrics.height <= 0) return [];
 
-            const toCanvas = (p) => ({
-                x: (p.x || 0) * overlayW,
-                y: (p.y || 0) * overlayH,
-            });
+            const toCanvas = (p) => this.normalizedMapPointToOverlay(p.x || 0, p.y || 0);
 
             const color = entry.color || '#ff4444';
             const logicalWidth = entry.width || 4;
-            const scale = overlayW / TacticsCanvas.COORD_SPACE;
+            const scale = metrics.width / TacticsCanvas.COORD_SPACE;
             const strokeWidth = logicalWidth * scale;
             const isLine = entry.tool === 'line';
             const lineType = entry.lineType || 'solid';
@@ -3273,7 +3348,7 @@
             if (dash?.length) {
                 strokeAttrs['stroke-dasharray'] = dash.map((n) => n * scale).join(',');
             }
-            const capPreview = this.buildRemoteStrokeCapPreview(entry, capSourcePoints, overlayW);
+            const capPreview = this.buildRemoteStrokeCapPreview(entry, capSourcePoints, metrics.width);
             const parts = [];
             const space = TacticsCanvas.COORD_SPACE;
 
@@ -3419,7 +3494,7 @@
                 this.scheduleRemoteStrokeRender(entry);
                 return;
             }
-            const parts = this.buildRemoteStrokeSvgParts(entry, overlayW, overlayH);
+            const parts = this.buildRemoteStrokeSvgParts(entry);
             if (!parts.length) return;
 
             let svg = entry.svgEl;

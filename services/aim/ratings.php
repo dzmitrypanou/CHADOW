@@ -42,8 +42,14 @@ require __DIR__ . '/../../includes/site_header.php';
                         <span data-aim-i18n="backToHub"><?php echo $lang === 'en' ? 'All trainers' : 'К выбору'; ?></span>
                     </a>
                     <h2 class="aim-section-title" data-aim-i18n="leaderboardTitle">
-                        <?php echo $lang === 'en' ? 'Leaderboard' : 'Таблица лидеров'; ?>
+                        <?php echo $lang === 'en' ? 'Leaderboards' : 'Таблицы лидеров'; ?>
                     </h2>
+                    <div class="aim-lb-device-field">
+                        <span class="aim-lb-device-label" data-aim-i18n="lbDeviceLabel">
+                            <?php echo $lang === 'en' ? 'Platform' : 'Платформа'; ?>
+                        </span>
+                        <div class="aim-lb-device-switch" data-aim-lb-device-switch></div>
+                    </div>
                 </div>
             </section>
 

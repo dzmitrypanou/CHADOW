@@ -465,3 +465,236 @@ function aim_error_message(string $code, string $lang = 'ru'): string {
     $dict = $messages[$lang] ?? $messages['ru'];
     return $dict[$code] ?? $code;
 }
+
+/**
+ * @return array{total:int, leaderboard_slots:int, last24h:int}
+ */
+function aim_admin_fetch_stats($db): array {
+    ensure_aim_scores_table($db);
+
+    try {
+        $row = $db->fetchOne(
+            'SELECT
+                COUNT(*) AS total,
+                COUNT(DISTINCT CONCAT(trainer, \'|\', device, \'|\', player_name)) AS leaderboard_slots,
+                SUM(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END) AS last24h
+             FROM aim_scores'
+        );
+        return [
+            'total' => (int) ($row['total'] ?? 0),
+            'leaderboard_slots' => (int) ($row['leaderboard_slots'] ?? 0),
+            'last24h' => (int) ($row['last24h'] ?? 0),
+        ];
+    } catch (Throwable $e) {
+        return ['total' => 0, 'leaderboard_slots' => 0, 'last24h' => 0];
+    }
+}
+
+/**
+ * @return array{success:bool,error?:string,data?:array,stats?:array,pagination?:array}
+ */
+function aim_admin_fetch_scores($db, array $filters = []): array {
+    ensure_aim_scores_table($db);
+
+    $trainer = isset($filters['trainer']) ? strtolower(trim((string) $filters['trainer'])) : '';
+    $device = isset($filters['device']) ? trim((string) $filters['device']) : '';
+    $search = isset($filters['q']) ? trim((string) $filters['q']) : '';
+    $view = (($filters['view'] ?? 'all') === 'leaderboard') ? 'leaderboard' : 'all';
+    $page = max(1, (int) ($filters['page'] ?? 1));
+    $perPage = max(10, min(100, (int) ($filters['per_page'] ?? 50)));
+    $offset = ($page - 1) * $perPage;
+
+    if ($trainer !== '' && !aim_trainer_valid($trainer)) {
+        return ['success' => false, 'error' => 'invalid_trainer'];
+    }
+    if ($device !== '' && !in_array($device, ['desktop', 'mobile'], true)) {
+        return ['success' => false, 'error' => 'invalid_device'];
+    }
+
+    $pdo = $db->getConnection();
+
+    if ($view === 'leaderboard') {
+        $leaderTrainer = $trainer !== '' ? $trainer : 'flick';
+        $leaderDevice = $device !== '' ? aim_normalize_device($device) : 'desktop';
+
+        $whereExtra = '';
+        $params = [$leaderTrainer, $leaderDevice, $leaderTrainer, $leaderDevice, $leaderTrainer, $leaderDevice];
+        if ($search !== '') {
+            $whereExtra = ' AND s.player_name LIKE ?';
+            $params[] = '%' . $search . '%';
+        }
+
+        $countParams = [$leaderTrainer, $leaderDevice];
+        $countSql = 'SELECT COUNT(*) FROM (
+            SELECT player_name
+            FROM aim_scores
+            WHERE trainer = ? AND device = ?
+            GROUP BY player_name
+        ) AS lb';
+        if ($search !== '') {
+            $countSql = 'SELECT COUNT(*) FROM (
+                SELECT player_name
+                FROM aim_scores
+                WHERE trainer = ? AND device = ? AND player_name LIKE ?
+                GROUP BY player_name
+            ) AS lb';
+            $countParams[] = '%' . $search . '%';
+        }
+
+        $countStmt = $pdo->prepare($countSql);
+        $countStmt->execute($countParams);
+        $total = (int) $countStmt->fetchColumn();
+
+        $sql = 'SELECT s.id, s.trainer, s.device, s.player_name, s.user_id, s.score, s.grade, s.created_at
+            FROM aim_scores AS s
+            INNER JOIN (
+                SELECT player_name, MAX(score) AS max_score
+                FROM aim_scores
+                WHERE trainer = ? AND device = ?
+                GROUP BY player_name
+            ) AS best ON best.player_name = s.player_name AND best.max_score = s.score
+            WHERE s.trainer = ?
+              AND s.device = ?
+              AND s.id = (
+                  SELECT MIN(s2.id)
+                  FROM aim_scores AS s2
+                  WHERE s2.trainer = ?
+                    AND s2.device = ?
+                    AND s2.player_name = s.player_name
+                    AND s2.score = s.score
+              )' . $whereExtra . '
+            ORDER BY s.score DESC, s.created_at ASC
+            LIMIT ' . (int) $perPage . ' OFFSET ' . (int) $offset;
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $rank = $offset + 1;
+        $data = [];
+        foreach ($rows as $row) {
+            $data[] = [
+                'id' => (int) $row['id'],
+                'rank' => $rank,
+                'trainer' => (string) $row['trainer'],
+                'device' => (string) $row['device'],
+                'player_name' => (string) $row['player_name'],
+                'user_id' => $row['user_id'] !== null ? (int) $row['user_id'] : null,
+                'score' => (int) $row['score'],
+                'grade' => (string) $row['grade'],
+                'created_at' => (string) $row['created_at'],
+            ];
+            $rank++;
+        }
+
+        return [
+            'success' => true,
+            'data' => $data,
+            'stats' => aim_admin_fetch_stats($db),
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'pages' => max(1, (int) ceil($total / $perPage)),
+            ],
+            'view' => 'leaderboard',
+            'trainer' => $leaderTrainer,
+            'device' => $leaderDevice,
+        ];
+    }
+
+    $where = ['1=1'];
+    $params = [];
+    if ($trainer !== '') {
+        $where[] = 's.trainer = ?';
+        $params[] = $trainer;
+    }
+    if ($device !== '') {
+        $where[] = 's.device = ?';
+        $params[] = aim_normalize_device($device);
+    }
+    if ($search !== '') {
+        $where[] = 's.player_name LIKE ?';
+        $params[] = '%' . $search . '%';
+    }
+    $whereSql = implode(' AND ', $where);
+
+    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM aim_scores AS s WHERE ' . $whereSql);
+    $countStmt->execute($params);
+    $total = (int) $countStmt->fetchColumn();
+
+    $sql = 'SELECT s.id, s.trainer, s.device, s.player_name, s.user_id, s.score, s.grade, s.created_at
+        FROM aim_scores AS s
+        WHERE ' . $whereSql . '
+        ORDER BY s.created_at DESC, s.id DESC
+        LIMIT ' . (int) $perPage . ' OFFSET ' . (int) $offset;
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $data = [];
+    foreach ($rows as $row) {
+        $data[] = [
+            'id' => (int) $row['id'],
+            'trainer' => (string) $row['trainer'],
+            'device' => (string) $row['device'],
+            'player_name' => (string) $row['player_name'],
+            'user_id' => $row['user_id'] !== null ? (int) $row['user_id'] : null,
+            'score' => (int) $row['score'],
+            'grade' => (string) $row['grade'],
+            'created_at' => (string) $row['created_at'],
+        ];
+    }
+
+    return [
+        'success' => true,
+        'data' => $data,
+        'stats' => aim_admin_fetch_stats($db),
+        'pagination' => [
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'pages' => max(1, (int) ceil($total / $perPage)),
+        ],
+        'view' => 'all',
+    ];
+}
+
+function aim_admin_delete_score($db, int $id): bool {
+    ensure_aim_scores_table($db);
+    if ($id <= 0) {
+        return false;
+    }
+    $stmt = $db->getConnection()->prepare('DELETE FROM aim_scores WHERE id = ?');
+    $stmt->execute([$id]);
+    return $stmt->rowCount() > 0;
+}
+
+function aim_admin_delete_player_scores($db, string $trainer, string $device, string $playerName): int {
+    ensure_aim_scores_table($db);
+    $trainer = strtolower(trim($trainer));
+    $playerName = aim_normalize_player_name($playerName);
+    if (!aim_trainer_valid($trainer) || !aim_player_name_valid($playerName)) {
+        return 0;
+    }
+    $device = aim_normalize_device($device);
+    $stmt = $db->getConnection()->prepare(
+        'DELETE FROM aim_scores WHERE trainer = ? AND device = ? AND player_name = ?'
+    );
+    $stmt->execute([$trainer, $device, $playerName]);
+    return $stmt->rowCount();
+}
+
+function aim_admin_trainer_label(string $trainer, string $lang = 'ru'): string {
+    $meta = aim_trainer_meta($trainer, $lang);
+    return $meta['title'] ?? $trainer;
+}
+
+function aim_admin_device_label(string $device, string $lang = 'ru'): string {
+    $device = aim_normalize_device($device);
+    if ($lang === 'en') {
+        return $device === 'mobile' ? 'Mobile' : 'PC';
+    }
+    return $device === 'mobile' ? 'Телефон' : 'ПК';
+}

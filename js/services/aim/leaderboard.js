@@ -3,16 +3,125 @@
 
     const i18n = () => window.AbsAimI18n;
     const core = () => window.AbsAimCore;
-    const nick = () => window.AbsAimNickname;
 
     const leaderboardCache = new Map();
+    const VIEW_STORAGE_KEY = 'abs_aim_lb_view_device';
 
-    function currentDevice() {
+    let deviceSwitchBound = false;
+    let ratingsPanelLoader = null;
+    let lbViewChangeListener = null;
+    let deviceLayoutListener = null;
+
+    function hardwareDevice() {
         return core() && core().isMobileDevice() ? 'mobile' : 'desktop';
     }
 
+    function currentDevice() {
+        return hardwareDevice();
+    }
+
+    function viewDevice() {
+        try {
+            const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
+            if (stored === 'mobile' || stored === 'desktop') {
+                return stored;
+            }
+        } catch (e) {
+            // ignore
+        }
+        return hardwareDevice();
+    }
+
+    function syncDeviceSwitchUI() {
+        const active = viewDevice();
+        document.querySelectorAll('[data-aim-lb-device-switch] .aim-lb-device-btn').forEach((btn) => {
+            const device = btn.getAttribute('data-device');
+            const isActive = device === active;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    function deviceSwitchButtonsMarkup() {
+        const active = viewDevice();
+        const t = i18n().t;
+        return '<button type="button" class="aim-lb-device-btn'
+            + (active === 'desktop' ? ' is-active' : '')
+            + '" data-device="desktop" aria-pressed="'
+            + (active === 'desktop' ? 'true' : 'false')
+            + '" title="' + escapeHtml(t('lbDeviceDesktop')) + '" aria-label="'
+            + escapeHtml(t('lbDeviceDesktop')) + '">'
+            + '<i class="fas fa-desktop" aria-hidden="true"></i>'
+            + '</button>'
+            + '<button type="button" class="aim-lb-device-btn'
+            + (active === 'mobile' ? ' is-active' : '')
+            + '" data-device="mobile" aria-pressed="'
+            + (active === 'mobile' ? 'true' : 'false')
+            + '" title="' + escapeHtml(t('lbDeviceMobile')) + '" aria-label="'
+            + escapeHtml(t('lbDeviceMobile')) + '">'
+            + '<i class="fas fa-mobile-alt" aria-hidden="true"></i>'
+            + '</button>';
+    }
+
+    function bindDeviceSwitchEvents() {
+        if (deviceSwitchBound) {
+            return;
+        }
+        deviceSwitchBound = true;
+        document.addEventListener('click', (event) => {
+            const btn = event.target.closest('.aim-lb-device-btn[data-device]');
+            if (!btn || !btn.closest('[data-aim-lb-device-switch]')) {
+                return;
+            }
+            const device = btn.getAttribute('data-device');
+            if (device === 'mobile' || device === 'desktop') {
+                setViewDevice(device);
+            }
+        });
+    }
+
+    function setViewDevice(device, options) {
+        const opts = options || {};
+        if (device !== 'mobile' && device !== 'desktop') {
+            return;
+        }
+        try {
+            sessionStorage.setItem(VIEW_STORAGE_KEY, device);
+        } catch (e) {
+            // ignore
+        }
+        syncDeviceSwitchUI();
+        if (i18n() && i18n().updateRatingsLinks) {
+            i18n().updateRatingsLinks();
+        }
+        if (!opts.silent) {
+            window.dispatchEvent(new CustomEvent('aim:lbviewchange', { detail: { device } }));
+        }
+    }
+
+    function initViewDeviceFromUrl() {
+        const device = String(new URLSearchParams(window.location.search).get('device') || '').toLowerCase();
+        if (device === 'mobile' || device === 'desktop') {
+            setViewDevice(device, { silent: true });
+        }
+    }
+
+    function mountAllDeviceSwitches() {
+        bindDeviceSwitchEvents();
+        if (!i18n()) {
+            return;
+        }
+        const groupLabel = i18n().t('lbDeviceGroup');
+        document.querySelectorAll('[data-aim-lb-device-switch]').forEach((el) => {
+            el.setAttribute('role', 'group');
+            el.setAttribute('aria-label', groupLabel);
+            el.innerHTML = deviceSwitchButtonsMarkup();
+        });
+        syncDeviceSwitchUI();
+    }
+
     function cacheKey(trainer, limit, device) {
-        return String(trainer) + ':' + String(limit || 50) + ':' + (device || currentDevice());
+        return String(trainer) + ':' + String(limit || 50) + ':' + (device || viewDevice());
     }
 
     function itemsEqual(a, b) {
@@ -22,7 +131,7 @@
     }
 
     function seedItems(trainer, limit) {
-        const device = currentDevice();
+        const device = viewDevice();
         const key = cacheKey(trainer, limit, device);
         if (leaderboardCache.has(key)) {
             return leaderboardCache.get(key);
@@ -95,7 +204,7 @@
 
     async function fetchLeaderboard(trainer, limit) {
         const api = window.ABS_AIM_API_LEADERBOARD || '/api/aim/leaderboard.php';
-        const device = currentDevice();
+        const device = viewDevice();
         const url = api
             + '?trainer=' + encodeURIComponent(trainer)
             + '&limit=' + encodeURIComponent(String(limit || 50))
@@ -110,11 +219,48 @@
         return items;
     }
 
+    function refreshRatingsPanelLayout() {
+        if (typeof ratingsPanelLoader !== 'function') {
+            return;
+        }
+        const panel = document.getElementById('aimLeaderboardPanel');
+        if (!panel) {
+            return;
+        }
+        const table = panel.querySelector('.aim-leaderboard-table-wrap');
+        if (!table) {
+            return;
+        }
+        const rows = panel.querySelectorAll('tbody tr');
+        if (!rows.length) {
+            return;
+        }
+        const items = Array.from(rows).map((row, index) => {
+            const cells = row.querySelectorAll('td');
+            const gradeEl = cells[3] && cells[3].querySelector('.aim-grade');
+            const gradeCode = gradeEl
+                ? String(gradeEl.textContent || 'D').trim().charAt(0).toUpperCase()
+                : 'D';
+            return {
+                rank: cells[0] ? cells[0].textContent.trim() : String(index + 1),
+                player_name: cells[1] ? cells[1].textContent.trim() : '',
+                score: cells[2] ? cells[2].textContent.trim() : '',
+                grade: gradeCode,
+            };
+        });
+        panel.innerHTML = renderTable(items);
+    }
+
     window.AbsAimLeaderboard = {
         escapeHtml,
         renderTable,
         isCompactLayout,
         currentDevice,
+        hardwareDevice,
+        viewDevice,
+        setViewDevice,
+        initViewDeviceFromUrl,
+        mountAllDeviceSwitches,
         fetchLeaderboard,
         mountTabs(container, panel, trainers, activeId, options) {
             if (!container || !panel || !trainers || !trainers.length) return;
@@ -146,7 +292,7 @@
 
             async function loadPanel() {
                 const limit = 50;
-                const device = currentDevice();
+                const device = viewDevice();
                 const cached = seedItems(current, limit) || leaderboardCache.get(cacheKey(current, limit, device));
                 if (cached) {
                     panel.innerHTML = renderTable(cached);
@@ -165,9 +311,21 @@
                 }
             }
 
+            ratingsPanelLoader = loadPanel;
+
+            if (lbViewChangeListener) {
+                window.removeEventListener('aim:lbviewchange', lbViewChangeListener);
+            }
+            if (deviceLayoutListener) {
+                window.removeEventListener('aim:devicechange', deviceLayoutListener);
+            }
+            lbViewChangeListener = loadPanel;
+            deviceLayoutListener = refreshRatingsPanelLayout;
+            window.addEventListener('aim:lbviewchange', lbViewChangeListener);
+            window.addEventListener('aim:devicechange', deviceLayoutListener);
+
             renderTabs();
             loadPanel();
-            window.addEventListener('aim:devicechange', loadPanel);
         },
         renderMini(container, trainerId, options) {
             if (!container) return Promise.resolve();

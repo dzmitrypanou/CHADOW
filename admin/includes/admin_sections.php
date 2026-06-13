@@ -61,6 +61,12 @@ function admin_panel_sections(): array {
             'icon' => 'fas fa-map-marked-alt',
         ],
         [
+            'id' => 'aim-leaderboards',
+            'href' => '/admin/aim-leaderboards',
+            'label' => 'Аим: лидерборды',
+            'icon' => 'fas fa-trophy',
+        ],
+        [
             'id' => 'wgsrt',
             'href' => '/admin/wgsrt',
             'label' => 'WGSRT',
@@ -83,6 +89,7 @@ function admin_panel_section_nav_label(string $id, string $fullLabel): string {
         'site-menu' => 'Меню сайта',
         'tactics-rooms' => 'Тактика',
         'tactics-maps' => 'Карты планшета',
+        'aim-leaderboards' => 'Аим: топ',
     ];
 
     return $short[$id] ?? $fullLabel;

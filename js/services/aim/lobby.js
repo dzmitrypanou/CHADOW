@@ -20,7 +20,8 @@
     }
 
     function ratingsHref(trainerId) {
-        return i18n().buildRatingsHref(i18n().getLang(), trainerId);
+        const device = lb() && lb().viewDevice ? lb().viewDevice() : '';
+        return i18n().buildRatingsHref(i18n().getLang(), trainerId, device);
     }
 
     function renderCard(trainer) {
@@ -43,10 +44,16 @@
             + '<div class="aim-trainer-card__top">'
             + '<div class="aim-trainer-card__top-head">'
             + '<span class="aim-trainer-card__top-title">' + escapeHtml(i18n().t('top3')) + '</span>'
+            + '<div class="aim-trainer-card__top-actions">'
+            + '<div class="aim-lb-device-field">'
+            + '<span class="aim-lb-device-label" data-aim-i18n="lbDeviceLabel">' + escapeHtml(i18n().t('lbDeviceLabel')) + '</span>'
+            + '<div class="aim-lb-device-switch" data-aim-lb-device-switch></div>'
+            + '</div>'
             + '<a class="aim-link-btn aim-trainer-card__full-top" data-aim-ratings-link data-trainer="' + escapeHtml(trainer.id) + '" href="' + escapeHtml(ratingsHref(trainer.id)) + '" aria-label="' + escapeHtml(i18n().t('fullTop')) + '" title="' + escapeHtml(i18n().t('fullTop')) + '">'
             + '<i class="fas fa-trophy" aria-hidden="true"></i>'
             + '<span class="aim-trainer-card__full-top-label" data-aim-i18n="fullTop">' + escapeHtml(i18n().t('fullTop')) + '</span>'
             + '</a>'
+            + '</div>'
             + '</div>'
             + '<div class="aim-trainer-card__top-body" id="aimMiniLb-' + escapeHtml(trainer.id) + '"></div>'
             + '</div>'
@@ -75,6 +82,10 @@
                 lb().renderMini(mini, trainer.id);
             }
         });
+
+        if (lb() && lb().mountAllDeviceSwitches) {
+            lb().mountAllDeviceSwitches();
+        }
     }
 
     function relocalizeView() {
@@ -99,7 +110,12 @@
         }
 
         renderTrainerGrid();
-        window.addEventListener('aim:devicechange', refreshMiniLeaderboards);
+        window.addEventListener('aim:devicechange', () => {
+            if (lb() && lb().refreshMiniLayouts) {
+                lb().refreshMiniLayouts(trainers);
+            }
+        });
+        window.addEventListener('aim:lbviewchange', refreshMiniLeaderboards);
     }
 
     document.addEventListener('DOMContentLoaded', init);

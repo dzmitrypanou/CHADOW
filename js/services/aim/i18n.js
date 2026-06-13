@@ -9,7 +9,7 @@
             nicknamePlaceholder: 'Для топа',
             nicknameHint: 'Сохраняется в браузере. Нужен для отправки результата в топ.',
             nicknameInvalid: 'Ник: 2–32 символа (буквы, цифры, _-.).',
-            leaderboardTitle: 'Таблица лидеров',
+            leaderboardTitle: 'Таблицы лидеров',
             ratingsBtn: 'Таблицы лидеров',
             leaderboardEmpty: 'Пока нет результатов.',
             leaderboardLoading: 'Загрузка…',
@@ -20,6 +20,10 @@
             grade: 'Оценка',
             top3: 'Топ-3',
             fullTop: 'Весь топ',
+            lbDeviceGroup: 'Топ устройства',
+            lbDeviceLabel: 'Платформа',
+            lbDeviceDesktop: 'ПК',
+            lbDeviceMobile: 'Телефон',
             play: 'Играть',
             sec: 'с',
             roundsDuration: '10 раундов',
@@ -69,6 +73,10 @@
             grade: 'Grade',
             top3: 'Top 3',
             fullTop: 'Full top',
+            lbDeviceGroup: 'Leaderboard device',
+            lbDeviceLabel: 'Platform',
+            lbDeviceDesktop: 'PC',
+            lbDeviceMobile: 'Mobile',
             play: 'Play',
             sec: 's',
             roundsDuration: '10 rounds',
@@ -168,13 +176,18 @@
         return normalized === 'en' ? '/en/services/aim' : '/services/aim';
     }
 
-    function buildRatingsHref(lang, trainerId) {
+    function buildRatingsHref(lang, trainerId, device) {
         const normalized = normalizeLang(lang);
         const base = normalized === 'en' ? '/en/services/aim/ratings' : '/services/aim/ratings';
-        if (!trainerId) {
-            return base;
+        const params = new URLSearchParams();
+        if (trainerId) {
+            params.set('trainer', String(trainerId));
         }
-        return base + '?trainer=' + encodeURIComponent(String(trainerId));
+        if (device === 'mobile' || device === 'desktop') {
+            params.set('device', device);
+        }
+        const qs = params.toString();
+        return qs ? base + '?' + qs : base;
     }
 
     function buildPlayHref(trainerId, lang) {
@@ -241,9 +254,12 @@
 
     function updateRatingsLinks() {
         const lang = getLang();
+        const viewDevice = window.AbsAimLeaderboard && window.AbsAimLeaderboard.viewDevice
+            ? window.AbsAimLeaderboard.viewDevice()
+            : '';
         document.querySelectorAll('[data-aim-ratings-link]').forEach((el) => {
             const trainerId = el.getAttribute('data-trainer') || '';
-            el.setAttribute('href', buildRatingsHref(lang, trainerId || null));
+            el.setAttribute('href', buildRatingsHref(lang, trainerId || null, viewDevice));
         });
     }
 
@@ -256,6 +272,9 @@
         });
         updateNicknameChrome();
         updateRatingsLinks();
+        if (window.AbsAimLeaderboard && window.AbsAimLeaderboard.mountAllDeviceSwitches) {
+            window.AbsAimLeaderboard.mountAllDeviceSwitches();
+        }
     }
 
     function switchLanguage(newLang) {
@@ -282,6 +301,7 @@
         buildRatingsHref,
         buildPlayHref,
         applyDom,
+        updateRatingsLinks,
         switchLanguage,
     };
 })();

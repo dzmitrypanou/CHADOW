@@ -17,8 +17,8 @@
     }
 
     function updateRatingsUrl(trainerId) {
-        const base = i18n().buildRatingsHref(i18n().getLang());
-        const url = trainerId ? base + '?trainer=' + encodeURIComponent(trainerId) : base;
+        const device = lb() && lb().viewDevice ? lb().viewDevice() : '';
+        const url = i18n().buildRatingsHref(i18n().getLang(), trainerId || null, device);
         window.history.replaceState({}, '', url);
     }
 
@@ -53,6 +53,10 @@
             link.setAttribute('href', hubHref);
         });
 
+        if (lb() && lb().mountAllDeviceSwitches) {
+            lb().mountAllDeviceSwitches();
+        }
+
         renderLeaderboard();
     }
 
@@ -68,7 +72,20 @@
             return;
         }
 
+        if (lb() && lb().initViewDeviceFromUrl) {
+            lb().initViewDeviceFromUrl();
+        }
+
+        if (lb() && lb().mountAllDeviceSwitches) {
+            lb().mountAllDeviceSwitches();
+        }
+
         renderLeaderboard();
+        updateRatingsUrl(activeTrainer);
+
+        window.addEventListener('aim:lbviewchange', () => {
+            updateRatingsUrl(activeTrainer);
+        });
     }
 
     document.addEventListener('DOMContentLoaded', init);
