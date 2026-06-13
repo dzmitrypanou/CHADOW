@@ -128,6 +128,18 @@
             this.bgImageEl = null;
             this.layoutCanvasSize = null;
             this.suppressCanvasScale = false;
+            this.mapCssZoom = 1;
+            this.mapCssPanX = 0;
+            this.mapCssPanY = 0;
+            this.mapCssLayoutSize = null;
+            this.mapPanActive = false;
+            this.mapPanStartX = 0;
+            this.mapPanStartY = 0;
+            this.mapPanOriginX = 0;
+            this.mapPanOriginY = 0;
+            this.mapPanMoveHandler = null;
+            this.mapPanUpHandler = null;
+            this.mapWheelBound = false;
             this.resizeObserver = null;
             this.showGrid = options.showGrid !== false;
             this.drawEnabled = options.drawEnabled !== false;
@@ -437,6 +449,7 @@
             } else {
                 window.addEventListener('resize', () => this.resize());
             }
+            this.bindMapWheelZoom();
 
             this.fabric.on('object:added', (e) => {
                 const obj = e?.target;
@@ -597,6 +610,9 @@
 
         static GRID_DIVISIONS = 10;
         static COORD_SPACE = 1000;
+        static MAP_CSS_ZOOM_MIN = 1;
+        static MAP_CSS_ZOOM_MAX = 4;
+        static MAP_CSS_ZOOM_WHEEL_FACTOR = 1.08;
         static REMOTE_STROKE_PREVIEW_MAX_POINTS = 280;
         static REMOTE_STROKE_CAP_SOURCE_POINTS = 48;
         static REMOTE_STROKE_BROADCAST_LONG_THRESHOLD = 120;
@@ -1618,6 +1634,149 @@
             return this.canvasEl?.closest('.tactics-map-grid');
         }
 
+        resetMapCssZoom() {
+            this.endMapPan();
+            this.mapCssZoom = 1;
+            this.mapCssPanX = 0;
+            this.mapCssPanY = 0;
+            this.applyMapCssZoom();
+        }
+
+        clampMapCssPan() {
+            const layoutRect = this.getStackLayoutRect();
+            if (!layoutRect || this.mapCssZoom <= 1.001) {
+                this.mapCssPanX = 0;
+                this.mapCssPanY = 0;
+                return;
+            }
+            const minX = layoutRect.width * (1 - this.mapCssZoom);
+            const minY = layoutRect.height * (1 - this.mapCssZoom);
+            this.mapCssPanX = Math.min(0, Math.max(minX, this.mapCssPanX));
+            this.mapCssPanY = Math.min(0, Math.max(minY, this.mapCssPanY));
+        }
+
+        applyMapCssZoom() {
+            const stack = this.getStackEl();
+            const grid = this.getMapGridEl();
+            if (!stack) return;
+
+            const zoom = this.mapCssZoom;
+            if (Math.abs(zoom - 1) < 0.001) {
+                this.mapCssPanX = 0;
+                this.mapCssPanY = 0;
+                stack.style.transform = '';
+                stack.style.transformOrigin = '';
+                grid?.classList.remove('is-map-zoomed', 'is-map-panning');
+                return;
+            }
+
+            this.clampMapCssPan();
+            stack.style.transformOrigin = '0 0';
+            stack.style.transform = `translate(${this.mapCssPanX}px, ${this.mapCssPanY}px) scale(${zoom})`;
+            grid?.classList.add('is-map-zoomed');
+        }
+
+        endMapPan() {
+            if (!this.mapPanActive) return;
+            this.mapPanActive = false;
+            this.getMapGridEl()?.classList.remove('is-map-panning');
+            if (this.mapPanMoveHandler) {
+                window.removeEventListener('mousemove', this.mapPanMoveHandler);
+                this.mapPanMoveHandler = null;
+            }
+            if (this.mapPanUpHandler) {
+                window.removeEventListener('mouseup', this.mapPanUpHandler);
+                this.mapPanUpHandler = null;
+            }
+        }
+
+        handleMapPanDown(ev) {
+            if (ev.button !== 1 || this.mapCssZoom <= 1.001) return;
+            ev.preventDefault();
+            this.mapPanActive = true;
+            this.mapPanStartX = ev.clientX;
+            this.mapPanStartY = ev.clientY;
+            this.mapPanOriginX = this.mapCssPanX;
+            this.mapPanOriginY = this.mapCssPanY;
+            this.getMapGridEl()?.classList.add('is-map-panning');
+
+            this.mapPanMoveHandler = (moveEv) => {
+                if (!this.mapPanActive) return;
+                moveEv.preventDefault();
+                this.mapCssPanX = this.mapPanOriginX + (moveEv.clientX - this.mapPanStartX);
+                this.mapCssPanY = this.mapPanOriginY + (moveEv.clientY - this.mapPanStartY);
+                this.applyMapCssZoom();
+            };
+            this.mapPanUpHandler = (upEv) => {
+                if (upEv.button !== 1) return;
+                this.endMapPan();
+            };
+            window.addEventListener('mousemove', this.mapPanMoveHandler);
+            window.addEventListener('mouseup', this.mapPanUpHandler);
+        }
+
+        getStackLayoutRect() {
+            const stack = this.getStackEl();
+            const grid = this.getMapGridEl();
+            if (!stack || !grid) return null;
+            const gridRect = grid.getBoundingClientRect();
+            return {
+                left: gridRect.left + stack.offsetLeft,
+                top: gridRect.top + stack.offsetTop,
+                width: stack.offsetWidth,
+                height: stack.offsetHeight,
+            };
+        }
+
+        handleMapWheel(ev) {
+            if (!ev || ev.defaultPrevented) return;
+            const stack = this.getStackEl();
+            if (!stack) return;
+
+            ev.preventDefault();
+
+            const layoutRect = this.getStackLayoutRect();
+            if (!layoutRect || layoutRect.width <= 0 || layoutRect.height <= 0) return;
+
+            const mx = ev.clientX - layoutRect.left;
+            const my = ev.clientY - layoutRect.top;
+            const factor = ev.deltaY < 0
+                ? TacticsCanvas.MAP_CSS_ZOOM_WHEEL_FACTOR
+                : 1 / TacticsCanvas.MAP_CSS_ZOOM_WHEEL_FACTOR;
+            const rawZoom = this.mapCssZoom * factor;
+            const nextZoom = Math.max(
+                TacticsCanvas.MAP_CSS_ZOOM_MIN,
+                Math.min(TacticsCanvas.MAP_CSS_ZOOM_MAX, rawZoom),
+            );
+            if (Math.abs(nextZoom - this.mapCssZoom) < 0.001) return;
+
+            const prevZoom = this.mapCssZoom;
+            const contentX = (mx - this.mapCssPanX) / prevZoom;
+            const contentY = (my - this.mapCssPanY) / prevZoom;
+            this.mapCssZoom = nextZoom;
+            if (nextZoom <= 1.001) {
+                this.mapCssZoom = 1;
+                this.mapCssPanX = 0;
+                this.mapCssPanY = 0;
+            } else {
+                this.mapCssPanX = mx - contentX * nextZoom;
+                this.mapCssPanY = my - contentY * nextZoom;
+            }
+            this.applyMapCssZoom();
+        }
+
+        bindMapWheelZoom() {
+            if (this.mapWheelBound) return;
+            const grid = this.getMapGridEl();
+            if (!grid) return;
+            grid.addEventListener('wheel', (ev) => this.handleMapWheel(ev), { passive: false });
+            grid.addEventListener('mousedown', (ev) => this.handleMapPanDown(ev));
+            grid.addEventListener('auxclick', (ev) => {
+                if (ev.button === 1) ev.preventDefault();
+            });
+            this.mapWheelBound = true;
+        }
+
         isCompactMapLayout() {
             const workspace = document.getElementById('tacticsRoomWorkspace');
             return window.innerWidth <= 1340
@@ -1886,6 +2045,11 @@
             if (!this.fabric) return;
             const size = this.getSquareSize();
             if (!size) return;
+
+            if (this.mapCssLayoutSize != null && this.mapCssLayoutSize !== size) {
+                this.resetMapCssZoom();
+            }
+            this.mapCssLayoutSize = size;
 
             this.ensureLogicalCoordSpace();
             this.applyDisplayZoom(size);
@@ -5884,6 +6048,7 @@
 
             this.isSlideLoading = true;
             this.slideId = null;
+            this.resetMapCssZoom();
             this.setMapViewportLoading(true);
             this.setInteractionLocked(true);
             this.cancelPenStroke();
