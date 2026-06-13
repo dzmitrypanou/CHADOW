@@ -86,7 +86,7 @@ function aim_ensure_trainer_enum_column($pdo): void {
     try {
         $pdo->exec(
             "ALTER TABLE aim_scores MODIFY COLUMN trainer
-             ENUM('flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt') NOT NULL"
+             ENUM('flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt', 'vugich') NOT NULL"
         );
     } catch (Throwable $e) {
         // Column may already include all trainers.

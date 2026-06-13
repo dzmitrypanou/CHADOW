@@ -4,7 +4,7 @@ if (!function_exists('ensure_aim_scores_table')) {
     require_once __DIR__ . '/../config/ensure_aim.php';
 }
 
-const AIM_TRAINERS = ['flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt'];
+const AIM_TRAINERS = ['flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt', 'vugich'];
 
 const AIM_PLAYER_NAME_MIN = 2;
 const AIM_PLAYER_NAME_MAX = 32;
@@ -18,6 +18,7 @@ const AIM_SCORE_RANGES = [
     'lead' => [0, 55000],
     'gridshot' => [0, 5000],
     'duckhunt' => [0, 12000],
+    'vugich' => [0, 12000],
 ];
 
 const AIM_GRADE_ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
@@ -29,6 +30,7 @@ const AIM_GRADE_THRESHOLDS = [
     'lead' => ['SSS' => 19000, 'SS' => 14000, 'S' => 9000, 'A' => 5000, 'B' => 2500, 'C' => 750, 'D' => 0],
     'gridshot' => ['SSS' => 62, 'SS' => 52, 'S' => 42, 'A' => 32, 'B' => 22, 'C' => 10, 'D' => 0],
     'duckhunt' => ['SSS' => 7500, 'SS' => 5500, 'S' => 4000, 'A' => 2800, 'B' => 1500, 'C' => 500, 'D' => 0],
+    'vugich' => ['SSS' => 7500, 'SS' => 5500, 'S' => 4000, 'A' => 2800, 'B' => 1500, 'C' => 500, 'D' => 0],
 ];
 
 function aim_device_sniff_script(): string
@@ -138,6 +140,18 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'en' => [
                 'title' => 'Duck Hunt',
                 'desc' => 'Shoot ducks flying across the field. Speed and accuracy raise your score.',
+            ],
+        ],
+        'vugich' => [
+            'icon' => 'fa-house-crack',
+            'duration_sec' => 60,
+            'ru' => [
+                'title' => 'Vugich-симулятор',
+                'desc' => 'Попадайте в движущиеся мишени, пока экран трясётся как при землетрясении.',
+            ],
+            'en' => [
+                'title' => 'Vugich Simulator',
+                'desc' => 'Hit moving targets while the screen shakes like an earthquake.',
             ],
         ],
     ];

@@ -118,6 +118,7 @@
             lead: 'Упреждение',
             gridshot: 'Точечная серия',
             duckhunt: 'Утиная охота',
+            vugich: 'Vugich-симулятор',
         },
         en: {
             flick: 'Flick',
@@ -126,6 +127,7 @@
             lead: 'Lead Shot',
             gridshot: 'Gridshot',
             duckhunt: 'Duck Hunt',
+            vugich: 'Vugich Simulator',
         },
     };
 
@@ -137,6 +139,7 @@
             lead: 'Попадайте в зону упреждения перед движущейся целью (нажимайте ЛКМ по зеленому кругу).',
             gridshot: 'Три мелкие цели одновременно — сбивайте их подряд.',
             duckhunt: 'Стреляйте по уткам, пролетающим через поле. Чем быстрее и точнее — тем выше счёт.',
+            vugich: 'Попадайте в движущиеся мишени, пока экран трясётся как при землетрясении.',
         },
         en: {
             flick: 'Click targets as they appear — speed and accuracy matter.',
@@ -145,6 +148,7 @@
             lead: 'Hit the lead zone ahead of the moving target (left-click the green circle).',
             gridshot: 'Three small targets at once — clear them as fast as you can.',
             duckhunt: 'Shoot ducks flying across the field. Speed and accuracy raise your score.',
+            vugich: 'Hit moving targets while the screen shakes like an earthquake.',
         },
     };
 

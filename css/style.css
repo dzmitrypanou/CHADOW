@@ -15911,7 +15911,8 @@ html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-to
     touch-action: none;
 }
 
-html.aim-device-desktop body.page-aim-play-duckhunt .aim-canvas {
+html.aim-device-desktop body.page-aim-play-duckhunt .aim-canvas,
+html.aim-device-desktop body.page-aim-play-vugich .aim-canvas {
     cursor: none;
 }
 

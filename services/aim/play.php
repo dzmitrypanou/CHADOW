@@ -176,6 +176,7 @@ require __DIR__ . '/../../includes/site_header.php';
     <script src="/js/services/aim/trainers/lead.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/gridshot.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/duckhunt.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/trainers/vugich.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/play.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
 </body>
 </html>

@@ -1,0 +1,90 @@
+# Snippet for /etc/caddy/Caddyfile — import via: import deploy/caddy/chadow_rewrites.caddy
+# Or copy the (chadow_rewrites) block into your server config.
+#
+# Aim trainers: slug is captured generically; play.php validates trainer id.
+# ratings and index are matched before the generic trainer rule.
+# play.php?trainer=foo → 301 → /services/aim/foo (canonical URL).
+
+(chadow_rewrites) {
+    encode gzip
+
+    handle /tactics-ws* {
+        reverse_proxy 127.0.0.1:8791 {
+            header_up Host {host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle {
+        rewrite /auth/wg/callback /auth/wg_callback.php
+        rewrite /en/auth/wg/callback /auth/wg_callback.php
+        @auth path_regexp auth ^/auth/([a-z0-9_-]+)/?$
+        rewrite @auth /auth/{re.auth.1}.php
+        @auth_en path_regexp auth_en ^/en/auth/([a-z0-9_-]+)/?$
+        rewrite @auth_en /auth/{re.auth_en.1}.php
+
+        rewrite /admin /admin/dashboard.php
+        @admin path_regexp admin ^/admin/([a-z0-9-]+)/?$
+        rewrite @admin /admin/{re.admin.1}.php
+
+        rewrite /services/abs /services/abs/index.php
+        rewrite /en/services/abs /services/abs/index.php
+        rewrite /services/online /services/online/index.php
+        rewrite /en/services/online /services/online/index.php
+
+        rewrite /services/recruiting/post /services/recruiting/post.php
+        rewrite /services/recruiting/edit /services/recruiting/edit.php
+        rewrite /en/services/recruiting/post /services/recruiting/post.php
+        rewrite /en/services/recruiting/edit /services/recruiting/edit.php
+        rewrite /services/recruiting /services/recruiting/index.php
+        rewrite /en/services/recruiting /services/recruiting/index.php
+
+        rewrite /services/bracket/create /services/bracket/create.php
+        rewrite /en/services/bracket/create /services/bracket/create.php
+        @bracket_edit path_regexp be ^/services/bracket/([a-zA-Z0-9]{10,16})/edit/?$
+        rewrite @bracket_edit /services/bracket/edit.php?public_id={re.be.1}
+        @bracket_edit_en path_regexp bee ^/en/services/bracket/([a-zA-Z0-9]{10,16})/edit/?$
+        rewrite @bracket_edit_en /services/bracket/edit.php?public_id={re.bee.1}
+        @bracket_view path_regexp bv ^/services/bracket/([a-zA-Z0-9]{10,16})/?$
+        rewrite @bracket_view /services/bracket/view.php?public_id={re.bv.1}
+        @bracket_view_en path_regexp bve ^/en/services/bracket/([a-zA-Z0-9]{10,16})/?$
+        rewrite @bracket_view_en /services/bracket/view.php?public_id={re.bve.1}
+        rewrite /services/bracket /services/bracket/index.php
+        rewrite /en/services/bracket /services/bracket/index.php
+
+        rewrite /services/tactics/rooms /services/tactics/rooms.php
+        rewrite /en/services/tactics/rooms /services/tactics/rooms.php
+        @tactics_room path_regexp tr ^/services/tactics/([a-zA-Z0-9]{6,8})/?$
+        rewrite @tactics_room /services/tactics/room.php?public_id={re.tr.1}
+        @tactics_room_en path_regexp tre ^/en/services/tactics/([a-zA-Z0-9]{6,8})/?$
+        rewrite @tactics_room_en /services/tactics/room.php?public_id={re.tre.1}
+        rewrite /services/tactics /services/tactics/index.php
+        rewrite /en/services/tactics /services/tactics/index.php
+
+        # Aim trainers — fixed paths first, then any trainer slug
+        rewrite /services/aim/ratings /services/aim/ratings.php
+        rewrite /en/services/aim/ratings /services/aim/ratings.php
+        @aim_play_trainer {
+            path /services/aim/play.php
+            query trainer=*
+        }
+        redir @aim_play_trainer /services/aim/{query.trainer} permanent
+        @aim_play path /services/aim/play.php
+        redir @aim_play /services/aim permanent
+        @aim_trainer path_regexp aim ^/services/aim/([a-z0-9_-]+)/?$
+        rewrite @aim_trainer /services/aim/play.php?trainer={re.aim.1}
+        @aim_trainer_en path_regexp aim_en ^/en/services/aim/([a-z0-9_-]+)/?$
+        rewrite @aim_trainer_en /services/aim/play.php?trainer={re.aim_en.1}
+        rewrite /services/aim /services/aim/index.php
+        rewrite /en/services/aim /services/aim/index.php
+
+        rewrite /en /index.php
+        @cms_en path_regexp cms_en ^/en/([a-z0-9-]+)/?$
+        rewrite @cms_en /page.php?slug={re.cms_en.1}
+        @cms path_regexp cms ^/([a-z0-9-]+)/?$
+        rewrite @cms /page.php?slug={re.cms.1}
+
+        php_fastcgi unix//run/php/php8.3-fpm.sock
+        file_server
+    }
+}
