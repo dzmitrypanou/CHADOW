@@ -12,7 +12,7 @@ const AppState = {
     enemyStats: new Map(),
     availableMaps: new Set(),
     isNewFilesLoaded: false,
-    version: '3.2.2 Shinji Ikari',
+    version: '3.2.2 daedalus',
     userSettings: {
         battleType: 'all',
         map: 'all',

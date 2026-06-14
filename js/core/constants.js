@@ -1,5 +1,5 @@
 const AppConstants = {
-    VERSION: '3.2.2 Shinji Ikari',
+    VERSION: '3.2.2 daedalus',
     LANG: (typeof window !== 'undefined' && window.ABS_LANG === 'en') ? 'en' : 'ru',
     DEFAULT_VISIBLE_COLUMNS: {
         battles: true,

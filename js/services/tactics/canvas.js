@@ -121,6 +121,7 @@
             this.isRemote = false;
             this.history = [];
             this.historyIndex = -1;
+            this.foreignObjectAuthors = new Map();
             this.penLivePointer = null;
             this.penLastDownAt = 0;
             this.penLastDownPoint = null;
@@ -1340,6 +1341,7 @@
 
             this.isRemote = true;
             toRemove.forEach((target) => {
+                this.unregisterForeignObject(target);
                 if (target.tacticsType === 'line' || target.tacticsType === 'pen') {
                     this.removeAttachedArrowHeads(target);
                 }
@@ -5445,7 +5447,51 @@
         isForeignObject(obj) {
             const authorId = String(obj?.tacticsAuthorId || '').trim();
             const selfId = String(this.clientId || '').trim();
-            return !!(authorId && selfId && authorId !== selfId);
+            if (authorId && selfId && authorId !== selfId) {
+                return true;
+            }
+            const tacticsId = String(obj?.tacticsId || '').trim();
+            if (!tacticsId || !selfId) return false;
+            const foreignAuthor = String(this.foreignObjectAuthors.get(tacticsId) || '').trim();
+            return !!(foreignAuthor && foreignAuthor !== selfId);
+        }
+
+        registerForeignObject(obj, clientId) {
+            if (!obj || !clientId) return;
+            const selfId = String(this.clientId || '').trim();
+            const authorId = String(clientId || '').trim();
+            if (!authorId || authorId === selfId) return;
+            this.ensureTacticsId(obj);
+            this.foreignObjectAuthors.set(obj.tacticsId, authorId);
+            if (!String(obj.tacticsAuthorId || '').trim()) {
+                obj.set('tacticsAuthorId', authorId);
+            }
+        }
+
+        unregisterForeignObject(obj) {
+            const tacticsId = String(obj?.tacticsId || '').trim();
+            if (tacticsId) {
+                this.foreignObjectAuthors.delete(tacticsId);
+            }
+        }
+
+        rebuildForeignObjectRegistry() {
+            this.foreignObjectAuthors = new Map();
+            if (!this.fabric) return;
+            const selfId = String(this.clientId || '').trim();
+            this.fabric.getObjects().forEach((obj) => {
+                if (this.isPreviewObject(obj) || obj.isBackground || obj.isGridLine) return;
+                const authorId = String(obj.tacticsAuthorId || '').trim();
+                if (!authorId || authorId === selfId || !obj.tacticsId) return;
+                this.foreignObjectAuthors.set(obj.tacticsId, authorId);
+            });
+        }
+
+        getObjectAuthorId(obj) {
+            const authorId = String(obj?.tacticsAuthorId || '').trim();
+            if (authorId) return authorId;
+            const tacticsId = String(obj?.tacticsId || '').trim();
+            return tacticsId ? String(this.foreignObjectAuthors.get(tacticsId) || '').trim() : '';
         }
 
         markOwnObject(obj) {
@@ -5453,12 +5499,14 @@
             const selfId = String(this.clientId || '').trim();
             if (!selfId) return;
             obj.set('tacticsAuthorId', selfId);
+            this.unregisterForeignObject(obj);
         }
 
         markRemoteObject(obj, clientId) {
             const authorId = String(clientId || '').trim();
             if (!obj || !authorId) return;
             obj.set('tacticsAuthorId', authorId);
+            this.registerForeignObject(obj, authorId);
         }
 
         static EXPORT_PROPS = [
@@ -5509,6 +5557,7 @@
         removeDrawingTarget(target, options = {}) {
             if (!this.fabric || !target || this.isPreviewObject(target)) return;
 
+            this.unregisterForeignObject(target);
             this.isRemote = true;
             if (target.tacticsArrowHead || target.tacticsBarEnd) {
                 this.fabric.remove(target);
@@ -6358,7 +6407,7 @@
             this.historyIndex -= 1;
             await this.applyOwnHistory(this.history[this.historyIndex]);
             this.onChange();
-            this.broadcastFull();
+            this.broadcastOwnDrawings();
         }
 
         async redo() {
@@ -6366,7 +6415,16 @@
             this.historyIndex += 1;
             await this.applyOwnHistory(this.history[this.historyIndex]);
             this.onChange();
-            this.broadcastFull();
+            this.broadcastOwnDrawings();
+        }
+
+        broadcastOwnDrawings() {
+            if (!this.slideId) return;
+            this.onOp({
+                op: 'sync_own',
+                slideId: this.slideId,
+                payload: this.exportOwnJson(),
+            });
         }
 
         broadcastFull() {
@@ -6416,6 +6474,30 @@
             return this.exportJson({ ownOnly: true });
         }
 
+        removeObjectsByAuthor(authorId) {
+            if (!this.fabric || !authorId) return;
+
+            const targets = this.fabric.getObjects().filter((obj) => (
+                !obj.isBackground
+                && !obj.isGridLine
+                && !this.isPreviewObject(obj)
+                && this.getObjectAuthorId(obj) === authorId
+            ));
+            const targetSet = new Set(targets);
+            targets.forEach((obj) => {
+                if ((obj.tacticsArrowHead || obj.tacticsBarEnd)
+                    && obj.tacticsParent
+                    && targetSet.has(obj.tacticsParent)) {
+                    return;
+                }
+                this.unregisterForeignObject(obj);
+                if (obj.tacticsType === 'line' || obj.tacticsType === 'pen') {
+                    this.removeAttachedArrowHeads(obj);
+                }
+                this.fabric.remove(obj);
+            });
+        }
+
         removeOwnDrawingObjects() {
             if (!this.fabric) return;
 
@@ -6432,11 +6514,53 @@
                     && ownSet.has(obj.tacticsParent)) {
                     return;
                 }
+                this.unregisterForeignObject(obj);
                 if (obj.tacticsType === 'line' || obj.tacticsType === 'pen') {
                     this.removeAttachedArrowHeads(obj);
                 }
                 this.fabric.remove(obj);
             });
+        }
+
+        async applyRemoteOwnDrawings(remoteClientId, json) {
+            if (!this.fabric || !remoteClientId) return;
+            const authorId = String(remoteClientId || '').trim();
+            const selfId = String(this.clientId || '').trim();
+            if (!authorId || authorId === selfId) return;
+
+            this.syncFabricLayoutSize();
+            this.isRemote = true;
+            try {
+                this.removeObjectsByAuthor(authorId);
+
+                const objects = (json && Array.isArray(json.objects) ? json.objects : [])
+                    .filter((o) => !o.isBackground && !o.isGridLine);
+                if (!objects.length) {
+                    this.consolidateLayerOrder();
+                    this.relinkArrowHeads();
+                    this.syncInteractionState();
+                    this.fabric.renderAll();
+                    return;
+                }
+
+                await new Promise((resolve) => {
+                    fabric.util.enlivenObjects(objects, (objs) => {
+                        (Array.isArray(objs) ? objs : []).forEach((obj) => {
+                            if (!obj) return;
+                            this.markRemoteObject(obj, authorId);
+                            this.fabric.add(obj);
+                        });
+                        this.applyCoordSpaceScale(json);
+                        this.relinkArrowHeads();
+                        this.syncInteractionState();
+                        resolve();
+                    });
+                });
+                this.consolidateLayerOrder();
+                this.fabric.renderAll();
+            } finally {
+                this.isRemote = false;
+            }
         }
 
         async applyOwnHistory(json) {
@@ -6461,6 +6585,7 @@
                     fabric.util.enlivenObjects(objects, (objs) => {
                         (Array.isArray(objs) ? objs : []).forEach((obj) => {
                             if (!obj) return;
+                            this.markOwnObject(obj);
                             this.fabric.add(obj);
                         });
                         this.applyCoordSpaceScale(json);
@@ -6474,6 +6599,7 @@
             } finally {
                 this.isRemote = false;
             }
+            this.rebuildForeignObjectRegistry();
         }
 
         relinkArrowHeads() {
@@ -6664,6 +6790,7 @@
                 this.clearPings();
                 this.clearCellFlashes();
                 this.clearRuler();
+                this.foreignObjectAuthors = new Map();
                 this.mapCode = slide.map_code || 'cliff';
                 this.game = slide.game || 'wot';
                 const scalePromise = this.refreshMapScaleInfo(slide);
@@ -6710,6 +6837,7 @@
 
                 this.history = [this.exportOwnJson()];
                 this.historyIndex = 0;
+                this.rebuildForeignObjectRegistry();
                 this.scheduleResize();
                 this.updateGridToggleBtn();
                 if (this.drawEnabled && !this.interactionLocked) {
@@ -6761,6 +6889,9 @@
                     this.syncInteractionState();
                     this.fabric.renderAll();
                     this.isRemote = false;
+                    if (silent) {
+                        this.rebuildForeignObjectRegistry();
+                    }
                     resolve();
                 });
             });
@@ -6789,6 +6920,10 @@
                     if (remoteClientId) {
                         this.removeRemoteStrokesFromClient(remoteClientId);
                     }
+                    this.rebuildForeignObjectRegistry();
+                } else if (msg.op === 'sync_own' && msg.payload && remoteClientId) {
+                    await this.applyRemoteOwnDrawings(remoteClientId, msg.payload);
+                    this.rebuildForeignObjectRegistry();
                 } else if (msg.op === 'remove' && msg.payload) {
                     const objects = this.fabric.getObjects();
                     const match = objects.find((o) => o.type === msg.payload.type
@@ -6830,6 +6965,9 @@
                         } else {
                             this.removeRemoteStrokesFromClient(remoteClientId);
                         }
+                    }
+                    if (addedCount > 0) {
+                        this.rebuildForeignObjectRegistry();
                     }
                 } else if (msg.op === 'ping' && msg.payload) {
                     const p = msg.payload;

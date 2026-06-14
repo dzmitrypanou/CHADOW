@@ -19,7 +19,7 @@ function chadow_app_version(): string
     $data = $raw ? json_decode($raw, true) : null;
     $cached = (is_array($data) && !empty($data['version']))
         ? trim((string) $data['version'])
-        : '3.2.2 Shinji Ikari';
+        : '3.2.2 daedalus';
 
     return $cached;
 }

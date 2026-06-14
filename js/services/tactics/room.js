@@ -2156,6 +2156,30 @@
         };
     }
 
+    function mergeRemoteOwnIntoSlideCanvas(slideId, clientId, payload) {
+        if (!slidesCtrl || !slideId || !payload || !clientId) return;
+        const slide = slidesCtrl.getSlides().find((s) => s.id === slideId);
+        if (!slide) return;
+
+        const authorId = String(clientId || '').trim();
+        const current = slide.canvas || {
+            version: canvasCtrl?.fabric?.version || '5.3.0',
+            objects: [],
+        };
+        const kept = (Array.isArray(current.objects) ? current.objects : [])
+            .filter((obj) => String(obj?.tacticsAuthorId || '').trim() !== authorId);
+        const incoming = (Array.isArray(payload.objects) ? payload.objects : []).map((obj) => ({
+            ...obj,
+            tacticsAuthorId: authorId,
+        }));
+
+        slidesCtrl.updateSlideCanvas(slideId, {
+            ...current,
+            coordSpace: payload.coordSpace || current.coordSpace,
+            objects: kept.concat(incoming),
+        });
+    }
+
     function mergeRemoteObjectIntoSlideCanvas(slideId, payload, mode) {
         if (!slidesCtrl || !slideId || !payload) return;
         const slide = slidesCtrl.getSlides().find((s) => s.id === slideId);
@@ -2199,7 +2223,7 @@
         const activeId = slidesCtrl?.getActiveSlideId();
         const msgSlideId = msg.slideId != null ? String(msg.slideId) : '';
         const activeIdStr = activeId != null ? String(activeId) : '';
-        const canvasMutatingOps = ['full', 'clear', 'add', 'remove', 'modify'];
+        const canvasMutatingOps = ['full', 'clear', 'add', 'remove', 'modify', 'sync_own'];
 
         if (msg.op === 'full' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
             slidesCtrl?.updateSlideCanvas(msgSlideId, msg.payload);
@@ -2212,6 +2236,12 @@
                 version: canvasCtrl.fabric?.version || '5.3.0',
                 objects: [],
             });
+            if (canDraw) markDirty();
+            return;
+        }
+
+        if (msg.op === 'sync_own' && msg.payload && msgSlideId && msgSlideId !== activeIdStr) {
+            mergeRemoteOwnIntoSlideCanvas(msgSlideId, msg.from || msg.clientId || '', msg.payload);
             if (canDraw) markDirty();
             return;
         }
@@ -3287,7 +3317,7 @@
                     wsClient?.sendOp(msg.slideId, msg.op, msg.payload);
                     return;
                 }
-                const persistOps = ['add', 'remove', 'modify', 'full', 'clear'];
+                const persistOps = ['add', 'remove', 'modify', 'full', 'clear', 'sync_own'];
                 if (wsClient?.sendOp(msg.slideId, msg.op, msg.payload)) {
                     if (persistOps.includes(msg.op) && canDraw) {
                         markDirty();
