@@ -5,6 +5,9 @@
 # that file exists — covers /api/*, /auth/*, /admin/*, etc. without per-route rules.
 # Place after service-specific rewrites; before CMS catch-all.
 #
+# .xml: static files are served via @static_xml handle; dynamic routes map to .php
+# (/sitemap.xml → sitemap.php, /en/foo.xml → /foo.php).
+#
 # Aim trainers: slug is captured generically; play.php validates trainer id.
 # ratings and index are matched before the generic trainer rule.
 # play.php?trainer=foo → 301 → /services/aim/foo (canonical URL).
@@ -17,6 +20,14 @@
             header_up Host {host}
             header_up X-Forwarded-Proto {scheme}
         }
+    }
+
+    @static_xml {
+        path *.xml
+        file {path}
+    }
+    handle @static_xml {
+        file_server
     }
 
     handle {
@@ -78,6 +89,18 @@
         rewrite /services/aim /services/aim/index.php
         rewrite /en/services/aim /services/aim/index.php
 
+        rewrite /sitemap.xml /sitemap.php
+        rewrite /en/sitemap.xml /sitemap.php
+
+        @xml_en path_regexp xmlen ^/en/(.+)\.xml/?$
+        rewrite @xml_en /{re.xmlen.1}.php
+
+        @xml_root {
+            path_regexp xml ^/(.+)\.xml/?$
+            not path /en/*
+        }
+        rewrite @xml_root /{re.xml.1}.php
+
         @php_ext {
             not path *.php
             not path */
@@ -85,7 +108,8 @@
         }
         rewrite @php_ext {path}.php
 
-        rewrite /en /index.php
+        @en_index path /en /en/
+        rewrite @en_index /index.php
         @cms_en path_regexp cms_en ^/en/([a-z0-9-]+)/?$
         rewrite @cms_en /page.php?slug={re.cms_en.1}
         @cms path_regexp cms ^/([a-z0-9-]+)/?$
