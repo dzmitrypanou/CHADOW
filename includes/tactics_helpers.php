@@ -1770,6 +1770,10 @@ function tactics_admin_create_tactics_map(
     $displayNameRu = trim($displayNameRu);
     $displayNameEn = trim($displayNameEn);
 
+    if ($displayNameRu === '' && $displayNameEn !== '') {
+        $displayNameRu = $displayNameEn;
+    }
+
     if ($displayNameRu === '') {
         return ['ok' => false, 'error' => 'empty_name'];
     }

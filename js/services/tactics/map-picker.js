@@ -185,6 +185,23 @@
             if (this.modalCustomPanelEl) {
                 this.modalCustomPanelEl.hidden = !showCustom;
             }
+            this.updateScaleUnitLabels();
+        }
+
+        updateScaleUnitLabels() {
+            const usesUnits = maps().usesGameUnits(this.game);
+            const hintEl = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapScaleHint"]');
+            const widthLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapWidth"]');
+            const heightLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapHeight"]');
+            if (hintEl) {
+                hintEl.textContent = i18n().t(usesUnits ? 'customMapScaleHintUnits' : 'customMapScaleHint');
+            }
+            if (widthLabel) {
+                widthLabel.textContent = i18n().t(usesUnits ? 'customMapWidthUnits' : 'customMapWidth');
+            }
+            if (heightLabel) {
+                heightLabel.textContent = i18n().t(usesUnits ? 'customMapHeightUnits' : 'customMapHeight');
+            }
         }
 
         updateMapFieldVisibility() {

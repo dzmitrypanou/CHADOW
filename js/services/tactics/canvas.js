@@ -112,6 +112,7 @@
             this.onCursorMove = options.onCursorMove || (() => {});
             this.clientId = options.clientId || '';
             this.slideId = null;
+            this.game = 'wot';
             this.mapCode = 'cliff';
             this.mapSideLength = null;
             this.mapScale = null;
@@ -1035,15 +1036,20 @@
             this.syncMapContentLayerGeometry(this.rulerLayerEl);
         }
 
-        formatRulerDistance(meters) {
-            if (meters == null || !Number.isFinite(meters)) {
+        formatRulerDistance(distance) {
+            if (distance == null || !Number.isFinite(distance)) {
                 const i18n = window.AbsTacticsI18n;
                 return i18n ? i18n.t('rulerNoSize') : '—';
             }
-            if (meters >= 1000) {
-                return `${(meters / 1000).toFixed(2)} km`;
+            if (maps().usesGameUnits(this.game)) {
+                const unit = window.AbsTacticsI18n?.t('scaleUnitGame') || 'units';
+                return `${Math.round(distance)} ${unit}`;
             }
-            return `${Math.round(meters)} m`;
+            if (distance >= 1000) {
+                return `${(distance / 1000).toFixed(2)} km`;
+            }
+            const unit = window.AbsTacticsI18n?.t('scaleUnitMetersShort') || 'm';
+            return `${Math.round(distance)} ${unit}`;
         }
 
         updateMapScaleInfo() {
@@ -1052,14 +1058,21 @@
             const wasHidden = el.hidden;
             const i18n = window.AbsTacticsI18n;
             const scale = this.mapScale;
+            const usesUnits = maps().usesGameUnits(this.game);
             if (scale?.width && scale?.height) {
                 const width = String(scale.width);
                 const height = String(scale.height);
                 if (scale.width === scale.height) {
-                    const template = i18n ? i18n.t('mapScale') : 'Масштаб карты: {size}×{size} м';
+                    const key = usesUnits ? 'mapScaleUnits' : 'mapScale';
+                    const template = i18n ? i18n.t(key) : (usesUnits
+                        ? 'Масштаб карты: {size}×{size} units'
+                        : 'Масштаб карты: {size}×{size} м');
                     el.textContent = template.replace(/\{size\}/g, width);
                 } else {
-                    const template = i18n ? i18n.t('mapScaleRect') : 'Масштаб карты: {width}×{height} м';
+                    const key = usesUnits ? 'mapScaleRectUnits' : 'mapScaleRect';
+                    const template = i18n ? i18n.t(key) : (usesUnits
+                        ? 'Масштаб карты: {width}×{height} units'
+                        : 'Масштаб карты: {width}×{height} м');
                     el.textContent = template
                         .replace(/\{width\}/g, width)
                         .replace(/\{height\}/g, height);
@@ -1076,11 +1089,13 @@
 
         async refreshMapScaleInfo(slide) {
             if (!slide) {
+                this.game = 'wot';
                 this.mapSideLength = null;
                 this.mapScale = null;
                 this.updateMapScaleInfo();
                 return;
             }
+            this.game = slide.game || 'wot';
             this.mapScale = await maps().slideMapScale(slide);
             const scale = this.mapScale;
             this.mapSideLength = scale
@@ -1394,6 +1409,7 @@
                     objs.forEach((obj) => {
                         if (!obj) return;
                         this.ensureTacticsId(obj);
+                        this.markOwnObject(obj);
                         const isLine = obj.type === 'line'
                             && (obj.tacticsType === 'line' || obj.tacticsType === 'arrow');
                         const isPen = obj.type === 'path' && obj.tacticsType === 'pen';
@@ -4059,6 +4075,7 @@
                     });
                     img.set('tacticsType', 'image');
                     this.ensureTacticsId(img);
+                    this.markOwnObject(img);
                     this.isRemote = true;
                     this.fabric.add(img);
                     this.isRemote = false;
@@ -5364,6 +5381,7 @@
             }
             shape.set('tacticsType', this.tool);
             this.ensureTacticsId(shape);
+            this.markOwnObject(shape);
             this.isRemote = true;
             this.fabric.add(shape);
             this.isRemote = false;
@@ -5402,6 +5420,7 @@
             this.applyStrokeDash(poly);
             poly.set('tacticsType', 'polygon');
             this.ensureTacticsId(poly);
+            this.markOwnObject(poly);
             this.isRemote = true;
             this.fabric.add(poly);
             this.isRemote = false;
@@ -5423,8 +5442,28 @@
             return obj.tacticsId;
         }
 
+        isForeignObject(obj) {
+            const authorId = String(obj?.tacticsAuthorId || '').trim();
+            const selfId = String(this.clientId || '').trim();
+            return !!(authorId && selfId && authorId !== selfId);
+        }
+
+        markOwnObject(obj) {
+            if (!obj || this.isForeignObject(obj)) return;
+            const selfId = String(this.clientId || '').trim();
+            if (!selfId) return;
+            obj.set('tacticsAuthorId', selfId);
+        }
+
+        markRemoteObject(obj, clientId) {
+            const authorId = String(clientId || '').trim();
+            if (!obj || !authorId) return;
+            obj.set('tacticsAuthorId', authorId);
+        }
+
         static EXPORT_PROPS = [
             'tacticsType',
+            'tacticsAuthorId',
             'tacticsArrowHead',
             'tacticsBarEnd',
             'tacticsParent',
@@ -6008,6 +6047,7 @@
             group.set('tacticsIconLabelPlacement', label ? labelPlacement : '');
             group.set('tacticsIconSize', iconSize);
             this.ensureTacticsId(group);
+            this.markOwnObject(group);
 
             this.isRemote = true;
             this.fabric.add(group);
@@ -6245,6 +6285,7 @@
             const obj = e?.target;
             if (!obj || this.isPreviewObject(obj)) return;
 
+            this.markOwnObject(obj);
             this.pushHistory();
             this.onChange();
 
@@ -6303,7 +6344,7 @@
 
         pushHistory() {
             if (!this.fabric) return;
-            const json = this.exportJson();
+            const json = this.exportOwnJson();
             this.history = this.history.slice(0, this.historyIndex + 1);
             this.history.push(json);
             if (this.history.length > 40) {
@@ -6315,7 +6356,7 @@
         async undo() {
             if (!this.drawEnabled || this.historyIndex <= 0 || !this.fabric) return;
             this.historyIndex -= 1;
-            await this.loadJson(this.history[this.historyIndex], true);
+            await this.applyOwnHistory(this.history[this.historyIndex]);
             this.onChange();
             this.broadcastFull();
         }
@@ -6323,7 +6364,7 @@
         async redo() {
             if (!this.drawEnabled || this.historyIndex >= this.history.length - 1 || !this.fabric) return;
             this.historyIndex += 1;
-            await this.loadJson(this.history[this.historyIndex], true);
+            await this.applyOwnHistory(this.history[this.historyIndex]);
             this.onChange();
             this.broadcastFull();
         }
@@ -6351,11 +6392,13 @@
             this.onOp({ op: 'clear', slideId: this.slideId, payload: null });
         }
 
-        exportJson() {
+        exportJson(options = {}) {
+            const ownOnly = options.ownOnly === true;
             return this.withExportCoordSpace((coordSpace) => {
                 if (!this.fabric) return null;
                 const objects = this.fabric.getObjects()
-                    .filter((o) => !o.isGridLine && !o.isDrawingPreview)
+                    .filter((o) => !o.isGridLine && !o.isDrawingPreview
+                        && (!ownOnly || !this.isForeignObject(o)))
                     .map((o) => {
                         const data = o.toObject([...TacticsCanvas.EXPORT_PROPS, 'isBackground', 'isGridLine']);
                         delete data.tacticsParent;
@@ -6367,6 +6410,70 @@
                     objects,
                 };
             });
+        }
+
+        exportOwnJson() {
+            return this.exportJson({ ownOnly: true });
+        }
+
+        removeOwnDrawingObjects() {
+            if (!this.fabric) return;
+
+            const ownObjects = this.fabric.getObjects().filter((obj) => (
+                !obj.isBackground
+                && !obj.isGridLine
+                && !this.isPreviewObject(obj)
+                && !this.isForeignObject(obj)
+            ));
+            const ownSet = new Set(ownObjects);
+            ownObjects.forEach((obj) => {
+                if ((obj.tacticsArrowHead || obj.tacticsBarEnd)
+                    && obj.tacticsParent
+                    && ownSet.has(obj.tacticsParent)) {
+                    return;
+                }
+                if (obj.tacticsType === 'line' || obj.tacticsType === 'pen') {
+                    this.removeAttachedArrowHeads(obj);
+                }
+                this.fabric.remove(obj);
+            });
+        }
+
+        async applyOwnHistory(json) {
+            if (!this.fabric) return;
+
+            this.syncFabricLayoutSize();
+            this.isRemote = true;
+            try {
+                this.removeOwnDrawingObjects();
+
+                const objects = (json && Array.isArray(json.objects) ? json.objects : [])
+                    .filter((o) => !o.isBackground && !o.isGridLine);
+                if (!objects.length) {
+                    this.consolidateLayerOrder();
+                    this.relinkArrowHeads();
+                    this.syncInteractionState();
+                    this.fabric.renderAll();
+                    return;
+                }
+
+                await new Promise((resolve) => {
+                    fabric.util.enlivenObjects(objects, (objs) => {
+                        (Array.isArray(objs) ? objs : []).forEach((obj) => {
+                            if (!obj) return;
+                            this.fabric.add(obj);
+                        });
+                        this.applyCoordSpaceScale(json);
+                        this.relinkArrowHeads();
+                        this.syncInteractionState();
+                        resolve();
+                    });
+                });
+                this.consolidateLayerOrder();
+                this.fabric.renderAll();
+            } finally {
+                this.isRemote = false;
+            }
         }
 
         relinkArrowHeads() {
@@ -6558,6 +6665,7 @@
                 this.clearCellFlashes();
                 this.clearRuler();
                 this.mapCode = slide.map_code || 'cliff';
+                this.game = slide.game || 'wot';
                 const scalePromise = this.refreshMapScaleInfo(slide);
                 await this.ensureCanvasLayout(3);
                 if (!isCurrentLoad()) return;
@@ -6600,7 +6708,7 @@
                 await this.ensureCanvasLayout(2);
                 if (!isCurrentLoad()) return;
 
-                this.history = [this.exportJson()];
+                this.history = [this.exportOwnJson()];
                 this.historyIndex = 0;
                 this.scheduleResize();
                 this.updateGridToggleBtn();
@@ -6701,6 +6809,9 @@
                                 if (!obj) return;
                                 if (fromSize && Math.abs(fromSize - target) > 0.5) {
                                     this.scaleObjectGeometry(obj, target / fromSize);
+                                }
+                                if (remoteClientId) {
+                                    this.markRemoteObject(obj, remoteClientId);
                                 }
                                 this.fabric.add(obj);
                                 addedCount += 1;

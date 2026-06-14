@@ -350,7 +350,7 @@
 
         getSlideScaleLabel(slide) {
             if (!slide) return '';
-            return maps().formatSlideScaleLabel?.(maps().slideMapScaleSync?.(slide)) || '';
+            return maps().formatSlideScaleLabel?.(maps().slideMapScaleSync?.(slide), slide.game) || '';
         }
 
         buildDuplicateBtn(slideId, duplicateTitle) {

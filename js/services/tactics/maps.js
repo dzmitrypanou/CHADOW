@@ -428,9 +428,22 @@
         return null;
     }
 
-    function formatSlideScaleLabel(scale) {
+    function usesGameUnits(game) {
+        return String(game || '').toLowerCase() === 'dota2';
+    }
+
+    function scaleUnitLabel(game) {
+        const i18n = window.AbsTacticsI18n;
+        if (usesGameUnits(game)) {
+            return i18n ? i18n.t('scaleUnitGame') : 'units';
+        }
+        return i18n ? i18n.t('scaleUnitMetersShort') : 'm';
+    }
+
+    function formatSlideScaleLabel(scale, game) {
         if (!scale?.width || !scale?.height) return '';
-        return scale.width + '\u00d7' + scale.height;
+        const unit = scaleUnitLabel(game);
+        return scale.width + '\u00d7' + scale.height + (unit ? ` ${unit}` : '');
     }
 
     window.addEventListener('tactics:langchange', () => {
@@ -572,6 +585,8 @@
         slideSideLength,
         slideMapScale,
         slideMapScaleSync,
+        usesGameUnits,
+        scaleUnitLabel,
         formatSlideScaleLabel,
         placeholderUrl,
         isCustomRoomSlide,

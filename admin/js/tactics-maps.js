@@ -75,6 +75,7 @@ function syncUploadModeField() {
     if (modeLabel) {
         modeLabel.textContent = game === 'cs2' ? 'Тип карты' : 'Режим боя';
     }
+    syncUploadSideLengthLabel();
 }
 
 function populateModeFilter() {
@@ -174,26 +175,49 @@ function resetCreateForm() {
     updateFileNameLabel();
 }
 
+function resolveUploadDisplayName() {
+    const nameRu = document.getElementById('tacticsUploadName')?.value.trim() || '';
+    const nameEn = document.getElementById('tacticsUploadNameEn')?.value.trim() || '';
+    if (nameRu) {
+        return { displayNameRu: nameRu, displayNameEn: nameEn };
+    }
+    if (nameEn) {
+        return { displayNameRu: nameEn, displayNameEn: nameEn };
+    }
+    return null;
+}
+
+function syncUploadSideLengthLabel() {
+    const game = document.getElementById('tacticsUploadGame')?.value || 'wot';
+    const label = document.querySelector('label[for="tacticsUploadSideLength"]');
+    const input = document.getElementById('tacticsUploadSideLength');
+    if (!label || !input) return;
+    const usesUnits = game === 'dota2';
+    label.textContent = usesUnits ? 'Размер поля (units)' : 'Размер поля (м)';
+    input.title = usesUnits
+        ? 'Длина стороны квадратного поля в игровых единицах'
+        : 'Длина стороны квадратного поля боя';
+}
+
 async function uploadMap(ev) {
     ev.preventDefault();
     const btn = document.getElementById('tacticsUploadBtn');
     const fileInput = document.getElementById('tacticsUploadFile');
-    const nameInput = document.getElementById('tacticsUploadName');
     if (!fileInput?.files?.length) {
         showNotification('Выберите файл', 'error');
         return;
     }
-    if (!nameInput?.value.trim()) {
-        showNotification('Укажите название карты', 'error');
+    const names = resolveUploadDisplayName();
+    if (!names) {
+        showNotification('Укажите название в поле «Название карты» (или «Название (EN)»)', 'error');
         return;
     }
 
     const formData = new FormData();
     formData.append('game', document.getElementById('tacticsUploadGame')?.value || 'wot');
     formData.append('battle_mode', document.getElementById('tacticsUploadMode')?.value || 'random');
-    formData.append('display_name_ru', nameInput.value.trim());
-    const nameEn = document.getElementById('tacticsUploadNameEn')?.value.trim();
-    if (nameEn) formData.append('display_name_en', nameEn);
+    formData.append('display_name_ru', names.displayNameRu);
+    if (names.displayNameEn) formData.append('display_name_en', names.displayNameEn);
     const mapCode = document.getElementById('tacticsUploadCode')?.value.trim();
     if (mapCode) formData.append('map_code', mapCode.toLowerCase());
     formData.append('side_length', document.getElementById('tacticsUploadSideLength')?.value || '');

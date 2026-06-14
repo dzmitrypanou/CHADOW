@@ -21,8 +21,15 @@ $displayNameRu = trim((string) ($_POST['display_name_ru'] ?? ''));
 $displayNameEn = trim((string) ($_POST['display_name_en'] ?? ''));
 $mapCode = trim((string) ($_POST['map_code'] ?? ''));
 
+if ($displayNameRu === '' && $displayNameEn !== '') {
+    $displayNameRu = $displayNameEn;
+}
+
 if ($displayNameRu === '') {
-    echo json_encode(['success' => false, 'error' => 'Укажите название карты'], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Укажите название в поле «Название карты» (или «Название (EN)»)',
+    ], JSON_UNESCAPED_UNICODE);
     exit();
 }
 
@@ -62,8 +69,8 @@ if (!$result['ok']) {
         'invalid_type' => 'Допустимы WebP, PNG, JPEG',
         'mkdir_failed' => 'Нет прав на запись в assets/tactics/maps (chown -R www-data:www-data assets/tactics/maps)',
         'save_failed' => 'Не удалось сохранить файл (проверьте права на каталог и место на диске)',
-        'empty_name' => 'Укажите название карты',
-        'invalid_side_length' => 'Размер поля: от 100 до 20000 м',
+        'empty_name' => 'Укажите название в поле «Название карты» (или «Название (EN)»)',
+        'invalid_side_length' => 'Размер поля: от 100 до 20000 (м или units)',
         'invalid_map_code' => 'Некорректный код карты (латиница, цифры, _)',
         'db_error' => 'Ошибка базы данных (проверьте миграции map_dictionary / tactics_map_assignments)',
     ];
