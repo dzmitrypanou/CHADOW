@@ -3083,11 +3083,23 @@ footer {
         gap: 8px 14px;
     }
 
+    .site-law-help-wrap {
+        position: static;
+    }
+
+    .header h1.site-heading,
+    .page-auth-profile .profile-panel__head {
+        position: relative;
+    }
+
     .site-law-help-tip {
         left: 0;
-        max-width: min(92vw, 320px);
-        width: max-content;
-        transform: translateX(0) translateY(4px);
+        right: 0;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        box-sizing: border-box;
+        transform: translateY(4px);
     }
 
     .site-law-help-tip-line {
@@ -3096,14 +3108,13 @@ footer {
 
     .site-law-help-tip::before,
     .site-law-help-tip::after {
-        left: 10px;
-        transform: none;
+        display: none;
     }
 
     .site-law-help-wrap.is-open .site-law-help-tip,
     .site-law-help-wrap:hover .site-law-help-tip,
     .site-law-help-wrap:focus-within .site-law-help-tip {
-        transform: translateX(0) translateY(0);
+        transform: translateY(0);
     }
 
     .site-lang-switch {

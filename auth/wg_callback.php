@@ -90,8 +90,8 @@ if ($mode === 'launcher') {
         $finishLauncher(false, $isEn ? 'Launcher session not found.' : 'Сессия лаунчера не найдена.');
     }
 
-    $nickname = minecraft_resolve_wg_nickname($userDb, $accountId, $realm, $nickname);
-    $result = minecraft_oauth_finalize_session($mcLauncherSession, $accountId, $nickname);
+    $nickname = minecraft_resolve_wg_nickname($userDb, $accountId, $realm, $nickname, $accessToken);
+    $result = minecraft_oauth_finalize_session($userDb, $mcLauncherSession, $accountId, $nickname, $realm);
     if (!$result['ok']) {
         $finishLauncher(false, (string) ($result['error'] ?? ($isEn ? 'Could not complete sign-in.' : 'Не удалось завершить вход.')));
     }
@@ -99,8 +99,8 @@ if ($mode === 'launcher') {
     $finishLauncher(
         true,
         ($isEn ? 'Nickname ' : 'Ник ') . ($result['nickname'] ?? '') . ($isEn
-            ? ' received. Return to Chadow Game Center.'
-            : ' получен. Вернитесь в Chadow Game Center.')
+            ? ' received. Return to Chadow Games Launcher.'
+            : ' получен. Вернитесь в Chadow Games Launcher.')
     );
 }
 

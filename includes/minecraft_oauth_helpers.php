@@ -167,16 +167,26 @@ function minecraft_oauth_set_browser_cookie(string $sessionId): void
 /**
  * @return array{ok:bool,error?:string,nickname?:string}
  */
-function minecraft_oauth_finalize_session(string $sessionId, int $accountId, string $nickname): array
+function minecraft_oauth_finalize_session($db, string $sessionId, int $accountId, string $nickname, string $realm): array
 {
     $session = minecraft_oauth_read_session($sessionId);
     if ($session === null) {
         return ['ok' => false, 'error' => 'Сессия не найдена'];
     }
 
+    $sessionRealm = (string) ($session['realm'] ?? $realm);
     $wgNick = minecraft_normalize_wg_nickname($nickname);
-    if ($wgNick === '' || !preg_match('/^[a-zA-Z0-9_\-]{3,}$/', $wgNick)) {
-        $wgNick = minecraft_sanitize_launcher_nickname($nickname, $accountId);
+
+    if ($wgNick === '' || !preg_match('/^[a-zA-Z0-9_\\-]{3,}$/u', $wgNick)) {
+        $wgNick = minecraft_normalize_wg_nickname(
+            minecraft_resolve_wg_nickname($db, $accountId, $sessionRealm, $nickname, null)
+        );
+    }
+
+    if ($wgNick === '' || !preg_match('/^[a-zA-Z0-9_\\-]{3,}$/u', $wgNick)) {
+        minecraft_oauth_mark_session_error($sessionId, 'Не удалось получить игровой ник');
+
+        return ['ok' => false, 'error' => 'Не удалось получить игровой ник из Wargaming API'];
     }
 
     $session['status'] = 'done';
@@ -210,18 +220,25 @@ function minecraft_oauth_fetch_login_location($db, string $sessionId): array
     return $client->fetchLoginLocation($realm);
 }
 
-function minecraft_resolve_wg_nickname($db, int $accountId, string $realm, string $nickname): string
+function minecraft_resolve_wg_nickname($db, int $accountId, string $realm, string $nickname, ?string $accessToken = null): string
 {
     $nickname = trim($nickname);
-    if ($accountId <= 0) {
-        return $nickname;
-    }
 
     require_once __DIR__ . '/wg_openid_client.php';
     $client = new WgOpenIdClient($db);
-    $fetched = $client->fetchAccountNickname($accountId, $realm);
-    if (!empty($fetched['ok']) && trim((string) ($fetched['nickname'] ?? '')) !== '') {
-        return trim((string) $fetched['nickname']);
+
+    if (is_string($accessToken) && trim($accessToken) !== '') {
+        $byToken = $client->fetchAccountNicknameByToken($accessToken, $realm);
+        if (!empty($byToken['ok']) && trim((string) ($byToken['nickname'] ?? '')) !== '') {
+            return trim((string) $byToken['nickname']);
+        }
+    }
+
+    if ($accountId > 0) {
+        $fetched = $client->fetchAccountNickname($accountId, $realm);
+        if (!empty($fetched['ok']) && trim((string) ($fetched['nickname'] ?? '')) !== '') {
+            return trim((string) $fetched['nickname']);
+        }
     }
 
     return $nickname;
@@ -299,9 +316,9 @@ function minecraft_oauth_complete_session($db, string $sessionId, string $access
         $accountId = $verifiedAccountId;
     }
 
-    $nickname = minecraft_resolve_wg_nickname($db, $accountId, $realm, $nickname);
+    $nickname = minecraft_resolve_wg_nickname($db, $accountId, $realm, $nickname, $accessToken);
 
-    return minecraft_oauth_finalize_session($sessionId, $accountId, $nickname);
+    return minecraft_oauth_finalize_session($db, $sessionId, $accountId, $nickname, $realm);
 }
 
 /**

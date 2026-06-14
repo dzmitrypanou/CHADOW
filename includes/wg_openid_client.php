@@ -150,6 +150,28 @@ class WgOpenIdClient
     /**
      * @return array{ok:bool, nickname?:string, error?:string}
      */
+    public function fetchAccountNicknameByToken(string $accessToken, string $realm): array
+    {
+        $realm = self::normalizeRealm($realm);
+        $appId = $this->applicationIdForRealm($realm);
+        $accessToken = trim($accessToken);
+        if ($appId === '' || $accessToken === '') {
+            return ['ok' => false, 'error' => 'invalid request'];
+        }
+
+        $apiBase = self::apiBaseForRealm($realm);
+        $url = $apiBase . '/wot/account/info/?' . http_build_query([
+            'application_id' => $appId,
+            'access_token' => $accessToken,
+            'fields' => 'nickname',
+        ]);
+
+        return $this->fetchAccountNicknameFromUrl($url);
+    }
+
+    /**
+     * @return array{ok:bool, nickname?:string, error?:string}
+     */
     public function fetchAccountNickname(int $accountId, string $realm): array
     {
         $realm = self::normalizeRealm($realm);
@@ -166,27 +188,54 @@ class WgOpenIdClient
             'fields' => 'nickname',
         ]);
 
+        return $this->fetchAccountNicknameFromUrl($url, $accountId);
+    }
+
+    /**
+     * @return array{ok:bool, nickname?:string, error?:string}
+     */
+    private function fetchAccountNicknameFromUrl(string $url, int $accountId = 0): array
+    {
         $response = $this->httpGet($url);
         if (!$response['ok']) {
             return ['ok' => false, 'error' => $response['error'] ?? 'Ошибка запроса к WG API'];
         }
 
-        $data = $response['data'];
-        if (!is_array($data) || ($data['status'] ?? '') !== 'ok') {
+        $nickname = $this->parseAccountNickname($response['data'] ?? null, $accountId);
+        if ($nickname === null || $nickname === '') {
             return ['ok' => false, 'error' => 'nickname не получен'];
         }
 
-        $account = $data['data'][(string) $accountId] ?? $data['data'][$accountId] ?? null;
-        if (!is_array($account)) {
-            return ['ok' => false, 'error' => 'account not found'];
-        }
-
-        $nickname = trim((string) ($account['nickname'] ?? ''));
-        if ($nickname === '') {
-            return ['ok' => false, 'error' => 'nickname пустой'];
-        }
-
         return ['ok' => true, 'nickname' => $nickname];
+    }
+
+    private function parseAccountNickname(mixed $data, int $accountId = 0): ?string
+    {
+        if (!is_array($data) || ($data['status'] ?? '') !== 'ok' || !is_array($data['data'] ?? null)) {
+            return null;
+        }
+
+        $payload = $data['data'];
+        if ($accountId > 0) {
+            $account = $payload[(string) $accountId] ?? $payload[$accountId] ?? null;
+            if (is_array($account)) {
+                $nickname = trim((string) ($account['nickname'] ?? ''));
+
+                return $nickname !== '' ? $nickname : null;
+            }
+        }
+
+        foreach ($payload as $account) {
+            if (!is_array($account)) {
+                continue;
+            }
+            $nickname = trim((string) ($account['nickname'] ?? ''));
+            if ($nickname !== '') {
+                return $nickname;
+            }
+        }
+
+        return null;
     }
 
     /**

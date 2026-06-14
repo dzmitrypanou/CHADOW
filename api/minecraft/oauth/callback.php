@@ -73,5 +73,5 @@ if (!$result['ok']) {
 
 minecraft_oauth_render_result_page(
     true,
-    'Ник ' . ($result['nickname'] ?? '') . ' получен. Вернитесь в Chadow Game Center — лаунчер подхватит вход автоматически.'
+    'Ник ' . ($result['nickname'] ?? '') . ' получен. Вернитесь в Chadow Games Launcher — лаунчер подхватит вход автоматически.'
 );
