@@ -85,7 +85,6 @@ function scanKingMoves(board, r, c, color, onlyCaptures) {
                         to: [nr, nc],
                         captures: [enemyPos],
                     });
-                    break;
                 }
             } else if (Math.sign(cell) === enemy) {
                 if (sawEnemy) break;

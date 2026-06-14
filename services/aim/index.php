@@ -62,6 +62,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         </p>
                     </div>
                     <div class="aim-header-actions">
+                        <div data-aim-volume-mount class="aim-volume-mount--hub"></div>
                         <label class="aim-nick-inline" for="aimNicknameInput">
                             <span class="aim-nick-inline__label" data-aim-i18n="nicknameLabel">
                                 <?php echo $lang === 'en' ? 'Nickname' : 'Ник'; ?>
@@ -114,6 +115,7 @@ require __DIR__ . '/../../includes/site_header.php';
     <script src="/js/site-toast.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/core.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/volume.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/nickname.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/leaderboard.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/lobby.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>

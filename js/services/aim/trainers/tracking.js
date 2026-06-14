@@ -5,6 +5,9 @@
 
     function createTrackingTrainer() {
         const DURATION_SEC = 30;
+        const sfx = (window.AbsAimSounds && window.AbsAimSounds.bindTrainer('tracking')) || {
+            warmupAudio() {}, start() {}, lockOn() {},
+        };
         let canvas = null;
         let ctx = null;
         let width = 0;
@@ -17,6 +20,8 @@
         let pointer = { x: 0, y: 0 };
         const TARGET_RADIUS = 42;
         let target = { x: 0, y: 0 };
+        let wasOnTarget = false;
+        let lastLockSfxAt = 0;
 
         function remainingSec() {
             return Math.max(0, (endAt - performance.now()) / 1000);
@@ -64,12 +69,15 @@
                 width = size.width;
                 height = size.height;
             },
+            warmupAudio: sfx.warmupAudio,
             start() {
                 onTargetMs = 0;
                 running = true;
                 startAt = performance.now();
                 lastTick = startAt;
                 endAt = startAt + DURATION_SEC * 1000;
+                wasOnTarget = false;
+                sfx.start();
             },
             stop() {
                 running = false;
@@ -96,7 +104,13 @@
                 const dt = now - lastTick;
                 lastTick = now;
                 updateTarget(now);
-                if (dist(pointer.x, pointer.y, target.x, target.y) <= TARGET_RADIUS) {
+                const onTarget = dist(pointer.x, pointer.y, target.x, target.y) <= TARGET_RADIUS;
+                if (onTarget && !wasOnTarget && now - lastLockSfxAt > 220) {
+                    sfx.lockOn();
+                    lastLockSfxAt = now;
+                }
+                wasOnTarget = onTarget;
+                if (onTarget) {
                     onTargetMs += dt;
                 }
             },

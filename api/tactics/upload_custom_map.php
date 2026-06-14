@@ -84,46 +84,23 @@ try {
         tactics_json_error($lang === 'en' ? 'Could not save file' : 'Не удалось сохранить файл', 500);
     }
 
-    $tmp = (string) ($_FILES['image']['tmp_name'] ?? '');
-    if ($tmp === '' || !is_uploaded_file($tmp)) {
-        tactics_json_error($lang === 'en' ? 'Upload failed' : 'Ошибка загрузки файла');
+    $destBasePath = dirname(__DIR__, 2) . '/' . $rel;
+    $saved = tactics_save_uploaded_map_image($_FILES['image'], $destBasePath, tactics_map_upload_max_bytes());
+    if (!$saved['ok']) {
+        $errors = [
+            'upload_failed' => $lang === 'en' ? 'Upload failed' : 'Ошибка загрузки файла',
+            'file_too_large' => tactics_map_upload_size_error($lang),
+            'invalid_image' => $lang === 'en' ? 'Invalid image' : 'Некорректное изображение',
+            'invalid_type' => $lang === 'en' ? 'Allowed: WebP, PNG, JPEG' : 'Допустимы WebP, PNG, JPEG',
+            'save_failed' => $lang === 'en' ? 'Could not save file' : 'Не удалось сохранить файл',
+        ];
+        tactics_json_error($errors[$saved['error'] ?? ''] ?? ($lang === 'en' ? 'Could not save file' : 'Не удалось сохранить файл'), 500);
     }
-
-    $size = (int) ($_FILES['image']['size'] ?? 0);
-    if ($size <= 0 || $size > 8 * 1024 * 1024) {
-        tactics_json_error($lang === 'en' ? 'File too large (max 8 MB)' : 'Файл слишком большой (макс. 8 МБ)');
-    }
-
-    $imageInfo = @getimagesize($tmp);
-    if ($imageInfo === false) {
-        tactics_json_error($lang === 'en' ? 'Invalid image' : 'Некорректное изображение');
-    }
-
-    $mime = (string) ($imageInfo['mime'] ?? '');
-    $extMap = ['image/webp' => 'webp', 'image/png' => 'png', 'image/jpeg' => 'jpg'];
-    if (!isset($extMap[$mime])) {
-        tactics_json_error($lang === 'en' ? 'Allowed: WebP, PNG, JPEG' : 'Допустимы WebP, PNG, JPEG');
-    }
-    $ext = $extMap[$mime];
-
-    foreach (['webp', 'png', 'jpg', 'jpeg'] as $oldExt) {
-        $oldPath = dirname(__DIR__, 2) . '/' . $rel . '.' . $oldExt;
-        if (is_file($oldPath)) {
-            @unlink($oldPath);
-        }
-    }
-
-    $destPath = dirname(__DIR__, 2) . '/' . $rel . '.' . $ext;
-    if (!tactics_admin_persist_uploaded_file($tmp, $destPath)) {
-        tactics_json_error($lang === 'en' ? 'Could not save file' : 'Не удалось сохранить файл', 500);
-    }
-
-    @chmod($destPath, 0644);
 
     echo json_encode([
         'success' => true,
         'data' => [
-            'url' => '/' . $rel . '.' . $ext . '?t=' . time(),
+            'url' => '/' . $rel . '.webp?t=' . time(),
         ],
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {

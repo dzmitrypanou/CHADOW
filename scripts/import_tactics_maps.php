@@ -35,17 +35,20 @@ foreach ($iterator as $file) {
         continue;
     }
     $code = strtolower($m[1]);
-    $ext = strtolower($m[2]);
-    if ($ext === 'jpeg') {
-        $ext = 'jpg';
-    }
-    $dest = $targetDir . '/' . $code . '.' . $ext;
-    if (!copy($file->getPathname(), $dest)) {
-        fwrite(STDERR, "Failed to copy {$name}\n");
+    require_once dirname(__DIR__) . '/includes/image_helpers.php';
+    $destBase = $targetDir . '/' . $code;
+    $result = abs_convert_file_to_webp(
+        $file->getPathname(),
+        $destBase . '.webp',
+        ABS_IMAGE_UPLOAD_WEBP_QUALITY,
+        false
+    );
+    if (!$result['ok']) {
+        fwrite(STDERR, "Failed to convert {$name}: " . ($result['error'] ?? 'unknown') . "\n");
         continue;
     }
     $imported++;
-    fwrite(STDOUT, "Imported {$code}.{$ext}\n");
+    fwrite(STDOUT, "Imported {$code}.webp\n");
 }
 
 fwrite(STDOUT, "Done. Imported {$imported} map(s).\n");

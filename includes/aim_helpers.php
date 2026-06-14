@@ -30,7 +30,7 @@ const AIM_GRADE_THRESHOLDS = [
     'lead' => ['SSS' => 19000, 'SS' => 14000, 'S' => 9000, 'A' => 5000, 'B' => 2500, 'C' => 750, 'D' => 0],
     'gridshot' => ['SSS' => 62, 'SS' => 52, 'S' => 42, 'A' => 32, 'B' => 22, 'C' => 10, 'D' => 0],
     'duckhunt' => ['SSS' => 7500, 'SS' => 5500, 'S' => 4000, 'A' => 2800, 'B' => 1500, 'C' => 500, 'D' => 0],
-    'vugich' => ['SSS' => 7500, 'SS' => 5500, 'S' => 4000, 'A' => 2800, 'B' => 1500, 'C' => 500, 'D' => 0],
+    'vugich' => ['SSS' => 4800, 'SS' => 3600, 'S' => 2400, 'A' => 1600, 'B' => 800, 'C' => 250, 'D' => 0],
 ];
 
 function aim_device_sniff_script(): string
@@ -123,7 +123,7 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'duration_sec' => 45,
             'ru' => [
                 'title' => 'Точечная серия',
-                'desc' => 'Три мелкие цели одновременно — сбивайте их подряд.',
+                'desc' => 'Три мелкие цели одновременно — сбивайте их в любом порядке, главное как можно больше.',
             ],
             'en' => [
                 'title' => 'Gridshot',
@@ -135,11 +135,11 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'duration_sec' => 60,
             'ru' => [
                 'title' => 'Утиная охота',
-                'desc' => 'Стреляйте по уткам, пролетающим через поле. Чем быстрее и точнее — тем выше счёт.',
+                'desc' => 'Стреляйте по уткам, пролетающим через поле. Чем быстрее, точнее (за маленьких уточек больше очков) — тем выше счёт.',
             ],
             'en' => [
                 'title' => 'Duck Hunt',
-                'desc' => 'Shoot ducks flying across the field. Speed and accuracy raise your score.',
+                'desc' => 'Shoot ducks flying across the field. The faster and more accurately you shoot (small ducks score more) — the higher your score.',
             ],
         ],
         'vugich' => [
@@ -407,11 +407,12 @@ function aim_fetch_leaderboard($db, string $trainer, int $limit = 50, string $de
                 $metrics = $decoded;
             }
         }
+        $score = (int) $row['score'];
         $items[] = [
             'rank' => $rank,
             'player_name' => (string) $row['player_name'],
-            'score' => (int) $row['score'],
-            'grade' => (string) $row['grade'],
+            'score' => $score,
+            'grade' => aim_compute_grade($trainer, $score),
             'metrics' => $metrics,
             'created_at' => (string) $row['created_at'],
         ];

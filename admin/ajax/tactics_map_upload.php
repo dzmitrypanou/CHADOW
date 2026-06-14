@@ -15,11 +15,30 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 admin_require_csrf_ajax();
 
+$uploadErr = isset($_FILES['image']) ? (int) ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+if ($uploadErr !== UPLOAD_ERR_OK && $uploadErr !== UPLOAD_ERR_NO_FILE) {
+    echo json_encode([
+        'success' => false,
+        'error' => tactics_map_upload_php_error_message($uploadErr),
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
 $game = trim((string) ($_POST['game'] ?? ''));
 $battleMode = trim((string) ($_POST['battle_mode'] ?? ''));
 $displayNameRu = trim((string) ($_POST['display_name_ru'] ?? ''));
 $displayNameEn = trim((string) ($_POST['display_name_en'] ?? ''));
 $mapCode = trim((string) ($_POST['map_code'] ?? ''));
+
+$contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+$postLooksEmpty = $game === '' && $battleMode === '' && $displayNameRu === '' && $displayNameEn === '';
+if ($postLooksEmpty && $contentLength > 0) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Сервер не принял данные формы. Возможно, файл слишком большой — уменьшите его до ' . tactics_map_upload_max_mb() . ' МБ или сожмите изображение.',
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
+}
 
 if ($displayNameRu === '' && $displayNameEn !== '') {
     $displayNameRu = $displayNameEn;
@@ -63,15 +82,16 @@ try {
 
 if (!$result['ok']) {
     $errors = [
-        'upload_failed' => 'Ошибка загрузки файла',
-        'file_too_large' => 'Файл слишком большой (макс. 8 МБ)',
-        'invalid_image' => 'Некорректное изображение',
+        'upload_failed' => 'Ошибка загрузки файла — проверьте формат (WebP, PNG, JPEG) и размер',
+        'file_too_large' => tactics_map_upload_size_error('ru'),
+        'invalid_image' => 'Некорректное или повреждённое изображение',
         'invalid_type' => 'Допустимы WebP, PNG, JPEG',
         'mkdir_failed' => 'Нет прав на запись в assets/tactics/maps (chown -R www-data:www-data assets/tactics/maps)',
-        'save_failed' => 'Не удалось сохранить файл (проверьте права на каталог и место на диске)',
+        'save_failed' => 'Не удалось сохранить файл (слишком большое изображение, не хватает памяти PHP или нет прав на каталог)',
         'empty_name' => 'Укажите название в поле «Название карты» (или «Название (EN)»)',
         'invalid_side_length' => 'Размер поля: от 100 до 20000 (м или units)',
         'invalid_map_code' => 'Некорректный код карты (латиница, цифры, _)',
+        'custom_in_room' => 'Для Dota 2 / CS2 режим «Остальное» загружается внутри комнаты, не через эту форму',
         'db_error' => 'Ошибка базы данных (проверьте миграции map_dictionary / tactics_map_assignments)',
     ];
     $key = (string) ($result['error'] ?? 'save_failed');

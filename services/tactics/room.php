@@ -546,6 +546,7 @@ require __DIR__ . '/../../includes/site_footer.php';
         window.ABS_TACTICS_LOBBY_HREF = <?php echo json_encode($lobbyHref); ?>;
         window.ABS_TACTICS_ROOMS_HREF = <?php echo json_encode($roomsHref); ?>;
         window.ABS_TACTICS_UPLOAD_CUSTOM_MAP_API = <?php echo json_encode(user_api_path('/api/tactics/upload_custom_map.php')); ?>;
+        window.ABS_TACTICS_MAP_UPLOAD_MAX_BYTES = <?php echo (int) TACTICS_MAP_UPLOAD_MAX_BYTES; ?>;
         window.ABS_TACTICS_DUPLICATE_CUSTOM_MAP_API = <?php echo json_encode(user_api_path('/api/tactics/duplicate_custom_map.php')); ?>;
         window.ABS_TACTICS_WS_URL = <?php echo json_encode(tactics_ws_public_url()); ?>;
         window.ABS_TACTICS_PRESENCE_API = <?php echo json_encode(user_api_path('/api/tactics/presence.php')); ?>;

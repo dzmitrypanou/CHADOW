@@ -5,6 +5,9 @@
 
     function createLeadTrainer() {
         const DURATION_SEC = 60;
+        const sfx = (window.AbsAimSounds && window.AbsAimSounds.bindTrainer('lead')) || {
+            warmupAudio() {}, start() {}, shot() {}, hit() {}, miss() {},
+        };
         const DISTANCE_MIN = 0.12;
         const DISTANCE_MAX = 0.92;
         const SPEED_MIN = 180;
@@ -124,6 +127,7 @@
                 width = size.width;
                 height = size.height;
             },
+            warmupAudio: sfx.warmupAudio,
             start() {
                 hits = 0;
                 misses = 0;
@@ -135,6 +139,7 @@
                 distance = DISTANCE_MIN;
                 distanceSamples = 0;
                 distanceSum = 0;
+                sfx.start();
             },
             stop() {
                 running = false;
@@ -153,14 +158,17 @@
             },
             onPointerDown(event) {
                 if (!running) return;
+                sfx.shot();
                 const pos = pointerPos(canvas, event);
                 const lead = leadPoint();
                 const hitLead = dist(pos.x, pos.y, lead.x, lead.y) <= leadRadius();
                 const hitBody = dist(pos.x, pos.y, body.x, body.y) <= bodyRadius();
                 if (hitLead) {
                     hits += 1;
+                    sfx.hit();
                 } else {
                     misses += 1;
+                    sfx.miss();
                     if (hitBody) {
                         // clicked body not lead zone — counts as miss
                     }

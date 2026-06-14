@@ -65,7 +65,9 @@ require __DIR__ . '/../../includes/site_header.php';
                     <h2 class="aim-play-title" id="aimPlayTitle"><?php echo htmlspecialchars($meta['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
                     <p class="aim-play-desc" id="aimPlayDesc"><?php echo htmlspecialchars($meta['desc'], ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
-                <div class="aim-hud" id="aimHud" hidden>
+                <div class="aim-play-toolbar-stats">
+                    <div data-aim-volume-mount data-aim-volume-compact="1" class="aim-volume-mount--play"></div>
+                    <div class="aim-hud" id="aimHud" hidden>
                     <div class="aim-hud-stat">
                         <span class="aim-hud-label" data-aim-i18n="hudTime"><?php echo $lang === 'en' ? 'Time' : 'Время'; ?></span>
                         <span class="aim-hud-value" id="aimHudTime">—</span>
@@ -77,6 +79,7 @@ require __DIR__ . '/../../includes/site_header.php';
                     <div class="aim-hud-stat" id="aimHudExtraWrap" hidden>
                         <span class="aim-hud-label" id="aimHudExtraLabel"></span>
                         <span class="aim-hud-value" id="aimHudExtra">—</span>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -136,6 +139,7 @@ require __DIR__ . '/../../includes/site_header.php';
                 </div>
                 </div>
                 <aside class="aim-play-side-hud" id="aimPlaySideHud" hidden aria-hidden="true">
+                    <div data-aim-volume-mount data-aim-volume-compact="1" class="aim-volume-mount--play-side"></div>
                     <div class="aim-hud-stat">
                         <span class="aim-hud-label" data-aim-i18n="hudTime"><?php echo $lang === 'en' ? 'Time' : 'Время'; ?></span>
                         <span class="aim-hud-value" id="aimHudSideTime">—</span>
@@ -172,8 +176,10 @@ require __DIR__ . '/../../includes/site_header.php';
     </script>
     <script src="/js/site-toast.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/volume.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/nickname.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/core.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/aim/audio.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/flick.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/tracking.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/aim/trainers/reaction.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>

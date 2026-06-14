@@ -5,6 +5,9 @@
 
     function createReactionTrainer() {
         const ROUNDS = 10;
+        const sfx = (window.AbsAimSounds && window.AbsAimSounds.bindTrainer('reaction')) || {
+            warmupAudio() {}, start() {}, go() {}, early() {}, success() {},
+        };
         let canvas = null;
         let ctx = null;
         let width = 0;
@@ -59,12 +62,14 @@
                 width = size.width;
                 height = size.height;
             },
+            warmupAudio: sfx.warmupAudio,
             start() {
                 running = true;
                 round = 0;
                 reactions = [];
                 earlyClicks = 0;
                 beginRound(performance.now());
+                sfx.start();
             },
             stop() {
                 running = false;
@@ -87,6 +92,7 @@
                 const now = performance.now();
                 if (phase === 'wait') {
                     earlyClicks += 1;
+                    sfx.early();
                     phase = 'penalty';
                     setTimeout(() => {
                         if (running && phase === 'penalty') {
@@ -98,6 +104,7 @@
                 if (phase === 'go' && signalAt > 0) {
                     const ms = now - signalAt;
                     reactions.push(ms);
+                    sfx.success();
                     if (reactions.length >= ROUNDS) {
                         running = false;
                         phase = 'done';
@@ -116,6 +123,7 @@
                 if (phase === 'wait' && now >= waitUntil) {
                     phase = 'go';
                     signalAt = now;
+                    sfx.go();
                 }
             },
             render(now) {

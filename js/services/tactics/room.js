@@ -263,6 +263,18 @@
 
         if (!canUploadCustomMap(slide)) return;
 
+        const maxBytes = window.ABS_TACTICS_MAP_UPLOAD_MAX_BYTES || 16 * 1024 * 1024;
+        if (file.size > maxBytes) {
+            const maxMb = Math.round(maxBytes / (1024 * 1024));
+            const lang = window.ABS_TACTICS_LANG || 'ru';
+            await tacticsAlert(
+                lang === 'en'
+                    ? `File too large (max ${maxMb} MB)`
+                    : `Файл слишком большой (макс. ${maxMb} МБ)`,
+            );
+            return;
+        }
+
         const apiUrl = window.ABS_TACTICS_UPLOAD_CUSTOM_MAP_API;
         if (!apiUrl) return;
 

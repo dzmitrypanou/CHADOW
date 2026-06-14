@@ -6,6 +6,9 @@
     function createGridshotTrainer() {
         const DURATION_SEC = 45;
         const TARGET_COUNT = 3;
+        const sfx = (window.AbsAimSounds && window.AbsAimSounds.bindTrainer('gridshot')) || {
+            warmupAudio() {}, start() {}, shot() {}, hit() {},
+        };
         let canvas = null;
         let ctx = null;
         let width = 0;
@@ -80,11 +83,13 @@
                     t.y = Math.min(maxY, Math.max(minY, (t.y / oldH) * height));
                 });
             },
+            warmupAudio: sfx.warmupAudio,
             start() {
                 hits = 0;
                 running = true;
                 endAt = performance.now() + DURATION_SEC * 1000;
                 spawnAll();
+                sfx.start();
             },
             stop() {
                 running = false;
@@ -104,11 +109,13 @@
             },
             onPointerDown(event) {
                 if (!running) return;
+                sfx.shot();
                 const pos = pointerPos(canvas, event);
                 for (let i = 0; i < targets.length; i += 1) {
                     const t = targets[i];
                     if (t && dist(pos.x, pos.y, t.x, t.y) <= t.radius) {
                         hits += 1;
+                        sfx.hit();
                         spawnOne(i);
                         return;
                     }

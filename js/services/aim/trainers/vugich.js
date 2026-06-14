@@ -21,7 +21,26 @@
         const SFX_BATTLE_START_SRC = `/assets/aim/wot-boi-nachinaetsia.mp3${AUDIO_V}`;
         const SFX_SRCS = [SFX_SHOT_SRC, SFX_MISS_SRC, SFX_HIT_SRC, SFX_BATTLE_START_SRC];
         const BGM_VOLUME = 0.825;
-        const SFX_VOLUME = 0.15;
+        const SFX_VOLUME = 0.07;
+
+        function aimVol(base) {
+            return window.AbsAimVolume ? window.AbsAimVolume.apply(base) : base;
+        }
+
+        function syncBgmVolume() {
+            if (bgmAudio) {
+                bgmAudio.volume = aimVol(BGM_VOLUME);
+            }
+        }
+
+        let volumeListenerBound = false;
+        function bindVolumeListener() {
+            if (volumeListenerBound) {
+                return;
+            }
+            volumeListenerBound = true;
+            window.addEventListener('aim:volumechange', syncBgmVolume);
+        }
         const SIGHT_SCALE = 0.5;
         const SHAKE_MULT = 2.5;
         const TANK_SEPARATION = 88;
@@ -309,10 +328,11 @@
         }
 
         function playBgm() {
+            bindVolumeListener();
             const audio = ensureBgm();
             audio.currentTime = 0;
             audio.loop = false;
-            audio.volume = BGM_VOLUME;
+            audio.volume = aimVol(BGM_VOLUME);
             const playPromise = audio.play();
             if (playPromise && typeof playPromise.catch === 'function') {
                 playPromise.catch(() => {});
@@ -328,18 +348,19 @@
         }
 
         function playSfxHtml5(src, volume) {
+            const scaled = aimVol(volume);
             const audio = ensureHtml5Sfx(src);
             try {
                 if (!audio.paused && audio.currentTime > 0 && !audio.ended) {
                     const clone = new Audio(src);
-                    clone.volume = volume;
+                    clone.volume = scaled;
                     const playPromise = clone.play();
                     if (playPromise && typeof playPromise.catch === 'function') {
                         playPromise.catch(() => {});
                     }
                     return;
                 }
-                audio.volume = volume;
+                audio.volume = scaled;
                 audio.currentTime = 0;
                 const playPromise = audio.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
@@ -374,7 +395,7 @@
                 const source = ctx.createBufferSource();
                 const gain = ctx.createGain();
                 source.buffer = buffer;
-                gain.gain.value = SFX_VOLUME;
+                gain.gain.value = aimVol(SFX_VOLUME);
                 source.connect(gain);
                 gain.connect(ctx.destination);
                 source.start(0);

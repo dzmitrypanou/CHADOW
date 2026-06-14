@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/../config/ensure_map_dictionary.php';
 require_once __DIR__ . '/../config/tactics_map_catalog.php';
+require_once __DIR__ . '/../includes/tactics_helpers.php';
 $_versionRaw = @file_get_contents(__DIR__ . '/../config/version.json');
 $_versionData = $_versionRaw ? json_decode($_versionRaw, true) : null;
 $appVersion = (is_array($_versionData) && !empty($_versionData['version'])) ? $_versionData['version'] : '3.4.4';
@@ -233,7 +234,7 @@ try {
         <?php else: ?>
             <div class="tactics-upload-panel">
                 <h2><i class="fas fa-plus-circle"></i> Добавить карту</h2>
-                <form id="tacticsMapUploadForm" class="tactics-upload-grid">
+                <form id="tacticsMapUploadForm" class="tactics-upload-grid" novalidate>
                     <div class="tactics-upload-field">
                         <label for="tacticsUploadGame">Игра</label>
                         <div class="custom-select">
@@ -264,11 +265,11 @@ try {
                     </div>
                     <div class="tactics-upload-field tactics-upload-field--wide">
                         <label for="tacticsUploadName">Название карты</label>
-                        <input type="text" id="tacticsUploadName" name="display_name_ru" maxlength="255" required placeholder="Например: Вестфилд">
+                        <input type="text" id="tacticsUploadName" name="display_name_ru" maxlength="255" autocomplete="off" placeholder="Например: Вестфилд">
                     </div>
                     <div class="tactics-upload-field">
                         <label for="tacticsUploadNameEn">Название (EN)</label>
-                        <input type="text" id="tacticsUploadNameEn" name="display_name_en" maxlength="255" placeholder="Необязательно">
+                        <input type="text" id="tacticsUploadNameEn" name="display_name_en" maxlength="255" autocomplete="off" placeholder="Необязательно">
                     </div>
                     <div class="tactics-upload-field tactics-upload-field--wide">
                         <label for="tacticsUploadCode">Код карты</label>
@@ -294,7 +295,8 @@ try {
                 </form>
                 <p style="margin: 12px 0 0; font-size: 0.82rem; color: #9aa5b1;">
                     Карта появится в тактике только в выбранном режиме и игре. Одинаковые названия допустимы — для каждой версии создаётся свой код
-                    (например <code>westfeld_oth</code> для «Остальное»). Файл: <code>assets/tactics/maps/{игра}/{режим}/{код}.webp</code>. Макс. 8 МБ.
+                    (например <code>westfeld_oth</code> для «Остальное»). Файл: <code>assets/tactics/maps/{игра}/{режим}/{код}.webp</code>.
+                    PNG и JPEG автоматически конвертируются в WebP. Макс. <?php echo tactics_map_upload_max_mb(); ?> МБ.
                 </p>
             </div>
 
@@ -346,6 +348,7 @@ try {
     </div>
     <?php include __DIR__ . '/includes/footer.php'; ?>
     <?php if ($db_error === null): ?>
+        <script>window.TACTICS_MAP_UPLOAD_MAX_BYTES = <?php echo (int) TACTICS_MAP_UPLOAD_MAX_BYTES; ?>;</script>
         <script src="/admin/js/tactics-maps.js?v=<?php echo htmlspecialchars($appVersion); ?>"></script>
     <?php endif; ?>
 </body>

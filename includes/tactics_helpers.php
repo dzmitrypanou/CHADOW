@@ -2,12 +2,50 @@
 
 require_once __DIR__ . '/../config/ensure_site_settings.php';
 require_once __DIR__ . '/../config/tactics_map_catalog.php';
+require_once __DIR__ . '/image_helpers.php';
 
 const TACTICS_PUBLIC_ID_LEN = 8;
 const TACTICS_TITLE_MAX_LEN = 120;
 const TACTICS_NICKNAME_MAX_LEN = 32;
 const TACTICS_PASSWORD_MAX_LEN = 64;
 const TACTICS_ROOM_DATA_MAX_BYTES = 2097152;
+const TACTICS_MAP_UPLOAD_MAX_BYTES = 16 * 1024 * 1024;
+const TACTICS_MAP_UPLOAD_MAX_DIMENSION = 4096;
+
+function tactics_map_upload_max_bytes(): int {
+    return TACTICS_MAP_UPLOAD_MAX_BYTES;
+}
+
+function tactics_map_upload_max_mb(): int {
+    return (int) (TACTICS_MAP_UPLOAD_MAX_BYTES / (1024 * 1024));
+}
+
+function tactics_map_upload_size_error(string $lang = 'ru'): string {
+    $mb = tactics_map_upload_max_mb();
+    return $lang === 'en'
+        ? "File too large (max {$mb} MB)"
+        : "Файл слишком большой (макс. {$mb} МБ)";
+}
+
+function tactics_map_upload_php_error_message(int $code, string $lang = 'ru'): string {
+    switch ($code) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return tactics_map_upload_size_error($lang);
+        case UPLOAD_ERR_PARTIAL:
+            return $lang === 'en'
+                ? 'Upload interrupted — try again'
+                : 'Загрузка прервана — попробуйте ещё раз';
+        case UPLOAD_ERR_NO_FILE:
+            return $lang === 'en'
+                ? 'No file selected'
+                : 'Файл не выбран';
+        default:
+            return $lang === 'en'
+                ? 'Upload failed — check file format and size'
+                : 'Ошибка загрузки файла — проверьте формат и размер';
+    }
+}
 const TACTICS_GUEST_CREATE_WINDOW_SEC = 3600;
 const TACTICS_GUEST_CREATE_MAX = 10;
 const TACTICS_TOKEN_TTL_OWNER_SEC = 86400 * 30;
@@ -1537,16 +1575,27 @@ function tactics_admin_persist_uploaded_file(string $tmp, string $destPath): boo
     return false;
 }
 
-/**
- * @return array{ok:bool, error?:string, data?:array<string,mixed>}
- */
-function tactics_admin_save_map_upload(string $game, string $battleMode, string $mapCode, array $fileInfo): array {
-    $game = tactics_sanitize_game($game);
-    $battleMode = tactics_sanitize_battle_mode($battleMode);
-    $mapCode = tactics_sanitize_map_code($mapCode);
+function tactics_remove_map_image_variants(string $destBasePath): void {
+    foreach (['webp', 'png', 'jpg', 'jpeg'] as $oldExt) {
+        $oldPath = $destBasePath . '.' . $oldExt;
+        if (!is_file($oldPath)) {
+            continue;
+        }
+        @chmod($oldPath, 0664);
+        @unlink($oldPath);
+    }
+}
 
+/**
+ * @return array{ok:bool, error?:string, ext?:string, path?:string, size?:int}
+ */
+function tactics_save_uploaded_map_image(array $fileInfo, string $destBasePath, int $maxBytes): array {
     $error = (int) ($fileInfo['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($error !== UPLOAD_ERR_OK) {
+        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+            return ['ok' => false, 'error' => 'file_too_large'];
+        }
+
         return ['ok' => false, 'error' => 'upload_failed'];
     }
 
@@ -1556,48 +1605,53 @@ function tactics_admin_save_map_upload(string $game, string $battleMode, string 
     }
 
     $size = (int) ($fileInfo['size'] ?? 0);
-    if ($size <= 0 || $size > 8 * 1024 * 1024) {
+    if ($size <= 0 || $size > $maxBytes) {
         return ['ok' => false, 'error' => 'file_too_large'];
     }
 
-    $imageInfo = @getimagesize($tmp);
-    if ($imageInfo === false) {
-        return ['ok' => false, 'error' => 'invalid_image'];
+    tactics_remove_map_image_variants($destBasePath);
+
+    $destPath = $destBasePath . '.webp';
+    $saved = abs_save_uploaded_image_as_webp($tmp, $destPath, ABS_IMAGE_UPLOAD_WEBP_QUALITY, true, TACTICS_MAP_UPLOAD_MAX_DIMENSION);
+    if (!$saved['ok']) {
+        $map = [
+            'invalid_image' => 'invalid_image',
+            'invalid_type' => 'invalid_type',
+            'webp_unsupported' => 'save_failed',
+            'save_failed' => 'save_failed',
+            'upload_failed' => 'upload_failed',
+            'mkdir_failed' => 'mkdir_failed',
+        ];
+
+        return ['ok' => false, 'error' => $map[$saved['error'] ?? ''] ?? 'save_failed'];
     }
 
-    $mime = (string) ($imageInfo['mime'] ?? '');
-    $extMap = [
-        'image/webp' => 'webp',
-        'image/png' => 'png',
-        'image/jpeg' => 'jpg',
+    return [
+        'ok' => true,
+        'ext' => 'webp',
+        'path' => $destPath,
+        'size' => (int) ($saved['size'] ?? filesize($destPath)),
     ];
-    if (!isset($extMap[$mime])) {
-        return ['ok' => false, 'error' => 'invalid_type'];
-    }
-    $ext = $extMap[$mime];
+}
+
+/**
+ * @return array{ok:bool, error?:string, data?:array<string,mixed>}
+ */
+function tactics_admin_save_map_upload(string $game, string $battleMode, string $mapCode, array $fileInfo): array {
+    $game = tactics_sanitize_game($game);
+    $battleMode = tactics_sanitize_battle_mode($battleMode, $game);
+    $mapCode = tactics_sanitize_map_code($mapCode);
 
     $destDir = dirname(__DIR__) . '/assets/tactics/maps/' . $game . '/' . $battleMode;
     if (!tactics_admin_ensure_writable_dir($destDir)) {
         return ['ok' => false, 'error' => 'mkdir_failed'];
     }
 
-    foreach (['webp', 'png', 'jpg', 'jpeg'] as $oldExt) {
-        $oldPath = $destDir . '/' . $mapCode . '.' . $oldExt;
-        if (!is_file($oldPath)) {
-            continue;
-        }
-        @chmod($oldPath, 0664);
-        if (!@unlink($oldPath) && is_file($oldPath)) {
-            return ['ok' => false, 'error' => 'save_failed'];
-        }
+    $destBasePath = $destDir . '/' . $mapCode;
+    $saved = tactics_save_uploaded_map_image($fileInfo, $destBasePath, tactics_map_upload_max_bytes());
+    if (!$saved['ok']) {
+        return ['ok' => false, 'error' => $saved['error'] ?? 'save_failed'];
     }
-
-    $destPath = $destDir . '/' . $mapCode . '.' . $ext;
-    if (!tactics_admin_persist_uploaded_file($tmp, $destPath)) {
-        return ['ok' => false, 'error' => 'save_failed'];
-    }
-
-    @chmod($destPath, 0644);
 
     return [
         'ok' => true,
@@ -1605,9 +1659,9 @@ function tactics_admin_save_map_upload(string $game, string $battleMode, string 
             'game' => $game,
             'battle_mode' => $battleMode,
             'map_code' => $mapCode,
-            'ext' => $ext,
-            'url' => '/assets/tactics/maps/' . $game . '/' . $battleMode . '/' . $mapCode . '.' . $ext,
-            'size' => (int) filesize($destPath),
+            'ext' => 'webp',
+            'url' => '/assets/tactics/maps/' . $game . '/' . $battleMode . '/' . $mapCode . '.webp',
+            'size' => (int) ($saved['size'] ?? 0),
         ],
     ];
 }

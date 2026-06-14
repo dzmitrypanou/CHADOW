@@ -4062,10 +4062,10 @@
         }
 
         insertImageFromFile(file) {
-            if (!this.fabric || !this.drawEnabled) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                fabric.Image.fromURL(reader.result, (img) => {
+            if (!this.fabric || !this.drawEnabled || !file) return;
+            this.prepareCanvasImageDataUrl(file, (dataUrl) => {
+                if (!dataUrl) return;
+                fabric.Image.fromURL(dataUrl, (img) => {
                     if (!img || !this.fabric) return;
                     const maxW = this.fabric.getWidth() * 0.4;
                     if (img.width > maxW) {
@@ -4092,8 +4092,52 @@
                     }
                     this.setTool('select');
                 }, { crossOrigin: 'anonymous' });
+            });
+        }
+
+        prepareCanvasImageDataUrl(file, callback) {
+            const finish = (dataUrl) => callback(dataUrl || null);
+            if (!(file instanceof Blob) || !String(file.type || '').startsWith('image/')) {
+                finish(null);
+                return;
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx || canvas.width <= 0 || canvas.height <= 0) {
+                    finish(null);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0);
+                let dataUrl = '';
+                try {
+                    dataUrl = canvas.toDataURL('image/webp', 0.88);
+                    if (!dataUrl.startsWith('data:image/webp')) {
+                        dataUrl = canvas.toDataURL('image/png');
+                    }
+                } catch (err) {
+                    try {
+                        dataUrl = canvas.toDataURL('image/png');
+                    } catch (fallbackErr) {
+                        dataUrl = '';
+                    }
+                }
+                finish(dataUrl);
             };
-            reader.readAsDataURL(file);
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                const reader = new FileReader();
+                reader.onload = () => finish(typeof reader.result === 'string' ? reader.result : null);
+                reader.onerror = () => finish(null);
+                reader.readAsDataURL(file);
+            };
+            img.src = objectUrl;
         }
 
         getPaletteControlElements() {

@@ -70,7 +70,12 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
                             <span class="tactics-custom-map-upload__icon" aria-hidden="true"><i class="fas fa-cloud-upload-alt"></i></span>
                             <span class="tactics-custom-map-upload__text">
                                 <span class="tactics-custom-map-upload__title" data-tactics-i18n="uploadCustomMap"><?php echo $lang === 'en' ? 'Upload map' : 'Загрузить карту'; ?></span>
-                                <span class="tactics-custom-map-upload__hint" data-tactics-i18n="uploadCustomMapHint"><?php echo $lang === 'en' ? 'PNG, JPEG or WebP, max 8 MB' : 'PNG, JPEG или WebP, макс. 8 МБ'; ?></span>
+                                <span class="tactics-custom-map-upload__hint" data-tactics-i18n="uploadCustomMapHint"><?php
+                                    $mapUploadMaxMb = function_exists('tactics_map_upload_max_mb') ? tactics_map_upload_max_mb() : 16;
+                                    echo $lang === 'en'
+                                        ? 'PNG, JPEG or WebP, max ' . $mapUploadMaxMb . ' MB'
+                                        : 'PNG, JPEG или WebP, макс. ' . $mapUploadMaxMb . ' МБ';
+                                ?></span>
                             </span>
                         </button>
                         <input type="file" id="tacticsCustomMapFile" accept="image/webp,image/png,image/jpeg" hidden>

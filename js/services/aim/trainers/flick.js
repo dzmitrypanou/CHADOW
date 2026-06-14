@@ -5,6 +5,9 @@
 
     function createFlickTrainer() {
         const DURATION_SEC = 60;
+        const sfx = (window.AbsAimSounds && window.AbsAimSounds.bindTrainer('flick')) || {
+            warmupAudio() {}, start() {}, shot() {}, hit() {}, miss() {},
+        };
         let canvas = null;
         let ctx = null;
         let width = 0;
@@ -76,6 +79,7 @@
                 target.x = Math.min(maxX, Math.max(minX, (target.x / oldW) * width));
                 target.y = Math.min(maxY, Math.max(minY, (target.y / oldH) * height));
             },
+            warmupAudio: sfx.warmupAudio,
             start() {
                 hits = 0;
                 misses = 0;
@@ -84,6 +88,7 @@
                 running = true;
                 endAt = performance.now() + DURATION_SEC * 1000;
                 spawnTarget();
+                sfx.start();
             },
             stop() {
                 running = false;
@@ -103,15 +108,18 @@
             },
             onPointerDown(event) {
                 if (!running || !target) return;
+                sfx.shot();
                 const pos = pointerPos(canvas, event);
                 if (dist(pos.x, pos.y, target.x, target.y) <= target.radius) {
                     hits += 1;
                     streak += 1;
                     bestStreak = Math.max(bestStreak, streak);
+                    sfx.hit();
                     spawnTarget();
                 } else {
                     misses += 1;
                     streak = 0;
+                    sfx.miss();
                 }
             },
             update() {

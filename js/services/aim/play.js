@@ -135,6 +135,8 @@
         if (phase !== 'idle') return;
         if (trainer && typeof trainer.warmupAudio === 'function') {
             trainer.warmupAudio();
+        } else if (window.AbsAimSounds && trainer?.id !== 'vugich') {
+            window.AbsAimSounds.warmupAudio();
         }
         phase = 'countdown';
         setArenaInteractive(false);

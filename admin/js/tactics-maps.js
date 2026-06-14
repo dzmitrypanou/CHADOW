@@ -173,11 +173,22 @@ function resetCreateForm() {
     form.reset();
     document.getElementById('tacticsUploadSideLength').value = '1000';
     updateFileNameLabel();
+    syncUploadSideLengthLabel();
 }
 
-function resolveUploadDisplayName() {
-    const nameRu = document.getElementById('tacticsUploadName')?.value.trim() || '';
-    const nameEn = document.getElementById('tacticsUploadNameEn')?.value.trim() || '';
+function readUploadField(form, name) {
+    if (!form) return '';
+    const field = form.elements.namedItem(name);
+    if (!field) return '';
+    if (field instanceof RadioNodeList) {
+        return String(field.value || '').trim();
+    }
+    return String(field.value || '').trim();
+}
+
+function resolveUploadDisplayName(form) {
+    const nameRu = readUploadField(form, 'display_name_ru');
+    const nameEn = readUploadField(form, 'display_name_en');
     if (nameRu) {
         return { displayNameRu: nameRu, displayNameEn: nameEn };
     }
@@ -185,6 +196,83 @@ function resolveUploadDisplayName() {
         return { displayNameRu: nameEn, displayNameEn: nameEn };
     }
     return null;
+}
+
+function buildUploadFormData(form, names) {
+    const formData = new FormData(form);
+    formData.set('display_name_ru', names.displayNameRu);
+    if (names.displayNameEn) {
+        formData.set('display_name_en', names.displayNameEn);
+    } else {
+        formData.delete('display_name_en');
+    }
+    const mapCode = readUploadField(form, 'map_code');
+    if (mapCode) {
+        formData.set('map_code', mapCode.toLowerCase());
+    } else {
+        formData.delete('map_code');
+    }
+    return formData;
+}
+
+async function uploadMap(ev) {
+    ev.preventDefault();
+    const form = document.getElementById('tacticsMapUploadForm');
+    const btn = document.getElementById('tacticsUploadBtn');
+    if (!form) return;
+
+    const fileInput = form.elements.namedItem('image');
+    const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
+    if (!file) {
+        showNotification('Выберите файл', 'error');
+        return;
+    }
+    const maxBytes = window.TACTICS_MAP_UPLOAD_MAX_BYTES || 16 * 1024 * 1024;
+    const maxMb = Math.round(maxBytes / (1024 * 1024));
+    if (file.size > maxBytes) {
+        showNotification(`Файл слишком большой (макс. ${maxMb} МБ)`, 'error');
+        return;
+    }
+
+    const names = resolveUploadDisplayName(form);
+    if (!names) {
+        showNotification('Укажите название в поле «Название карты» (или «Название (EN)»)', 'error');
+        document.getElementById('tacticsUploadName')?.focus();
+        return;
+    }
+
+    const formData = buildUploadFormData(form, names);
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        formData.set('csrf_token', csrfMeta.getAttribute('content') || '');
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/admin/ajax/tactics_map_upload.php', { method: 'POST', body: formData });
+        let json;
+        try {
+            json = await res.json();
+        } catch (parseErr) {
+            showNotification(res.status === 403
+                ? 'Сессия истекла — обновите страницу и войдите снова'
+                : 'Ошибка сервера', 'error');
+            return;
+        }
+        if (!json.success) {
+            showNotification(json.error || 'Ошибка добавления', 'error');
+            return;
+        }
+        const code = json.data?.map_code ? ` (${json.data.map_code})` : '';
+        showNotification(`Карта добавлена${code}`);
+        resetCreateForm();
+        syncUploadSideLengthLabel();
+        loadMaps();
+    } catch (e) {
+        showNotification('Ошибка сервера', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 function syncUploadSideLengthLabel() {
@@ -197,52 +285,6 @@ function syncUploadSideLengthLabel() {
     input.title = usesUnits
         ? 'Длина стороны квадратного поля в игровых единицах'
         : 'Длина стороны квадратного поля боя';
-}
-
-async function uploadMap(ev) {
-    ev.preventDefault();
-    const btn = document.getElementById('tacticsUploadBtn');
-    const fileInput = document.getElementById('tacticsUploadFile');
-    if (!fileInput?.files?.length) {
-        showNotification('Выберите файл', 'error');
-        return;
-    }
-    const names = resolveUploadDisplayName();
-    if (!names) {
-        showNotification('Укажите название в поле «Название карты» (или «Название (EN)»)', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('game', document.getElementById('tacticsUploadGame')?.value || 'wot');
-    formData.append('battle_mode', document.getElementById('tacticsUploadMode')?.value || 'random');
-    formData.append('display_name_ru', names.displayNameRu);
-    if (names.displayNameEn) formData.append('display_name_en', names.displayNameEn);
-    const mapCode = document.getElementById('tacticsUploadCode')?.value.trim();
-    if (mapCode) formData.append('map_code', mapCode.toLowerCase());
-    formData.append('side_length', document.getElementById('tacticsUploadSideLength')?.value || '');
-    formData.append('image', fileInput.files[0]);
-
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) formData.append('csrf_token', csrfMeta.getAttribute('content'));
-
-    if (btn) btn.disabled = true;
-    try {
-        const res = await fetch('/admin/ajax/tactics_map_upload.php', { method: 'POST', body: formData });
-        const json = await res.json();
-        if (!json.success) {
-            showNotification(json.error || 'Ошибка добавления', 'error');
-            return;
-        }
-        const code = json.data?.map_code ? ` (${json.data.map_code})` : '';
-        showNotification(`Карта добавлена${code}`);
-        resetCreateForm();
-        loadMaps();
-    } catch (e) {
-        showNotification('Ошибка сервера', 'error');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
 }
 
 async function saveSideLength(mapCode, meters) {
@@ -304,6 +346,7 @@ function updateFileNameLabel() {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadMaps();
+    syncUploadSideLengthLabel();
 
     document.getElementById('tacticsUploadGame')?.addEventListener('change', syncUploadModeField);
     document.getElementById('tacticsUploadFile')?.addEventListener('change', updateFileNameLabel);
