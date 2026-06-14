@@ -4,6 +4,7 @@ declare(strict_types=1);
 ob_start();
 
 require_once __DIR__ . '/includes/seo.php';
+require_once __DIR__ . '/includes/aim_helpers.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ensure_cms_pages.php';
 
@@ -37,7 +38,13 @@ $pages = [
     abs_sitemap_page('/services/bracket', '/en/services/bracket'),
     abs_sitemap_page('/services/tactics', '/en/services/tactics'),
     abs_sitemap_page('/services/tactics/rooms', '/en/services/tactics/rooms'),
+    abs_sitemap_page('/services/aim', '/en/services/aim'),
+    abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings'),
 ];
+
+foreach (AIM_TRAINERS as $trainer) {
+    $pages[] = abs_sitemap_page('/services/aim/' . $trainer, '/en/services/aim/' . $trainer);
+}
 
 try {
     $db = Database::getInstance();
