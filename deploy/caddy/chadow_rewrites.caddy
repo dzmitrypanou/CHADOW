@@ -15,8 +15,24 @@
 (chadow_rewrites) {
     encode gzip
 
+    @static_assets {
+        path /css/*
+        path /js/*
+        path /assets/*
+        path /favicon.svg
+        path /site.webmanifest
+    }
+    header @static_assets Cache-Control "public, max-age=2592000, immutable"
+
     handle /tactics-ws* {
         reverse_proxy 127.0.0.1:8791 {
+            header_up Host {host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /checkers-ws* {
+        reverse_proxy 127.0.0.1:8792 {
             header_up Host {host}
             header_up X-Forwarded-Proto {scheme}
         }
@@ -75,6 +91,20 @@
         # Aim trainers — fixed paths first, then any trainer slug
         rewrite /services/aim/ratings /services/aim/ratings.php
         rewrite /en/services/aim/ratings /services/aim/ratings.php
+        redir /services/aim/checkers /services/onlinegames/checkers permanent
+        redir /en/services/aim/checkers /en/services/onlinegames/checkers permanent
+        @aim_checkers_old_room path_regexp aco ^/services/aim/checkers/([A-Z0-9]{6})/?$
+        redir @aim_checkers_old_room /services/onlinegames/checkers/{re.aco.1} permanent
+        @aim_checkers_old_room_en path_regexp acoe ^/en/services/aim/checkers/([A-Z0-9]{6})/?$
+        redir @aim_checkers_old_room_en /en/services/onlinegames/checkers/{re.acoe.1} permanent
+        rewrite /services/onlinegames/checkers /services/onlinegames/checkers/index.php
+        rewrite /en/services/onlinegames/checkers /services/onlinegames/checkers/index.php
+        @onlinegames_checkers_room path_regexp ocr ^/services/onlinegames/checkers/([A-Z0-9]{6})/?$
+        rewrite @onlinegames_checkers_room /services/onlinegames/checkers/room.php?public_id={re.ocr.1}
+        @onlinegames_checkers_room_en path_regexp ocre ^/en/services/onlinegames/checkers/([A-Z0-9]{6})/?$
+        rewrite @onlinegames_checkers_room_en /services/onlinegames/checkers/room.php?public_id={re.ocre.1}
+        rewrite /services/onlinegames /services/onlinegames/index.php
+        rewrite /en/services/onlinegames /services/onlinegames/index.php
         @aim_play_trainer {
             path /services/aim/play.php
             query trainer=*

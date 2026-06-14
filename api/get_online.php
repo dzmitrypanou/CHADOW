@@ -30,7 +30,18 @@ $forceRequested = isset($_GET['refresh']) && ($_GET['refresh'] === '1' || $_GET[
 
 try {
     $service = new OnlineService(Database::getInstance());
+    $cachedRow = $service->getCachedRow();
     $result = $service->getStatusFromCache();
+
+    if (
+        (!$result['success'] || $service->isCacheStale($cachedRow))
+        && ($forceRequested || php_sapi_name() !== 'cli')
+    ) {
+        $refreshed = $service->runScheduledRefresh($forceRequested);
+        if (!empty($refreshed['success'])) {
+            $result = $refreshed;
+        }
+    }
 
     if (!$result['success'] && $forceRequested && php_sapi_name() === 'cli') {
         $result = $service->runScheduledRefresh(true);

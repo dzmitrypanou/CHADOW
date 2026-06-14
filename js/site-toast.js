@@ -1,4 +1,4 @@
-window.showSiteToast = function showSiteToast(message, type, options) {
+function showSiteToast(message, type, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const existing = document.querySelector('.site-toast');
     if (existing) existing.remove();
@@ -24,4 +24,11 @@ window.showSiteToast = function showSiteToast(message, type, options) {
         toast.classList.add('is-hiding');
         window.setTimeout(() => toast.remove(), 280);
     }, duration);
+}
+
+window.showSiteToast = showSiteToast;
+window.AbsSiteToast = {
+    show(message, type, options) {
+        showSiteToast(message, type, options);
+    },
 };

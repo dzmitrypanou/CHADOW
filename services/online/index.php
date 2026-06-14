@@ -24,10 +24,13 @@ $seoSlug = 'services/online';
 $extraHeadHtml = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>';
 
 $service = new OnlineService(Database::getInstance());
+$cachedRow = $service->getCachedRow();
 $cachedResult = $service->getStatusFromCache();
-$result = $cachedResult['success']
-    ? $cachedResult
-    : $service->getStatus(false);
+if ($cachedResult['success'] && !$service->isCacheStale($cachedRow)) {
+    $result = $cachedResult;
+} else {
+    $result = $service->getStatus(false);
+}
 $data = is_array($result['data'] ?? null) ? $result['data'] : ['summary' => [], 'clusters' => []];
 $data = $service->filterDataForEnabledRealms($data) ?? ['summary' => [], 'clusters' => []];
 $charts = is_array($result['charts'] ?? null) ? $result['charts'] : [];

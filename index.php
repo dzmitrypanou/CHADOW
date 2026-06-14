@@ -26,6 +26,7 @@ $tacticsRoomsHref = $lang === 'en' ? '/en/services/tactics/rooms' : '/services/t
 $tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать планшет';
 $tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
 $aimServiceHref = $lang === 'en' ? '/en/services/aim' : '/services/aim';
+$onlineGamesServiceHref = $lang === 'en' ? '/en/services/onlinegames' : '/services/onlinegames';
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';
@@ -279,6 +280,57 @@ require __DIR__ . '/includes/site_header.php';
                         </span>
                     </div>
                 </a>
+
+                <a href="<?php echo htmlspecialchars($onlineGamesServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2 project-card--online-games" id="online-games" data-landing-id="online-games">
+                    <i class="fas fa-gamepad project-card-bg-icon" aria-hidden="true"></i>
+                    <div class="project-card-body">
+                        <div class="project-card-head">
+                            <h2 class="project-card-title">
+                                <i class="fas fa-gamepad project-card-icon" aria-hidden="true"></i>
+                                <span class="project-card-title-text">
+                                    <?php echo $lang === 'en' ? 'Online Games' : 'Онлайн игры'; ?>
+                                </span>
+                            </h2>
+                        </div>
+                        <p class="project-card-desc" data-landing-desc="online-games">
+                            <?php echo $lang === 'en'
+                                ? 'Play with friends in real time — board games and more.'
+                                : 'Играйте с друзьями в реальном времени — настольные игры и не только.'; ?>
+                        </p>
+                    </div>
+                    <div class="project-card-footer">
+                        <span class="project-card-action">
+                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </a>
+
+                <div class="project-card project-card--disabled project-card--span-2 project-card--launcher" aria-disabled="true" data-landing-id="games-launcher">
+                    <i class="fas fa-rocket project-card-bg-icon" aria-hidden="true"></i>
+                    <div class="project-card-body">
+                        <div class="project-card-head">
+                            <?php echo $inDevBadgeHtml; ?>
+                            <h2 class="project-card-title">
+                                <i class="fas fa-rocket project-card-icon" aria-hidden="true"></i>
+                                <span class="project-card-title-text">
+                                    Chadow Games Launcher
+                                </span>
+                            </h2>
+                        </div>
+                        <p class="project-card-desc">
+                            <?php echo $lang === 'en'
+                                ? 'With the launcher you can play on the &ldquo;Chadow Land&rdquo; Minecraft server.'
+                                : 'С помощью лаунчера можно играть на сервере &laquo;Chadow Land&raquo; Minecraft.'; ?>
+                        </p>
+                    </div>
+                    <div class="project-card-footer">
+                        <span class="project-card-action project-card-action--placeholder" aria-hidden="true">
+                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </div>
             </div>
         </main>
 

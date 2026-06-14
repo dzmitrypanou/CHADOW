@@ -40,6 +40,8 @@ $pages = [
     abs_sitemap_page('/services/tactics/rooms', '/en/services/tactics/rooms'),
     abs_sitemap_page('/services/aim', '/en/services/aim'),
     abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings'),
+    abs_sitemap_page('/services/onlinegames', '/en/services/onlinegames'),
+    abs_sitemap_page('/services/onlinegames/checkers', '/en/services/onlinegames/checkers'),
 ];
 
 foreach (AIM_TRAINERS as $trainer) {

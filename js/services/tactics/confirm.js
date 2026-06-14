@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const i18n = () => window.AbsTacticsI18n;
+    const i18n = () => window.AbsTacticsI18n || window.AbsCheckersI18n;
 
     let modalEl = null;
     let titleEl = null;
@@ -74,9 +74,7 @@
         if (modalEl.dataset.bound === '1') return;
         modalEl.dataset.bound = '1';
 
-        cancelBtn.textContent = t('dialogCancel', 'Отмена');
-        confirmBtn.textContent = t('dialogConfirm', 'Подтвердить');
-        alertOkBtn.textContent = t('dialogOk', 'OK');
+        relocalizeButtons();
 
         cancelBtn?.addEventListener('click', () => close(false));
         backdropEl?.addEventListener('click', () => close(false));
@@ -84,11 +82,21 @@
         alertOkBtn.addEventListener('click', () => close(true));
     }
 
-    function relocalize() {
+    function relocalizeButtons(options = {}) {
         if (!modalEl) return;
-        if (cancelBtn) cancelBtn.textContent = t('dialogCancel', 'Отмена');
-        if (confirmBtn) confirmBtn.textContent = t('dialogConfirm', 'Подтвердить');
-        if (alertOkBtn) alertOkBtn.textContent = t('dialogOk', 'OK');
+        if (cancelBtn) {
+            cancelBtn.textContent = options.cancelText || t('dialogCancel', 'Отмена');
+        }
+        if (confirmBtn) {
+            confirmBtn.textContent = options.confirmText || t('dialogConfirm', 'Подтвердить');
+        }
+        if (alertOkBtn) {
+            alertOkBtn.textContent = options.alertOkText || t('dialogOk', 'OK');
+        }
+    }
+
+    function relocalize() {
+        relocalizeButtons();
     }
 
     function detachKeydown() {
@@ -126,6 +134,7 @@
         titleEl.textContent = options.title
             || (isAlert ? t('dialogAlertTitle', 'Уведомление') : t('dialogConfirmTitle', 'Подтвердите действие'));
         messageEl.textContent = String(options.message || '');
+        relocalizeButtons(options);
 
         actionsConfirmEl.hidden = isAlert;
         actionsAlertEl.hidden = !isAlert;
@@ -168,4 +177,5 @@
     };
 
     window.addEventListener('tactics:langchange', () => relocalize());
+    window.addEventListener('checkers:langchange', () => relocalize());
 })();

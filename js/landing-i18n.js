@@ -43,6 +43,14 @@
                     title: 'Аим-тренажеры',
                     desc: 'Мини-игры для тренировки прицеливания и реакции.',
                 },
+                'online-games': {
+                    title: 'Онлайн игры',
+                    desc: 'Играйте с друзьями в реальном времени — настольные игры и не только.',
+                },
+                'games-launcher': {
+                    title: 'Chadow Games Launcher',
+                    desc: 'С помощью лаунчера можно играть на сервере «Chadow Land» Minecraft.',
+                },
             },
             hrefs: {
                 abs: '/services/abs',
@@ -55,6 +63,7 @@
                 'bracket-create': '/services/bracket/create',
                 'bracket-public': '/services/bracket',
                 'aim-trainers': '/services/aim',
+                'online-games': '/services/onlinegames',
             },
         },
         en: {
@@ -98,6 +107,14 @@
                     title: 'Aim Trainer Games',
                     desc: 'Mini-games for aim and reaction training.',
                 },
+                'online-games': {
+                    title: 'Online Games',
+                    desc: 'Play with friends in real time — board games and more.',
+                },
+                'games-launcher': {
+                    title: 'Chadow Games Launcher',
+                    desc: 'With the launcher you can play on the “Chadow Land” Minecraft server.',
+                },
             },
             hrefs: {
                 abs: '/en/services/abs',
@@ -110,6 +127,7 @@
                 'bracket-create': '/en/services/bracket/create',
                 'bracket-public': '/en/services/bracket',
                 'aim-trainers': '/en/services/aim',
+                'online-games': '/en/services/onlinegames',
             },
         },
     };

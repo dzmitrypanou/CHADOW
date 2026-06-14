@@ -19,6 +19,7 @@ if (!isset($extraHeadHtml)) {
     $extraHeadHtml = '';
 }
 
+require_once __DIR__ . '/asset_tags.php';
 require_once __DIR__ . '/../includes/perf_metrics.php';
 chadow_perf_start('public_page');
 require_once __DIR__ . '/lang.php';
@@ -190,15 +191,21 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <?php endif; ?>
     <script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
     <link rel="manifest" href="/site.webmanifest">
-    <?php if (empty($tacticsRoomShell)): ?>
+    <?php
+    $faStylesheetHref = '/css/vendor/fontawesome.min.css?v=' . $siteVersion;
+    if (empty($tacticsRoomShell)):
+    ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <?php
+        chadow_emit_async_stylesheet('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+        chadow_emit_async_stylesheet('https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css');
+    ?>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($faStylesheetHref, ENT_QUOTES, 'UTF-8'); ?>">
     <?php else: ?>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($faStylesheetHref, ENT_QUOTES, 'UTF-8'); ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="/css/style.css?v=<?php echo htmlspecialchars($siteVersion); ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.svg">

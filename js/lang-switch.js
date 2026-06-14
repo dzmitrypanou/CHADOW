@@ -1,6 +1,17 @@
 (() => {
+    function normalizePublicPathname(pathname) {
+        let path = typeof pathname === 'string' && pathname !== '' ? pathname : '/';
+        path = path.split('?')[0].split('#')[0];
+        if (path.length > 1 && path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        path = path.replace(/\/index\.php$/i, '');
+        path = path.replace(/\/room\.php$/i, '');
+        return path || '/';
+    }
+
     function buildLangPath(pathname, lang) {
-        const path = typeof pathname === 'string' && pathname !== '' ? pathname : '/';
+        const path = normalizePublicPathname(pathname);
         if (lang === 'en') {
             if (path === '/') return '/en';
             if (path === '/en' || path.indexOf('/en/') === 0) return path;
@@ -27,7 +38,7 @@
             if (linkLang) {
                 link.classList.toggle('is-active', linkLang === lang);
             }
-            link.href = getHrefForLang(window.location.pathname, linkLang || lang);
+            link.href = getHrefForLang(normalizePublicPathname(window.location.pathname), linkLang || lang);
         });
     }
 
@@ -366,9 +377,48 @@
         return true;
     }
 
+    async function switchCheckersLanguage(lang) {
+        if (lang !== 'ru' && lang !== 'en') return false;
+        if (window.ABS_CHECKERS_LANG === lang && window.ABS_LANG === lang) return true;
+
+        if (!window.AbsCheckersI18n || typeof window.AbsCheckersI18n.switchLanguage !== 'function') {
+            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
+            return true;
+        }
+
+        window.AbsCheckersI18n.switchLanguage(lang);
+
+        if (window.AbsCheckersRoom && typeof window.AbsCheckersRoom.relocalizeView === 'function') {
+            window.AbsCheckersRoom.relocalizeView();
+        }
+        if (window.AbsCheckersLobby && typeof window.AbsCheckersLobby.relocalizeView === 'function') {
+            window.AbsCheckersLobby.relocalizeView();
+        }
+        if (window.AbsOnlinegamesHub && typeof window.AbsOnlinegamesHub.relocalizeView === 'function') {
+            window.AbsOnlinegamesHub.relocalizeView();
+        }
+
+        const newPath = buildLangPath(window.location.pathname, lang);
+        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
+
+        updateLangLinks(lang);
+        updateHeaderFooterTexts(lang);
+        return true;
+    }
+
+    async function switchOnlineGamesLanguage(lang) {
+        return switchCheckersLanguage(lang);
+    }
+
     async function switchLanguageInPlace(lang) {
         if (document.body.classList.contains('page-auth-profile')) {
             await switchProfileLanguage(lang);
+            return;
+        }
+
+        if (document.body.classList.contains('page-checkers')
+            || document.body.classList.contains('page-onlinegames')) {
+            await switchOnlineGamesLanguage(lang);
             return;
         }
 
