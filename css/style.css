@@ -17230,15 +17230,15 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .checkers-play-meta {
-    display: grid;
-    grid-template-columns: minmax(148px, auto) 1fr 1fr;
-    gap: 8px;
+    display: flex;
     align-items: stretch;
+    gap: 8px;
     flex: 0 0 auto;
 }
 
-.checkers-play-meta:has(.checkers-status-line[hidden]) {
-    grid-template-columns: 1fr 1fr;
+.checkers-play-meta .checkers-players {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .checkers-board-shell {
@@ -17322,7 +17322,9 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .checkers-players {
-    display: contents;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
 .checkers-player {
@@ -17354,6 +17356,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     display: flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     min-width: 148px;
     max-width: 168px;
     padding: 8px 12px;
@@ -17365,6 +17368,10 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     line-height: 1.25;
     color: rgba(198, 214, 238, 0.85);
     word-break: break-word;
+}
+
+.checkers-status-line[hidden] {
+    display: none !important;
 }
 
 .checkers-status-line--waiting {
@@ -17766,13 +17773,13 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
         justify-content: space-between;
     }
 
-    .checkers-play-meta,
-    .checkers-play-meta:has(.checkers-status-line[hidden]) {
-        grid-template-columns: 1fr;
+    .checkers-play-meta {
+        flex-direction: column;
     }
 
     .checkers-status-line {
         max-width: none;
+        width: 100%;
     }
 
     .checkers-open-lobby-row {
