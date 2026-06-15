@@ -470,6 +470,20 @@
         return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
     }
 
+    /** Stored slide/catalog value for CS2: area in kHu² × 1000 (e.g. 5900 = 5.9 kHu²). */
+    function hammerStoredToAreaKhu(stored) {
+        const n = Number(stored);
+        if (!Number.isFinite(n) || n <= 0) return 0;
+        return n / CS2_HU_PER_KHU;
+    }
+
+    /** Side length in Hammer units from stored CS2 area value. */
+    function hammerStoredToSideHu(stored) {
+        const areaKhu = hammerStoredToAreaKhu(stored);
+        if (areaKhu <= 0) return 0;
+        return Math.sqrt(areaKhu) * CS2_HU_PER_KHU;
+    }
+
     function parseCustomMapScaleInput(value, game, fallbackHu) {
         if (usesHammerUnits(game)) {
             const parsed = parseFloat(String(value ?? '').replace(',', '.'));
@@ -670,6 +684,8 @@
         usesHammerUnits,
         defaultCustomMapScaleHu,
         formatKhuFromHu,
+        hammerStoredToAreaKhu,
+        hammerStoredToSideHu,
         parseCustomMapScaleInput,
         formatCustomMapScaleInput,
         customMapScaleInputAttrs,

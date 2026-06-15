@@ -281,6 +281,55 @@
         return JSON.stringify(a) === JSON.stringify(b);
     }
 
+    function panelSignature(trainer, device) {
+        return normalizeTrainerId(trainer) + ':' + device;
+    }
+
+    function extractPanelItems(panel) {
+        if (!panel) return null;
+        const rows = panel.querySelectorAll('tbody tr');
+        if (!rows.length) return null;
+        return Array.from(rows).map((row, index) => {
+            const cells = row.querySelectorAll('td');
+            const gradeEl = cells[3] && cells[3].querySelector('.aim-grade');
+            const gradeCode = gradeEl
+                ? String(gradeEl.textContent || 'D').trim().charAt(0).toUpperCase()
+                : 'D';
+            return {
+                rank: cells[0] ? cells[0].textContent.trim() : String(index + 1),
+                player_name: cells[1] ? cells[1].textContent.trim() : '',
+                score: cells[2] ? cells[2].textContent.trim() : '',
+                grade: gradeCode,
+            };
+        });
+    }
+
+    function updatePanelTable(panel, items, meta) {
+        if (!panel) return false;
+        const trainer = normalizeTrainerId(meta?.trainer);
+        const device = meta?.device === 'mobile' ? 'mobile' : 'desktop';
+        const signature = panelSignature(trainer, device);
+        if (panel.dataset.lbSig === signature && itemsEqual(extractPanelItems(panel), items)) {
+            return false;
+        }
+        panel.innerHTML = renderTable(items);
+        panel.dataset.lbSig = signature;
+        panel.classList.remove('is-loading');
+        return true;
+    }
+
+    function preloadLeaderboards(trainers, limit, device) {
+        if (!Array.isArray(trainers) || !trainers.length) return;
+        const resolvedDevice = device === 'mobile' ? 'mobile' : (device || viewRatingsDevice());
+        trainers.forEach((trainer) => {
+            const trainerId = normalizeTrainerId(trainer?.id || trainer);
+            if (!trainerId) return;
+            const key = cacheKey(trainerId, limit, resolvedDevice);
+            if (leaderboardCache.has(key)) return;
+            fetchLeaderboard(trainerId, limit).catch(() => {});
+        });
+    }
+
     function seedItems(trainer, limit) {
         const device = viewDevice(trainer);
         const key = cacheKey(trainer, limit, device);
@@ -378,28 +427,17 @@
         if (!panel) {
             return;
         }
-        const table = panel.querySelector('.aim-leaderboard-table-wrap');
-        if (!table) {
+        const items = extractPanelItems(panel);
+        if (!items || !items.length) {
             return;
         }
-        const rows = panel.querySelectorAll('tbody tr');
-        if (!rows.length) {
-            return;
-        }
-        const items = Array.from(rows).map((row, index) => {
-            const cells = row.querySelectorAll('td');
-            const gradeEl = cells[3] && cells[3].querySelector('.aim-grade');
-            const gradeCode = gradeEl
-                ? String(gradeEl.textContent || 'D').trim().charAt(0).toUpperCase()
-                : 'D';
-            return {
-                rank: cells[0] ? cells[0].textContent.trim() : String(index + 1),
-                player_name: cells[1] ? cells[1].textContent.trim() : '',
-                score: cells[2] ? cells[2].textContent.trim() : '',
-                grade: gradeCode,
-            };
+        const signature = panel.dataset.lbSig || '';
+        const parts = signature.split(':');
+        panel.dataset.lbSig = '';
+        updatePanelTable(panel, items, {
+            trainer: parts[0] || '',
+            device: parts[1] || viewRatingsDevice(),
         });
-        panel.innerHTML = renderTable(items);
     }
 
     window.AbsAimLeaderboard = {
@@ -418,9 +456,32 @@
 
             const opts = options || {};
             let current = activeId || trainers[0].id;
+            let loadGeneration = 0;
             setRatingsActiveTrainer(current);
 
-            function renderTabs() {
+            function setActiveTab(trainerId) {
+                container.querySelectorAll('.aim-lb-tab').forEach((btn) => {
+                    const active = btn.getAttribute('data-trainer') === trainerId;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+            }
+
+            function relabelTabs() {
+                container.querySelectorAll('.aim-lb-tab[data-trainer]').forEach((btn) => {
+                    const trainerId = btn.getAttribute('data-trainer');
+                    if (trainerId) {
+                        btn.textContent = i18n().trainerLabel(trainerId);
+                    }
+                });
+            }
+
+            function ensureTabsMounted() {
+                if (container.dataset.lbMounted === '1') {
+                    relabelTabs();
+                    return;
+                }
+                container.dataset.lbMounted = '1';
                 container.innerHTML = trainers.map((t) => {
                     const active = t.id === current ? ' is-active' : '';
                     return '<button type="button" class="aim-lb-tab' + active + '" role="tab" aria-selected="'
@@ -430,41 +491,58 @@
                         + '</button>';
                 }).join('');
 
-                container.querySelectorAll('.aim-lb-tab').forEach((btn) => {
-                    btn.addEventListener('click', () => {
-                        current = btn.getAttribute('data-trainer');
-                        setRatingsActiveTrainer(current);
-                        renderTabs();
-                        loadPanel();
-                        if (typeof opts.onTabChange === 'function') {
-                            opts.onTabChange(current);
-                        }
-                    });
+                container.addEventListener('click', (event) => {
+                    const btn = event.target.closest('.aim-lb-tab[data-trainer]');
+                    if (!btn || btn.classList.contains('is-active')) {
+                        return;
+                    }
+                    current = btn.getAttribute('data-trainer');
+                    setRatingsActiveTrainer(current);
+                    setActiveTab(current);
+                    loadPanel();
+                    if (typeof opts.onTabChange === 'function') {
+                        opts.onTabChange(current);
+                    }
                 });
             }
 
             async function loadPanel() {
                 const limit = 50;
                 const device = viewDevice(current);
+                const signature = panelSignature(current, device);
+                const generation = ++loadGeneration;
                 const cached = seedItems(current, limit) || leaderboardCache.get(cacheKey(current, limit, device));
+                const hasCurrentTable = panel.dataset.lbSig === signature && panel.querySelector('.aim-leaderboard-table-wrap');
+
                 if (cached) {
-                    panel.innerHTML = renderTable(cached);
-                } else {
+                    updatePanelTable(panel, cached, { trainer: current, device });
+                } else if (!hasCurrentTable && !panel.querySelector('.aim-leaderboard-table-wrap')) {
                     panel.innerHTML = '<p class="aim-leaderboard-loading">' + escapeHtml(i18n().t('leaderboardLoading')) + '</p>';
+                    panel.dataset.lbSig = signature;
+                } else if (!hasCurrentTable) {
+                    panel.classList.add('is-loading');
                 }
+
                 try {
                     const items = await fetchLeaderboard(current, limit);
-                    if (!itemsEqual(cached, items)) {
-                        panel.innerHTML = renderTable(items);
+                    if (generation !== loadGeneration) {
+                        return;
                     }
+                    updatePanelTable(panel, items, { trainer: current, device });
                 } catch (e) {
-                    if (!cached) {
+                    if (generation !== loadGeneration) {
+                        return;
+                    }
+                    panel.classList.remove('is-loading');
+                    if (!cached && !panel.querySelector('.aim-leaderboard-table-wrap')) {
                         panel.innerHTML = '<p class="aim-leaderboard-error">' + escapeHtml(i18n().t('leaderboardError')) + '</p>';
+                        panel.dataset.lbSig = signature;
                     }
                 }
             }
 
             ratingsPanelLoader = loadPanel;
+            window.AbsAimLeaderboard.reloadRatingsPanel = loadPanel;
 
             if (lbViewChangeListener) {
                 window.removeEventListener('aim:lbviewchange', lbViewChangeListener);
@@ -475,6 +553,7 @@
             lbViewChangeListener = (event) => {
                 const detail = event && event.detail ? event.detail : {};
                 if (detail.scope === 'ratings') {
+                    preloadLeaderboards(trainers, 50, detail.device);
                     loadPanel();
                     return;
                 }
@@ -488,35 +567,36 @@
             window.addEventListener('aim:lbviewchange', lbViewChangeListener);
             window.addEventListener('aim:devicechange', deviceLayoutListener);
 
-            renderTabs();
+            ensureTabsMounted();
+            setActiveTab(current);
             loadPanel();
+            preloadLeaderboards(trainers, 50, viewDevice(current));
         },
         renderMini(container, trainerId, options) {
             if (!container) return Promise.resolve();
 
             const opts = options || {};
             const limit = 3;
+            const device = viewDevice(trainerId);
             const cached = seedItems(trainerId, limit);
 
             if (opts.layoutOnly && cached) {
-                container.innerHTML = renderTable(cached);
+                updatePanelTable(container, cached, { trainer: trainerId, device });
                 return Promise.resolve();
             }
 
             if (cached) {
-                container.innerHTML = renderTable(cached);
-            } else if (!container.textContent.trim()) {
+                updatePanelTable(container, cached, { trainer: trainerId, device });
+            } else if (!container.querySelector('.aim-leaderboard-table-wrap')) {
                 container.innerHTML = '<p class="aim-leaderboard-loading">' + escapeHtml(i18n().t('leaderboardLoading')) + '</p>';
             }
 
             return fetchLeaderboard(trainerId, limit)
                 .then((items) => {
-                    if (!itemsEqual(cached, items)) {
-                        container.innerHTML = renderTable(items);
-                    }
+                    updatePanelTable(container, items, { trainer: trainerId, device });
                 })
                 .catch(() => {
-                    if (!cached) {
+                    if (!cached && !container.querySelector('.aim-leaderboard-table-wrap')) {
                         container.innerHTML = '<p class="aim-leaderboard-error">' + escapeHtml(i18n().t('leaderboardError')) + '</p>';
                     }
                 });

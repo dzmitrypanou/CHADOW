@@ -1043,13 +1043,7 @@
                 return i18n ? i18n.t('rulerNoSize') : '—';
             }
             if (maps().usesHammerUnits(this.game)) {
-                const i18n = window.AbsTacticsI18n;
-                if (distance >= 1000) {
-                    const khu = maps().formatKhuFromHu(distance);
-                    const unit = i18n?.t('scaleUnitKhu') || 'kHu';
-                    return `${khu} ${unit}`;
-                }
-                const unit = i18n?.t('scaleUnitHu') || 'Hu';
+                const unit = window.AbsTacticsI18n?.t('scaleUnitGame') || 'units';
                 return `${Math.round(distance)} ${unit}`;
             }
             if (maps().usesGameUnits(this.game)) {
@@ -1136,8 +1130,14 @@
             if (canvasSize <= 0 || !scale?.width || !scale?.height) return null;
             const dx = x2 - x1;
             const dy = y2 - y1;
-            const metersX = (Math.abs(dx) / canvasSize) * scale.width;
-            const metersY = (Math.abs(dy) / canvasSize) * scale.height;
+            let worldWidth = scale.width;
+            let worldHeight = scale.height;
+            if (maps().usesHammerUnits(this.game)) {
+                worldWidth = maps().hammerStoredToSideHu(scale.width);
+                worldHeight = maps().hammerStoredToSideHu(scale.height);
+            }
+            const metersX = (Math.abs(dx) / canvasSize) * worldWidth;
+            const metersY = (Math.abs(dy) / canvasSize) * worldHeight;
             return Math.hypot(metersX, metersY);
         }
 

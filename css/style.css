@@ -15845,7 +15845,13 @@ body.tactics-confirm-open {
 .aim-volume-control__icon {
     color: rgba(142, 203, 255, 0.9);
     font-size: 0.95rem;
-    flex-shrink: 0;
+    flex: 0 0 1.15rem;
+    width: 1.15rem;
+    min-width: 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .aim-volume-control__slider {
@@ -16499,6 +16505,15 @@ html.aim-device-mobile .aim-trainer-card__top-actions .aim-trainer-card__full-to
 
 .aim-leaderboard-panel {
     min-width: 0;
+}
+
+.aim-leaderboard-panel.is-loading .aim-leaderboard-table-wrap {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.aim-leaderboard-panel .aim-leaderboard-table-wrap {
+    transition: opacity 0.15s ease;
 }
 
 .aim-grade--sss { background: rgba(255, 87, 34, 0.28); color: #ffab91; }

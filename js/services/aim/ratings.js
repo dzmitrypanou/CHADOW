@@ -27,6 +27,18 @@
         const panel = document.getElementById('aimLeaderboardPanel');
         if (!tabs || !panel || !trainers.length || !lb()) return;
 
+        if (tabs.dataset.lbMounted === '1') {
+            if (lb().mountAllDeviceSwitches) {
+                lb().mountAllDeviceSwitches();
+            }
+            const activeBtn = tabs.querySelector('.aim-lb-tab.is-active');
+            activeTrainer = (activeBtn && activeBtn.getAttribute('data-trainer')) || activeTrainer || trainers[0].id;
+            if (lb().reloadRatingsPanel) {
+                lb().reloadRatingsPanel();
+            }
+            return;
+        }
+
         const activeBtn = tabs.querySelector('.aim-lb-tab.is-active');
         if (activeBtn) {
             activeTrainer = activeBtn.getAttribute('data-trainer') || activeTrainer;
@@ -52,6 +64,20 @@
         document.querySelectorAll('.aim-back-link[href*="services/aim"]').forEach((link) => {
             link.setAttribute('href', hubHref);
         });
+
+        const tabs = document.getElementById('aimLeaderboardTabs');
+        const panel = document.getElementById('aimLeaderboardPanel');
+        if (tabs && tabs.dataset.lbMounted === '1') {
+            tabs.querySelectorAll('.aim-lb-tab[data-trainer]').forEach((btn) => {
+                const trainerId = btn.getAttribute('data-trainer');
+                if (trainerId) {
+                    btn.textContent = i18n().trainerLabel(trainerId);
+                }
+            });
+            if (panel) {
+                panel.dataset.lbSig = '';
+            }
+        }
 
         if (lb() && lb().mountAllDeviceSwitches) {
             lb().mountAllDeviceSwitches();
