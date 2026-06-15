@@ -71,7 +71,8 @@ try {
         }
         .tactics-upload-field-hint {
             display: block;
-            margin-top: 6px;
+            margin-top: 2px;
+            margin-bottom: 6px;
             font-size: 0.76rem;
             line-height: 1.4;
             color: rgba(154, 165, 177, 0.85);
@@ -268,8 +269,8 @@ try {
                     </div>
                     <div class="tactics-upload-field">
                         <label for="tacticsUploadSideLength" id="tacticsUploadSideLengthLabel">Размер поля (м)</label>
-                        <input type="number" id="tacticsUploadSideLength" name="side_length" min="100" max="20000" step="1" value="1000" required>
                         <span class="tactics-upload-field-hint" id="tacticsUploadSideLengthHint"></span>
+                        <input type="number" id="tacticsUploadSideLength" name="side_length" min="100" max="20000" step="1" value="1000" required>
                     </div>
                     <div class="tactics-upload-field tactics-upload-field--wide">
                         <label for="tacticsUploadName">Название карты</label>

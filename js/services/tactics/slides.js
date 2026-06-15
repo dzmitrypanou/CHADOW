@@ -474,9 +474,13 @@
             } else {
                 pick = this.resolveDefaultMapPick();
             }
-            if (!pick.map_code && this.mapPicker?.shouldHideMapSelect?.()) {
-                const rows = maps().getMapsFor(pick.game, pick.battle_mode);
-                pick.map_code = rows[0]?.map_code || '';
+            if (!pick.map_code && !this.mapPicker?.requiresMapCodePick?.()) {
+                if (this.mapPicker?.shouldShowCustomUpload?.()) {
+                    pick.map_code = maps().customMapCodeForGame(pick.game) || '';
+                } else {
+                    const rows = maps().getMapsFor(pick.game, pick.battle_mode);
+                    pick.map_code = rows[0]?.map_code || '';
+                }
             }
             if (!pick.map_code) return;
             await this.addSlide(pick.map_code, pick.game, pick.battle_mode, false, active);
@@ -497,7 +501,7 @@
 
             try {
                 await this.mapPicker.openModal(async (pick) => {
-                    if (!pick?.map_code && !this.mapPicker?.shouldHideMapSelect?.()) return;
+                    if (!pick?.map_code && this.mapPicker?.requiresMapCodePick?.()) return;
                     let preferredUrl = null;
                     if (pick.battle_mode === 'custom') {
                         const result = await window.AbsTacticsRoom?.commitPendingCustomMap?.(slideId, pick);

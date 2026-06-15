@@ -153,6 +153,10 @@
             return this.shouldShowCustomUpload();
         }
 
+        requiresMapCodePick() {
+            return !this.shouldHideMapSelect() && !this.shouldShowCustomUpload();
+        }
+
         sanitizeCustomMapScale(value, fallback) {
             const game = this.game;
             const fallbackHu = fallback ?? maps().defaultCustomMapScaleHu(game);
@@ -235,6 +239,10 @@
         }
 
         resolveMapCode(selectedCode) {
+            if (this.shouldShowCustomUpload()) {
+                const customCode = maps().customMapCodeForGame(this.game);
+                if (customCode) return customCode;
+            }
             const rows = this.getMapRows();
             if (this.shouldHideMapSelect()) {
                 if (rows.length === 1) {
@@ -477,7 +485,7 @@
             this.modalConfirmBtn?.addEventListener('click', async () => {
                 if (this.modalConfirmBusy) return;
                 const pick = this.getValue();
-                if (!pick.map_code && !this.shouldHideMapSelect()) return;
+                if (!pick.map_code && this.requiresMapCodePick()) return;
                 if (this.shouldShowCustomScalePanel()) {
                     const scale = this.readCustomMapScale();
                     pick.map_width_m = scale.map_width_m;
