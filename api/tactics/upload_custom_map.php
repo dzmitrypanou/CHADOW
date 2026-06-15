@@ -54,10 +54,17 @@ try {
     $mapCode = tactics_sanitize_map_code((string) ($_POST['map_code'] ?? $slideMapCode));
 
     if ($slide !== null) {
-        if (!tactics_is_custom_room_slide($slide)) {
-            tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+        if (tactics_is_custom_room_slide($slide)) {
+            $game = tactics_sanitize_game((string) ($slide['game'] ?? $game));
+        } else {
+            $storedGame = tactics_sanitize_game((string) ($slide['game'] ?? ''));
+            if ($storedGame !== '' && $storedGame !== $game) {
+                tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+            }
+            if (!tactics_custom_upload_params_valid($game, $battleMode, $mapCode)) {
+                tactics_json_error($lang === 'en' ? 'Custom upload not allowed for this map' : 'Загрузка недоступна для этой карты');
+            }
         }
-        $game = tactics_sanitize_game((string) ($slide['game'] ?? $game));
     } else {
         if ($game === 'wot') {
             $game = tactics_room_primary_game($roomData);

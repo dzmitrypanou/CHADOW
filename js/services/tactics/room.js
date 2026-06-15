@@ -153,12 +153,6 @@
         dota2: 'dota2_custom',
     };
 
-    function isDotaStandardSlide(slide) {
-        if (!slide) return false;
-        return String(slide.game || '').toLowerCase() === 'dota2'
-            && String(slide.battle_mode || '').toLowerCase() === 'standard';
-    }
-
     function isCustomRoomSlide(slide) {
         if (!slide) return false;
         const game = String(slide.game || '').toLowerCase();
@@ -191,25 +185,25 @@
         return !!(slide && isCustomRoomSlide(slide) && (canManage || canDraw));
     }
 
-    function syncDotaPickUi(slide) {
-        const panel = document.getElementById('tacticsDotaPickAction');
-        if (!panel) return;
-        panel.hidden = !isDotaStandardSlide(slide);
-    }
-
-    function bindDotaPickBtn() {
-        const btn = document.getElementById('tacticsDotaPickBtn');
-        if (!btn || btn.dataset.bound) return;
-        btn.dataset.bound = '1';
-        btn.addEventListener('click', () => {
-            const slide = slidesCtrl?.getActiveSlide();
-            if (!isDotaStandardSlide(slide)) return;
-            canvasCtrl?.setTool('text');
-        });
-    }
-
     let customMapModalSlideId = null;
     let customUploadBusy = false;
+    let pendingCustomMapFile = null;
+    let pendingCustomMapPreviewUrl = null;
+    let pendingCustomMapSlideId = null;
+
+    function clearPendingCustomMap() {
+        if (pendingCustomMapPreviewUrl) {
+            URL.revokeObjectURL(pendingCustomMapPreviewUrl);
+        }
+        pendingCustomMapFile = null;
+        pendingCustomMapPreviewUrl = null;
+        pendingCustomMapSlideId = null;
+        addMapPicker?.clearCustomPreviewOverride?.();
+    }
+
+    function canStageCustomMapFile() {
+        return !!customMapModalSlideId && (canManage || canDraw);
+    }
 
     function getCustomUploadSlide() {
         if (customMapModalSlideId && slidesCtrl) {
@@ -236,6 +230,10 @@
             && !!customMapModalSlideId
             && (canManage || canDraw);
 
+        if (modalOpen && mode !== 'custom') {
+            clearPendingCustomMap();
+        }
+
         if (customPanel) {
             customPanel.hidden = !showCustomPanel;
         }
@@ -247,36 +245,57 @@
         addMapPicker?.updateCustomPanelVisibility?.();
     }
 
-    async function uploadCustomMapFile(file) {
-        let slide = getCustomUploadSlide();
-        if (!file || customUploadBusy || !slide) return;
+    async function validateCustomMapFileSize(file) {
+        const maxBytes = window.ABS_TACTICS_MAP_UPLOAD_MAX_BYTES || 16 * 1024 * 1024;
+        if (file.size <= maxBytes) return true;
+        const maxMb = Math.round(maxBytes / (1024 * 1024));
+        const lang = window.ABS_TACTICS_LANG || 'ru';
+        await tacticsAlert(
+            lang === 'en'
+                ? `File too large (max ${maxMb} MB)`
+                : `Файл слишком большой (макс. ${maxMb} МБ)`,
+        );
+        return false;
+    }
+
+    async function stageCustomMapFile(file) {
+        const slide = getCustomUploadSlide();
+        if (!file || customUploadBusy || !slide || !canStageCustomMapFile()) return;
 
         const pick = addMapPicker?.getValue?.();
-        if (pick?.battle_mode === 'custom' && !isCustomRoomSlide(slide)) {
-            const game = String(pick.game || slide.game || '').toLowerCase();
-            const customCode = CUSTOM_MAP_CODES[game];
-            if (customCode && slidesCtrl) {
-                slidesCtrl.changeSlideMap(slide.id, customCode, game, 'custom', false);
-                slide = slidesCtrl.getSlides().find((s) => s.id === slide.id) || slide;
-            }
-        }
+        if (pick?.battle_mode !== 'custom') return;
 
-        if (!canUploadCustomMap(slide)) return;
+        if (!(await validateCustomMapFileSize(file))) return;
 
-        const maxBytes = window.ABS_TACTICS_MAP_UPLOAD_MAX_BYTES || 16 * 1024 * 1024;
-        if (file.size > maxBytes) {
-            const maxMb = Math.round(maxBytes / (1024 * 1024));
-            const lang = window.ABS_TACTICS_LANG || 'ru';
-            await tacticsAlert(
-                lang === 'en'
-                    ? `File too large (max ${maxMb} MB)`
-                    : `Файл слишком большой (макс. ${maxMb} МБ)`,
-            );
-            return;
+        clearPendingCustomMap();
+        pendingCustomMapFile = file;
+        pendingCustomMapSlideId = slide.id;
+        pendingCustomMapPreviewUrl = URL.createObjectURL(file);
+        addMapPicker?.setCustomPreviewUrl?.(pendingCustomMapPreviewUrl);
+    }
+
+    function applySlideMapMetaForUpload(slide, pick) {
+        if (!slide || !pick?.map_code) return;
+        let game = pick.game || slide.game || 'wot';
+        const roomGame = getRoomGame();
+        if (roomGame) {
+            game = roomGame;
         }
+        slide.map_code = pick.map_code;
+        slide.game = game;
+        slide.battle_mode = pick.battle_mode || slide.battle_mode || 'random';
+        if (pick.map_width_m && pick.map_height_m) {
+            slide.map_width_m = parseInt(pick.map_width_m, 10) || maps().defaultCustomMapScaleHu(slide.game);
+            slide.map_height_m = parseInt(pick.map_height_m, 10) || maps().defaultCustomMapScaleHu(slide.game);
+        }
+        maps().normalizeCustomRoomSlide?.(slide);
+    }
+
+    async function uploadCustomMapToServer(slide, file, opts = {}) {
+        if (!file || !slide || !canUploadCustomMap(slide)) return false;
 
         const apiUrl = window.ABS_TACTICS_UPLOAD_CUSTOM_MAP_API;
-        if (!apiUrl) return;
+        if (!apiUrl) return false;
 
         if (!accessToken) {
             const payload = await refreshSession('');
@@ -314,29 +333,91 @@
 
         if (isRoomGoneResponse(res)) {
             redirectRoomNotFound();
-            return;
+            return false;
         }
 
         if (res.ok && res.data?.success && res.data?.data?.url) {
             const url = res.data.data.url;
             if (slidesCtrl) {
                 slidesCtrl.mapUrls[slide.id] = url;
-                slidesCtrl.render();
+                if (!opts.skipSlideRender) {
+                    slidesCtrl.render();
+                }
             }
             if (!window.ABS_TACTICS_MAP_URLS) {
                 window.ABS_TACTICS_MAP_URLS = {};
             }
             window.ABS_TACTICS_MAP_URLS[slide.id] = url;
-            addMapPicker?.updateModalPreview?.();
-            if (canvasCtrl && slidesCtrl?.getActiveSlideId() === slide.id) {
+            if (!opts.skipCanvasLoad && canvasCtrl && slidesCtrl?.getActiveSlideId() === slide.id) {
                 await canvasCtrl.loadSlide(slide, url);
             }
-            markDirty();
-            return;
+            if (!opts.skipMarkDirty) {
+                markDirty();
+            }
+            return true;
         }
 
         const message = res.data?.error || i18n().t('uploadCustomMapError');
         await tacticsAlert(message);
+        return false;
+    }
+
+    async function commitPendingCustomMap(slideId, pick) {
+        if (!pendingCustomMapFile || pendingCustomMapSlideId !== slideId) {
+            return { ok: true, url: null };
+        }
+
+        const slide = slidesCtrl?.getSlides().find((s) => s.id === slideId);
+        const file = pendingCustomMapFile;
+        clearPendingCustomMap();
+
+        if (!slide) {
+            return { ok: true, url: null };
+        }
+
+        if (pick) {
+            applySlideMapMetaForUpload(slide, pick);
+        }
+
+        if (!canUploadCustomMap(slide)) {
+            return { ok: false, url: null };
+        }
+
+        addMapPicker?.setModalBusy?.(true, i18n().t('changeMapUploading'));
+        const ok = await uploadCustomMapToServer(slide, file, {
+            skipCanvasLoad: true,
+            skipSlideRender: true,
+            skipMarkDirty: true,
+        });
+        if (!ok) {
+            return { ok: false, url: null };
+        }
+
+        return {
+            ok: true,
+            url: slidesCtrl?.mapUrls?.[slideId] || window.ABS_TACTICS_MAP_URLS?.[slideId] || null,
+        };
+    }
+
+    function syncCustomMapModalPreview(slideId) {
+        customMapModalSlideId = slideId || null;
+        syncMapModalCustomUploadUi();
+
+        const slide = slidesCtrl?.getSlides().find((s) => s.id === slideId);
+        if (!slide || !isCustomRoomSlide(slide)) {
+            addMapPicker?.clearCustomPreviewOverride?.();
+            return;
+        }
+
+        const url = slidesCtrl?.mapUrls?.[slide.id]
+            || window.ABS_TACTICS_MAP_URLS?.[slide.id]
+            || mapUrlForSlide(slide);
+        const placeholder = maps().placeholderUrl();
+        if (url && url !== placeholder) {
+            addMapPicker?.setCustomPreviewUrl?.(url);
+        } else {
+            addMapPicker?.clearCustomPreviewOverride?.();
+        }
     }
 
     async function duplicateCustomMapFile(sourceSlideId, targetSlideId) {
@@ -429,7 +510,7 @@
             const file = input.files?.[0];
             input.value = '';
             if (!file) return;
-            await uploadCustomMapFile(file);
+            await stageCustomMapFile(file);
         });
     }
 
@@ -1023,7 +1104,6 @@
         chatCtrl?.setInputEnabled(!mobileView);
         updateRoomTitle();
         syncMapModalCustomUploadUi();
-        syncDotaPickUi(slidesCtrl?.getActiveSlide());
         renderParticipants(participantsList);
         updateMobileSlideNav();
         syncMobileNicknameEditUi();
@@ -3228,7 +3308,6 @@
                     || slidesCtrl.getActiveSlide();
                 if (slide) {
                     slidesCtrl.pinViewSlide(slide.id);
-                    syncDotaPickUi(slide);
                     await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
                     applySlideViewPrefs(slide);
                     await applyGameNicknameForSlide(slide);
@@ -3239,17 +3318,16 @@
             onChange: () => markDirty(),
             onRenamed: () => updateMobileSlideNav(),
             onMapModalOpen: (slideId) => {
-                customMapModalSlideId = slideId || null;
-                syncMapModalCustomUploadUi();
+                syncCustomMapModalPreview(slideId);
             },
             onMapModalClose: () => {
+                clearPendingCustomMap();
                 customMapModalSlideId = null;
                 syncMapModalCustomUploadUi();
             },
             onMapChange: async (slideId) => {
                 const slide = slidesCtrl?.getActiveSlide();
                 if (!slide || slide.id !== slideId) return;
-                syncDotaPickUi(slide);
                 await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
                 await applyGameNicknameForSlide(slide);
                 markDirty();
@@ -3366,7 +3444,6 @@
         bindRoomSettings();
         bindDeleteRoomBtn();
         bindCustomMapUpload();
-        bindDotaPickBtn();
         bindDrawLockBtn();
         bindCursorsLockBtn();
         bindPresentBtn();
@@ -3393,7 +3470,6 @@
             syncViewerToPresentationSlide();
             const slide = slidesCtrl.getActiveSlide();
             syncMapModalCustomUploadUi();
-            syncDotaPickUi(slide);
             if (slide) {
                 await canvasCtrl.loadSlide(slide, mapUrlForSlide(slide));
                 await applyServerCanvasForActiveSlide();
@@ -3591,7 +3667,11 @@
         renderParticipants(participantsList);
     }
 
-    window.AbsTacticsRoom = { relocalizeView, ensureDeferredModules: finishDeferredModules };
+    window.AbsTacticsRoom = {
+        relocalizeView,
+        ensureDeferredModules: finishDeferredModules,
+        commitPendingCustomMap,
+    };
 
     window.addEventListener('beforeunload', () => {
         if (dirty && roomState && accessToken) {

@@ -9860,7 +9860,7 @@ button.tactics-back-link {
 
 .page-tactics-room-locked .tactics-password-panel.tactics-panel {
     padding: 28px 24px 24px;
-    border-radius: 12px;
+    border-radius: 0;
     border: 1px solid rgba(113, 163, 230, 0.35);
     background: linear-gradient(180deg, rgba(22, 33, 61, 0.96) 0%, rgba(16, 24, 46, 0.94) 100%);
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
@@ -9882,7 +9882,7 @@ button.tactics-back-link {
 }
 
 .page-tactics-room-locked .tactics-password-panel .tactics-field input[type="password"] {
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid rgba(113, 163, 230, 0.35);
     background: rgba(8, 14, 28, 0.88);
     color: #e8f2ff;
@@ -11339,45 +11339,6 @@ button.tactics-back-link {
 
 .tactics-map-viewport.is-map-panning .upper-canvas {
     cursor: grabbing !important;
-}
-
-.tactics-dota-pick-action {
-    position: absolute;
-    left: 14px;
-    bottom: 14px;
-    z-index: 6;
-    pointer-events: none;
-}
-
-.tactics-dota-pick-action:not([hidden]) {
-    pointer-events: auto;
-}
-
-.tactics-dota-pick-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border: 1px solid rgba(126, 196, 255, 0.55);
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(30, 51, 89, 0.94) 0%, rgba(22, 33, 61, 0.92) 100%);
-    color: #8ecbff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-
-.tactics-dota-pick-btn:hover {
-    border-color: #8ecbff;
-    background: linear-gradient(135deg, rgba(38, 62, 104, 0.96) 0%, rgba(28, 42, 78, 0.94) 100%);
-    color: #c8e6ff;
-}
-
-#tacticsDotaPickAction[hidden] {
-    display: none !important;
 }
 
 .tactics-map-picker [data-tactics-map-field][hidden] {
@@ -13591,10 +13552,6 @@ button.tactics-back-link {
         pointer-events: none;
     }
 
-    .page-tactics-room-shell .tactics-editor #tacticsDotaPickAction {
-        display: none !important;
-    }
-
     .page-tactics-room-shell .tactics-editor .tactics-mobile-bar:not([hidden]) {
         display: grid;
         grid-template-columns: 44px minmax(0, 1fr) 44px;
@@ -14978,6 +14935,30 @@ body.tactics-map-modal-open {
 
 .tactics-map-modal__confirm:active {
     transform: translateY(1px);
+}
+
+.tactics-map-modal.is-busy .tactics-map-modal__body,
+.tactics-map-modal.is-busy .tactics-map-modal__header .tactics-map-modal__close {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.tactics-map-modal.is-busy .tactics-map-modal__footer {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.tactics-map-modal__confirm.is-busy {
+    cursor: wait;
+    filter: brightness(0.96);
+}
+
+.tactics-map-modal__confirm-spinner[hidden] {
+    display: none !important;
+}
+
+.tactics-map-modal__confirm-icon[hidden] {
+    display: none !important;
 }
 
 .tactics-map-modal .recruiting-select-trigger,

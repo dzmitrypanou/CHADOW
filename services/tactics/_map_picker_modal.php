@@ -85,8 +85,9 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
         </div>
         <footer class="tactics-map-modal__footer">
             <button type="button" class="tactics-map-modal__confirm" data-tactics-map-modal-confirm>
-                <span data-tactics-i18n="changeMapConfirm"><?php echo $lang === 'en' ? 'Change map' : 'Сменить карту'; ?></span>
-                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                <span class="tactics-map-modal__confirm-label" data-tactics-map-modal-confirm-label data-tactics-i18n="changeMapConfirm"><?php echo $lang === 'en' ? 'Change map' : 'Сменить карту'; ?></span>
+                <i class="fas fa-spinner fa-spin tactics-map-modal__confirm-spinner" aria-hidden="true" hidden></i>
+                <i class="fas fa-arrow-right tactics-map-modal__confirm-icon" aria-hidden="true"></i>
             </button>
         </footer>
     </div>

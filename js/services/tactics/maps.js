@@ -432,8 +432,67 @@
         return String(game || '').toLowerCase() === 'dota2';
     }
 
+    const CS2_HU_PER_KHU = 1000;
+    const DEFAULT_CS2_KHU = 5.9;
+    const MIN_CS2_KHU = 0.1;
+    const MAX_CS2_KHU = 20;
+    const MIN_CUSTOM_MAP_SCALE = 100;
+    const MAX_CUSTOM_MAP_SCALE = 20000;
+    const DEFAULT_CUSTOM_MAP_SCALE = 1000;
+
+    function usesHammerUnits(game) {
+        return String(game || '').toLowerCase() === 'cs2';
+    }
+
+    function defaultCustomMapScaleHu(game) {
+        if (usesHammerUnits(game)) {
+            return Math.round(DEFAULT_CS2_KHU * CS2_HU_PER_KHU);
+        }
+        return DEFAULT_CUSTOM_MAP_SCALE;
+    }
+
+    function formatKhuFromHu(hu, decimals = 1) {
+        const n = Number(hu);
+        if (!Number.isFinite(n)) return '';
+        const fixed = (n / CS2_HU_PER_KHU).toFixed(decimals);
+        return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    }
+
+    function parseCustomMapScaleInput(value, game, fallbackHu) {
+        if (usesHammerUnits(game)) {
+            const parsed = parseFloat(String(value ?? '').replace(',', '.'));
+            if (!Number.isFinite(parsed)) return fallbackHu;
+            const hu = Math.round(parsed * CS2_HU_PER_KHU);
+            const minHu = Math.round(MIN_CS2_KHU * CS2_HU_PER_KHU);
+            const maxHu = Math.round(MAX_CS2_KHU * CS2_HU_PER_KHU);
+            return Math.max(minHu, Math.min(maxHu, hu));
+        }
+        const parsed = parseInt(value, 10);
+        if (!Number.isFinite(parsed)) return fallbackHu;
+        return Math.max(MIN_CUSTOM_MAP_SCALE, Math.min(MAX_CUSTOM_MAP_SCALE, parsed));
+    }
+
+    function formatCustomMapScaleInput(hu, game) {
+        if (usesHammerUnits(game)) return formatKhuFromHu(hu);
+        return String(hu);
+    }
+
+    function customMapScaleInputAttrs(game) {
+        if (usesHammerUnits(game)) {
+            return { min: String(MIN_CS2_KHU), max: String(MAX_CS2_KHU), step: '0.1' };
+        }
+        return {
+            min: String(MIN_CUSTOM_MAP_SCALE),
+            max: String(MAX_CUSTOM_MAP_SCALE),
+            step: '1',
+        };
+    }
+
     function scaleUnitLabel(game) {
         const i18n = window.AbsTacticsI18n;
+        if (usesHammerUnits(game)) {
+            return i18n ? i18n.t('scaleUnitKhu') : 'kHu';
+        }
         if (usesGameUnits(game)) {
             return i18n ? i18n.t('scaleUnitGame') : 'units';
         }
@@ -442,6 +501,14 @@
 
     function formatSlideScaleLabel(scale, game) {
         if (!scale?.width || !scale?.height) return '';
+        if (usesHammerUnits(game)) {
+            const width = formatKhuFromHu(scale.width);
+            const height = formatKhuFromHu(scale.height);
+            if (scale.width === scale.height) {
+                return `${width} kHu²`;
+            }
+            return `${width}×${height} kHu²`;
+        }
         const unit = scaleUnitLabel(game);
         return scale.width + '\u00d7' + scale.height + (unit ? ` ${unit}` : '');
     }
@@ -586,6 +653,12 @@
         slideMapScale,
         slideMapScaleSync,
         usesGameUnits,
+        usesHammerUnits,
+        defaultCustomMapScaleHu,
+        formatKhuFromHu,
+        parseCustomMapScaleInput,
+        formatCustomMapScaleInput,
+        customMapScaleInputAttrs,
         scaleUnitLabel,
         formatSlideScaleLabel,
         placeholderUrl,

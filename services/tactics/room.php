@@ -446,12 +446,6 @@ require __DIR__ . '/../../includes/site_header.php';
                                             <canvas id="tacticsCanvas"></canvas>
                                         </div>
                                         <div class="tactics-canvas-overlays" id="tacticsCanvasOverlays" aria-hidden="true"></div>
-                                        <div id="tacticsDotaPickAction" class="tactics-dota-pick-action" hidden>
-                                            <button type="button" class="tactics-dota-pick-btn" id="tacticsDotaPickBtn">
-                                                <i class="fas fa-hand-pointer" aria-hidden="true"></i>
-                                                <span data-tactics-i18n="dotaMakePick"><?php echo $lang === 'en' ? 'Make pick' : 'Сделать выбор'; ?></span>
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

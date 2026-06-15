@@ -1,5 +1,6 @@
 let dictionary = [];
 let assets = [];
+let uploadFormGame = null;
 let gameLabels = { wot: 'World of Tanks', lesta: 'Мир танков' };
 let modeLabels = {
     random: 'Случайный бой',
@@ -35,6 +36,85 @@ function formatBytes(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function formatHuAsKhu(hu) {
+    const n = Number(hu);
+    if (!Number.isFinite(n)) return '';
+    const fixed = (n / 1000).toFixed(1);
+    return fixed.replace(/\.0$/, '');
+}
+
+function defaultSideLengthDisplay(game) {
+    if (game === 'cs2') return '5.9';
+    return '1000';
+}
+
+function sideLengthLabel(game) {
+    if (game === 'cs2') return 'Размер поля (kHu²)';
+    if (game === 'dota2') return 'Размер поля (units)';
+    return 'Размер поля (м)';
+}
+
+function sideLengthHint(game) {
+    if (game === 'cs2') {
+        return 'Сторона карты в kHu (Hammer units). Например, Mirage — 5.9 kHu²';
+    }
+    if (game === 'dota2') {
+        return 'Длина стороны в игровых units для линейки (100–20000)';
+    }
+    return 'Длина стороны квадратного поля боя, метры (100–20000)';
+}
+
+function sideLengthValidationMessage(game) {
+    if (game === 'cs2') return 'Размер поля: от 0.1 до 20 kHu²';
+    if (game === 'dota2') return 'Размер поля: от 100 до 20000 units';
+    return 'Размер поля: от 100 до 20000 м';
+}
+
+function parseSideLengthInput(value, game) {
+    if (game === 'cs2') {
+        const khu = parseFloat(String(value ?? '').replace(',', '.'));
+        if (!Number.isFinite(khu)) return null;
+        return Math.round(Math.max(0.1, Math.min(20, khu)) * 1000);
+    }
+    const meters = parseInt(value, 10);
+    if (!Number.isFinite(meters)) return null;
+    return meters;
+}
+
+function sideLengthInputAttrs(game) {
+    if (game === 'cs2') {
+        return {
+            min: '0.1',
+            max: '20',
+            step: '0.1',
+            title: 'Размер поля, kHu²',
+            placeholder: '5.9',
+        };
+    }
+    if (game === 'dota2') {
+        return {
+            min: '100',
+            max: '20000',
+            step: '1',
+            title: 'Размер поля, units',
+            placeholder: '—',
+        };
+    }
+    return {
+        min: '100',
+        max: '20000',
+        step: '1',
+        title: 'Размер поля, м',
+        placeholder: '—',
+    };
+}
+
+function formatSideLengthDisplay(hu, game) {
+    if (!hu || hu <= 0) return '';
+    if (game === 'cs2') return formatHuAsKhu(hu);
+    return String(hu);
 }
 
 function mapSideLength(code) {
@@ -125,7 +205,8 @@ function renderTable() {
     tbody.innerHTML = rows.map((a) => {
         const cacheBust = a.mtime ? '?t=' + a.mtime : '';
         const sideLen = mapSideLength(a.map_code);
-        const sideVal = sideLen && sideLen > 0 ? String(sideLen) : '';
+        const attrs = sideLengthInputAttrs(a.game || 'wot');
+        const sideVal = formatSideLengthDisplay(sideLen, a.game || 'wot');
         return `<tr>
             <td><img src="${escapeHtml(a.url + cacheBust)}" alt="" class="tactics-map-thumb" loading="lazy"></td>
             <td>${escapeHtml(gameLabels[a.game] || a.game)}</td>
@@ -133,7 +214,7 @@ function renderTable() {
             <td><code>${escapeHtml(a.map_code)}</code></td>
             <td>${escapeHtml(mapDisplayName(a.map_code))}</td>
             <td>
-                <input type="number" class="tactics-side-length-input" data-code="${escapeHtml(a.map_code)}" min="100" max="20000" step="1" value="${escapeHtml(sideVal)}" placeholder="—" title="Размер поля, м">
+                <input type="number" class="tactics-side-length-input" data-code="${escapeHtml(a.map_code)}" data-game="${escapeHtml(a.game || 'wot')}" min="${attrs.min}" max="${attrs.max}" step="${attrs.step}" value="${escapeHtml(sideVal)}" placeholder="${attrs.placeholder}" title="${escapeHtml(attrs.title)}">
             </td>
             <td>${formatBytes(a.size)}</td>
             <td>
@@ -171,9 +252,10 @@ function resetCreateForm() {
     const form = document.getElementById('tacticsMapUploadForm');
     if (!form) return;
     form.reset();
-    document.getElementById('tacticsUploadSideLength').value = '1000';
+    uploadFormGame = null;
+    syncUploadModeField();
     updateFileNameLabel();
-    syncUploadSideLengthLabel();
+    syncUploadSideLengthLabel({ forceDefault: true });
 }
 
 function readUploadField(form, name) {
@@ -242,6 +324,13 @@ async function uploadMap(ev) {
     }
 
     const formData = buildUploadFormData(form, names);
+    const game = readUploadField(form, 'game') || 'wot';
+    const sideHu = parseSideLengthInput(readUploadField(form, 'side_length'), game);
+    if (!Number.isFinite(sideHu) || sideHu < 100 || sideHu > 20000) {
+        showNotification(sideLengthValidationMessage(game), 'error');
+        return;
+    }
+    formData.set('side_length', String(sideHu));
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     if (csrfMeta) {
         formData.set('csrf_token', csrfMeta.getAttribute('content') || '');
@@ -275,16 +364,32 @@ async function uploadMap(ev) {
     }
 }
 
-function syncUploadSideLengthLabel() {
+function syncUploadSideLengthLabel(options = {}) {
+    const opts = options && typeof options === 'object' ? options : {};
     const game = document.getElementById('tacticsUploadGame')?.value || 'wot';
-    const label = document.querySelector('label[for="tacticsUploadSideLength"]');
+    const label = document.getElementById('tacticsUploadSideLengthLabel')
+        || document.querySelector('label[for="tacticsUploadSideLength"]');
     const input = document.getElementById('tacticsUploadSideLength');
+    const hint = document.getElementById('tacticsUploadSideLengthHint');
     if (!label || !input) return;
-    const usesUnits = game === 'dota2';
-    label.textContent = usesUnits ? 'Размер поля (units)' : 'Размер поля (м)';
-    input.title = usesUnits
-        ? 'Длина стороны квадратного поля в игровых единицах'
-        : 'Длина стороны квадратного поля боя';
+
+    const gameChanged = uploadFormGame !== null && uploadFormGame !== game;
+    uploadFormGame = game;
+
+    label.textContent = sideLengthLabel(game);
+    const attrs = sideLengthInputAttrs(game);
+    input.min = attrs.min;
+    input.max = attrs.max;
+    input.step = attrs.step;
+    input.title = attrs.title;
+    input.placeholder = attrs.placeholder;
+    if (hint) {
+        hint.textContent = sideLengthHint(game);
+    }
+
+    if (opts.forceDefault || gameChanged || opts.isInit) {
+        input.value = defaultSideLengthDisplay(game);
+    }
 }
 
 async function saveSideLength(mapCode, meters) {
@@ -345,8 +450,8 @@ function updateFileNameLabel() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    syncUploadSideLengthLabel({ isInit: true });
     loadMaps();
-    syncUploadSideLengthLabel();
 
     document.getElementById('tacticsUploadGame')?.addEventListener('change', syncUploadModeField);
     document.getElementById('tacticsUploadFile')?.addEventListener('change', updateFileNameLabel);
@@ -375,17 +480,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = e.target.closest('.tactics-side-length-input');
         if (!input) return;
         const mapCode = input.dataset.code;
-        const meters = parseInt(input.value, 10);
-        if (!mapCode || !Number.isFinite(meters) || meters < 100 || meters > 20000) {
-            showNotification('Размер поля: от 100 до 20000 м', 'error');
+        const game = input.dataset.game || 'wot';
+        const sideHu = parseSideLengthInput(input.value, game);
+        if (!mapCode || !Number.isFinite(sideHu) || sideHu < 100 || sideHu > 20000) {
+            showNotification(sideLengthValidationMessage(game), 'error');
             const prev = mapSideLength(mapCode);
-            input.value = prev && prev > 0 ? String(prev) : '';
+            input.value = formatSideLengthDisplay(prev, game);
             return;
         }
-        const ok = await saveSideLength(mapCode, meters);
+        const ok = await saveSideLength(mapCode, sideHu);
         if (!ok) {
             const prev = mapSideLength(mapCode);
-            input.value = prev && prev > 0 ? String(prev) : '';
+            input.value = formatSideLengthDisplay(prev, game);
         }
     });
 });

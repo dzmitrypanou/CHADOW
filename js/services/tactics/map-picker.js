@@ -22,10 +22,6 @@
         wingman: 'modeWingman',
     };
 
-    const DEFAULT_CUSTOM_MAP_SCALE = 1000;
-    const MIN_CUSTOM_MAP_SCALE = 100;
-    const MAX_CUSTOM_MAP_SCALE = 20000;
-
     function escapeHtml(str) {
         return String(str ?? '')
             .replace(/&/g, '&amp;')
@@ -77,7 +73,14 @@
             this.modalScaleWidthEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-width]');
             this.modalScaleHeightEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-height]');
             this.modalConfirmBtn = this.modalEl?.querySelector('[data-tactics-map-modal-confirm]');
+            this.modalConfirmLabelEl = this.modalEl?.querySelector('[data-tactics-map-modal-confirm-label]');
+            this.modalConfirmSpinnerEl = this.modalConfirmBtn?.querySelector('.tactics-map-modal__confirm-spinner');
+            this.modalConfirmIconEl = this.modalConfirmBtn?.querySelector('.tactics-map-modal__confirm-icon');
+            this.modalSubtitleEl = this.modalEl?.querySelector('.tactics-map-modal__subtitle');
             this.modalConfirmCallback = null;
+            this.modalConfirmBusy = false;
+            this.modalSubtitleRestore = null;
+            this.customPreviewOverrideUrl = null;
             this.game = options.game || 'wot';
             this.battleMode = options.battleMode || 'random';
             this.lockGame = options.lockGame || null;
@@ -150,33 +153,29 @@
             return this.shouldShowCustomUpload();
         }
 
-        sanitizeCustomMapScale(value, fallback = DEFAULT_CUSTOM_MAP_SCALE) {
-            const parsed = parseInt(value, 10);
-            if (!Number.isFinite(parsed)) return fallback;
-            return Math.max(MIN_CUSTOM_MAP_SCALE, Math.min(MAX_CUSTOM_MAP_SCALE, parsed));
+        sanitizeCustomMapScale(value, fallback) {
+            const game = this.game;
+            const fallbackHu = fallback ?? maps().defaultCustomMapScaleHu(game);
+            return maps().parseCustomMapScaleInput(value, game, fallbackHu);
         }
 
         readCustomMapScale() {
+            const fallback = maps().defaultCustomMapScaleHu(this.game);
             return {
-                map_width_m: this.sanitizeCustomMapScale(this.modalScaleWidthEl?.value),
-                map_height_m: this.sanitizeCustomMapScale(this.modalScaleHeightEl?.value),
+                map_width_m: this.sanitizeCustomMapScale(this.modalScaleWidthEl?.value, fallback),
+                map_height_m: this.sanitizeCustomMapScale(this.modalScaleHeightEl?.value, fallback),
             };
         }
 
         writeCustomMapScale(value) {
-            const width = this.sanitizeCustomMapScale(
-                value?.map_width_m,
-                DEFAULT_CUSTOM_MAP_SCALE,
-            );
-            const height = this.sanitizeCustomMapScale(
-                value?.map_height_m,
-                DEFAULT_CUSTOM_MAP_SCALE,
-            );
+            const fallback = maps().defaultCustomMapScaleHu(this.game);
+            const width = this.sanitizeCustomMapScale(value?.map_width_m, fallback);
+            const height = this.sanitizeCustomMapScale(value?.map_height_m, fallback);
             if (this.modalScaleWidthEl) {
-                this.modalScaleWidthEl.value = String(width);
+                this.modalScaleWidthEl.value = maps().formatCustomMapScaleInput(width, this.game);
             }
             if (this.modalScaleHeightEl) {
-                this.modalScaleHeightEl.value = String(height);
+                this.modalScaleHeightEl.value = maps().formatCustomMapScaleInput(height, this.game);
             }
         }
 
@@ -189,19 +188,39 @@
         }
 
         updateScaleUnitLabels() {
+            const usesKhu = maps().usesHammerUnits(this.game);
             const usesUnits = maps().usesGameUnits(this.game);
             const hintEl = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapScaleHint"]');
             const widthLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapWidth"]');
             const heightLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapHeight"]');
             if (hintEl) {
-                hintEl.textContent = i18n().t(usesUnits ? 'customMapScaleHintUnits' : 'customMapScaleHint');
+                if (usesKhu) {
+                    hintEl.textContent = i18n().t('customMapScaleHintKhu');
+                } else {
+                    hintEl.textContent = i18n().t(usesUnits ? 'customMapScaleHintUnits' : 'customMapScaleHint');
+                }
             }
             if (widthLabel) {
-                widthLabel.textContent = i18n().t(usesUnits ? 'customMapWidthUnits' : 'customMapWidth');
+                if (usesKhu) {
+                    widthLabel.textContent = i18n().t('customMapWidthKhu');
+                } else {
+                    widthLabel.textContent = i18n().t(usesUnits ? 'customMapWidthUnits' : 'customMapWidth');
+                }
             }
             if (heightLabel) {
-                heightLabel.textContent = i18n().t(usesUnits ? 'customMapHeightUnits' : 'customMapHeight');
+                if (usesKhu) {
+                    heightLabel.textContent = i18n().t('customMapHeightKhu');
+                } else {
+                    heightLabel.textContent = i18n().t(usesUnits ? 'customMapHeightUnits' : 'customMapHeight');
+                }
             }
+            const attrs = maps().customMapScaleInputAttrs(this.game);
+            [this.modalScaleWidthEl, this.modalScaleHeightEl].forEach((el) => {
+                if (!el) return;
+                el.min = attrs.min;
+                el.max = attrs.max;
+                el.step = attrs.step;
+            });
         }
 
         updateMapFieldVisibility() {
@@ -449,10 +468,14 @@
             this.modalEl.dataset.modalBound = '1';
 
             this.modalEl.querySelectorAll('[data-tactics-map-modal-close]').forEach((el) => {
-                el.addEventListener('click', () => this.closeModal());
+                el.addEventListener('click', () => {
+                    if (this.modalConfirmBusy) return;
+                    this.closeModal();
+                });
             });
 
-            this.modalConfirmBtn?.addEventListener('click', () => {
+            this.modalConfirmBtn?.addEventListener('click', async () => {
+                if (this.modalConfirmBusy) return;
                 const pick = this.getValue();
                 if (!pick.map_code && !this.shouldHideMapSelect()) return;
                 if (this.shouldShowCustomScalePanel()) {
@@ -460,10 +483,19 @@
                     pick.map_width_m = scale.map_width_m;
                     pick.map_height_m = scale.map_height_m;
                 }
-                if (this.modalConfirmCallback) {
-                    this.modalConfirmCallback(pick);
+                this.setModalBusy(true, i18n().t('changeMapSaving'));
+                let shouldClose = true;
+                try {
+                    if (this.modalConfirmCallback) {
+                        const out = await Promise.resolve(this.modalConfirmCallback(pick));
+                        if (out === false) shouldClose = false;
+                    }
+                } finally {
+                    this.setModalBusy(false);
                 }
-                this.closeModal();
+                if (shouldClose) {
+                    this.closeModal();
+                }
             });
 
             this.modalModeEl?.addEventListener('change', () => {
@@ -485,7 +517,7 @@
             });
 
             this.modalKeydownHandler = (ev) => {
-                if (ev.key === 'Escape' && this.modalEl && !this.modalEl.hidden) {
+                if (ev.key === 'Escape' && this.modalEl && !this.modalEl.hidden && !this.modalConfirmBusy) {
                     this.closeModal();
                 }
             };
@@ -510,20 +542,69 @@
             }).then(() => {
                 this.modalEl.hidden = false;
                 document.body.classList.add('tactics-map-modal-open');
+                if (typeof opts.onOpen === 'function') {
+                    opts.onOpen();
+                }
                 this.notifyModalUpdate();
                 this.modalConfirmBtn?.focus();
             });
         }
 
         closeModal() {
-            if (!this.modalEl) return;
+            if (!this.modalEl || this.modalConfirmBusy) return;
             this.modalEl.hidden = true;
             document.body.classList.remove('tactics-map-modal-open');
             this.modalConfirmCallback = null;
+            this.setModalBusy(false);
+            this.customPreviewOverrideUrl = null;
             const closeCb = this.modalCloseCallback;
             this.modalCloseCallback = null;
             this.notifyModalUpdate();
             if (closeCb) closeCb();
+        }
+
+        setModalBusy(busy, statusMessage) {
+            this.modalConfirmBusy = !!busy;
+            if (this.modalEl) {
+                this.modalEl.classList.toggle('is-busy', !!busy);
+            }
+            if (this.modalConfirmBtn) {
+                this.modalConfirmBtn.disabled = !!busy;
+                this.modalConfirmBtn.classList.toggle('is-busy', !!busy);
+                this.modalConfirmBtn.setAttribute('aria-busy', busy ? 'true' : 'false');
+            }
+            if (this.modalConfirmSpinnerEl) {
+                this.modalConfirmSpinnerEl.hidden = !busy;
+            }
+            if (this.modalConfirmIconEl) {
+                this.modalConfirmIconEl.hidden = !!busy;
+            }
+            if (this.modalSubtitleEl) {
+                if (busy && statusMessage) {
+                    if (this.modalSubtitleRestore === null) {
+                        this.modalSubtitleRestore = this.modalSubtitleEl.textContent;
+                    }
+                    this.modalSubtitleEl.textContent = statusMessage;
+                } else if (!busy && this.modalSubtitleRestore !== null) {
+                    this.modalSubtitleEl.textContent = this.modalSubtitleRestore;
+                    this.modalSubtitleRestore = null;
+                }
+            }
+            if (busy && statusMessage && this.modalConfirmLabelEl) {
+                this.modalConfirmLabelEl.textContent = statusMessage;
+            } else if (!busy && this.modalConfirmLabelEl) {
+                this.modalConfirmLabelEl.textContent = i18n().t('changeMapConfirm');
+            }
+        }
+
+        setCustomPreviewUrl(url) {
+            this.customPreviewOverrideUrl = url || null;
+            this.updateModalPreview();
+        }
+
+        clearCustomPreviewOverride() {
+            this.customPreviewOverrideUrl = null;
+            this.updateModalPreview();
         }
 
         updateModalVisibility() {
@@ -563,6 +644,16 @@
         updateModalPreview() {
             if (!this.modalPreviewEl) return;
             this.bindModalPreviewImage();
+            if (this.shouldShowCustomUpload()) {
+                const url = this.customPreviewOverrideUrl;
+                if (url) {
+                    this.modalPreviewEl.src = url;
+                    this.setModalPreviewVisible(true);
+                    return;
+                }
+                this.setModalPreviewVisible(false);
+                return;
+            }
             const code = this.resolveMapCode(this.selectEl?.value || '');
             if (!code) {
                 this.setModalPreviewVisible(false);

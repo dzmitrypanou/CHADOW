@@ -69,6 +69,13 @@ try {
             font-size: 0.82rem;
             color: #9aa5b1;
         }
+        .tactics-upload-field-hint {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.76rem;
+            line-height: 1.4;
+            color: rgba(154, 165, 177, 0.85);
+        }
         .tactics-upload-field input[type="number"],
         .tactics-upload-field input[type="text"] {
             width: 100%;
@@ -260,8 +267,9 @@ try {
                         </div>
                     </div>
                     <div class="tactics-upload-field">
-                        <label for="tacticsUploadSideLength">Размер поля (м)</label>
-                        <input type="number" id="tacticsUploadSideLength" name="side_length" min="100" max="20000" step="1" value="1000" required title="Длина стороны квадратного поля боя">
+                        <label for="tacticsUploadSideLength" id="tacticsUploadSideLengthLabel">Размер поля (м)</label>
+                        <input type="number" id="tacticsUploadSideLength" name="side_length" min="100" max="20000" step="1" value="1000" required>
+                        <span class="tactics-upload-field-hint" id="tacticsUploadSideLengthHint"></span>
                     </div>
                     <div class="tactics-upload-field tactics-upload-field--wide">
                         <label for="tacticsUploadName">Название карты</label>
@@ -334,7 +342,7 @@ try {
                             <th>Режим</th>
                             <th>Код</th>
                             <th>Название</th>
-                            <th>Поле, м</th>
+                            <th>Размер поля</th>
                             <th>Файл</th>
                             <th>Действия</th>
                         </tr>

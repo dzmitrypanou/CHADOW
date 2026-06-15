@@ -1042,6 +1042,16 @@
                 const i18n = window.AbsTacticsI18n;
                 return i18n ? i18n.t('rulerNoSize') : '—';
             }
+            if (maps().usesHammerUnits(this.game)) {
+                const i18n = window.AbsTacticsI18n;
+                if (distance >= 1000) {
+                    const khu = maps().formatKhuFromHu(distance);
+                    const unit = i18n?.t('scaleUnitKhu') || 'kHu';
+                    return `${khu} ${unit}`;
+                }
+                const unit = i18n?.t('scaleUnitHu') || 'Hu';
+                return `${Math.round(distance)} ${unit}`;
+            }
             if (maps().usesGameUnits(this.game)) {
                 const unit = window.AbsTacticsI18n?.t('scaleUnitGame') || 'units';
                 return `${Math.round(distance)} ${unit}`;
@@ -1059,24 +1069,39 @@
             const wasHidden = el.hidden;
             const i18n = window.AbsTacticsI18n;
             const scale = this.mapScale;
+            const usesKhu = maps().usesHammerUnits(this.game);
             const usesUnits = maps().usesGameUnits(this.game);
             if (scale?.width && scale?.height) {
-                const width = String(scale.width);
-                const height = String(scale.height);
-                if (scale.width === scale.height) {
-                    const key = usesUnits ? 'mapScaleUnits' : 'mapScale';
-                    const template = i18n ? i18n.t(key) : (usesUnits
-                        ? 'Масштаб карты: {size}×{size} units'
-                        : 'Масштаб карты: {size}×{size} м');
-                    el.textContent = template.replace(/\{size\}/g, width);
+                if (usesKhu) {
+                    const width = maps().formatKhuFromHu(scale.width);
+                    const height = maps().formatKhuFromHu(scale.height);
+                    if (scale.width === scale.height) {
+                        const template = i18n ? i18n.t('mapScaleKhu') : 'Масштаб карты: {size} kHu²';
+                        el.textContent = template.replace(/\{size\}/g, width);
+                    } else {
+                        const template = i18n ? i18n.t('mapScaleRectKhu') : 'Масштаб карты: {width}×{height} kHu²';
+                        el.textContent = template
+                            .replace(/\{width\}/g, width)
+                            .replace(/\{height\}/g, height);
+                    }
                 } else {
-                    const key = usesUnits ? 'mapScaleRectUnits' : 'mapScaleRect';
-                    const template = i18n ? i18n.t(key) : (usesUnits
-                        ? 'Масштаб карты: {width}×{height} units'
-                        : 'Масштаб карты: {width}×{height} м');
-                    el.textContent = template
-                        .replace(/\{width\}/g, width)
-                        .replace(/\{height\}/g, height);
+                    const width = String(scale.width);
+                    const height = String(scale.height);
+                    if (scale.width === scale.height) {
+                        const key = usesUnits ? 'mapScaleUnits' : 'mapScale';
+                        const template = i18n ? i18n.t(key) : (usesUnits
+                            ? 'Масштаб карты: {size}×{size} units'
+                            : 'Масштаб карты: {size}×{size} м');
+                        el.textContent = template.replace(/\{size\}/g, width);
+                    } else {
+                        const key = usesUnits ? 'mapScaleRectUnits' : 'mapScaleRect';
+                        const template = i18n ? i18n.t(key) : (usesUnits
+                            ? 'Масштаб карты: {width}×{height} units'
+                            : 'Масштаб карты: {width}×{height} м');
+                        el.textContent = template
+                            .replace(/\{width\}/g, width)
+                            .replace(/\{height\}/g, height);
+                    }
                 }
                 el.hidden = false;
             } else {

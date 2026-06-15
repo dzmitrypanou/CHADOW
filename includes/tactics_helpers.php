@@ -944,6 +944,30 @@ function tactics_is_custom_room_slide(array $slide): bool {
     return $expected !== null && $mode === 'custom' && $code === $expected;
 }
 
+function tactics_custom_upload_params_valid(string $game, string $battleMode, string $mapCode): bool {
+    $game = tactics_sanitize_game($game);
+    $battleMode = tactics_sanitize_battle_mode($battleMode, $game);
+    $mapCode = tactics_sanitize_map_code($mapCode);
+    $expected = tactics_custom_map_code_for_game($game);
+    if ($expected === null || $battleMode !== 'custom' || $mapCode !== $expected) {
+        return false;
+    }
+
+    return tactics_is_custom_room_slide([
+        'game' => $game,
+        'battle_mode' => $battleMode,
+        'map_code' => $mapCode,
+    ]);
+}
+
+function tactics_slide_allows_custom_map_upload(?array $slide, string $game, string $battleMode, string $mapCode): bool {
+    if (is_array($slide) && tactics_is_custom_room_slide($slide)) {
+        return true;
+    }
+
+    return tactics_custom_upload_params_valid($game, $battleMode, $mapCode);
+}
+
 function tactics_is_cs2_custom_slide(array $slide): bool {
     return tactics_is_custom_room_slide($slide)
         && tactics_sanitize_game((string) ($slide['game'] ?? '')) === 'cs2';

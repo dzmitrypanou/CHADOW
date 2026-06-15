@@ -495,13 +495,20 @@
                 this.mapPicker.setLockGame(this.roomGame);
             }
 
-            this.onMapModalOpen(slideId);
             try {
-                await this.mapPicker.openModal((pick) => {
+                await this.mapPicker.openModal(async (pick) => {
                     if (!pick?.map_code && !this.mapPicker?.shouldHideMapSelect?.()) return;
-                    this.changeSlideMap(slideId, pick.map_code, pick.game, pick.battle_mode, false, {
+                    let preferredUrl = null;
+                    if (pick.battle_mode === 'custom') {
+                        const result = await window.AbsTacticsRoom?.commitPendingCustomMap?.(slideId, pick);
+                        if (result?.ok === false) return false;
+                        preferredUrl = result?.url || null;
+                    }
+                    this.mapPicker.setModalBusy(true, i18n().t('changeMapSaving'));
+                    await this.changeSlideMap(slideId, pick.map_code, pick.game, pick.battle_mode, false, {
                         map_width_m: pick.map_width_m,
                         map_height_m: pick.map_height_m,
+                        preferredUrl,
                     });
                 }, {
                     initialValue: {
@@ -511,6 +518,7 @@
                         map_width_m: slide.map_width_m,
                         map_height_m: slide.map_height_m,
                     },
+                    onOpen: () => this.onMapModalOpen(slideId),
                     onClose: () => this.onMapModalClose(),
                 });
             } catch (err) {
@@ -911,7 +919,7 @@
             }
         }
 
-        changeSlideMap(slideId, mapCode, game, battleMode, skipBroadcast, scale) {
+        async changeSlideMap(slideId, mapCode, game, battleMode, skipBroadcast, scale) {
             if (!this.canAddSlides && !skipBroadcast) return;
             const slide = this.getSlides().find((s) => s.id === slideId);
             if (!slide || !mapCode) return;
@@ -931,12 +939,13 @@
             slide.canvas = null;
 
             const scaleOpts = scale && typeof scale === 'object' ? scale : null;
+            const defaultScale = maps().defaultCustomMapScaleHu(slide.game);
             if (scaleOpts?.map_width_m && scaleOpts?.map_height_m) {
-                slide.map_width_m = parseInt(scaleOpts.map_width_m, 10) || 1000;
-                slide.map_height_m = parseInt(scaleOpts.map_height_m, 10) || 1000;
+                slide.map_width_m = parseInt(scaleOpts.map_width_m, 10) || defaultScale;
+                slide.map_height_m = parseInt(scaleOpts.map_height_m, 10) || defaultScale;
             } else if ((slide.game === 'cs2' || slide.game === 'dota2') && slide.battle_mode === 'custom') {
-                slide.map_width_m = slide.map_width_m || 1000;
-                slide.map_height_m = slide.map_height_m || 1000;
+                slide.map_width_m = slide.map_width_m || defaultScale;
+                slide.map_height_m = slide.map_height_m || defaultScale;
             } else {
                 delete slide.map_width_m;
                 delete slide.map_height_m;
@@ -944,9 +953,11 @@
 
             maps().normalizeCustomRoomSlide?.(slide);
             const extMatch = prevUrl.match(/\.(webp|png|jpe?g)(?:\?|$)/i);
+            const preferredUrl = scaleOpts?.preferredUrl || null;
             this.setSlidePreviewUrl(slide, {
-                resetKnown: true,
-                allowCustomPath: maps().isCustomRoomSlide(slide) && hadCustomFile,
+                resetKnown: !preferredUrl,
+                preferredUrl: preferredUrl || undefined,
+                allowCustomPath: maps().isCustomRoomSlide(slide) && (hadCustomFile || !!preferredUrl),
                 extHint: extMatch ? extMatch[1] : 'webp',
             });
 
@@ -955,7 +966,7 @@
             this.onChange();
 
             if (wasActive) {
-                this.onMapChange(slideId);
+                await Promise.resolve(this.onMapChange(slideId));
             }
 
             if (!skipBroadcast) {
