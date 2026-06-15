@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const { dist, clamp, pointerPos } = window.AbsAimCore;
+    const { dist, clamp, pointerPos, touchTargetScale, touchHitSlop } = window.AbsAimCore;
 
     function createLeadTrainer() {
         const DURATION_SEC = 60;
@@ -50,11 +50,11 @@
         }
 
         function bodyRadius() {
-            return 12 + (1 - distance) * 18;
+            return (12 + (1 - distance) * 18) * touchTargetScale();
         }
 
         function leadRadius() {
-            return 18 + (1 - distance) * 12;
+            return (18 + (1 - distance) * 12) * touchTargetScale();
         }
 
         function leadOffset() {
@@ -161,8 +161,9 @@
                 sfx.shot();
                 const pos = pointerPos(canvas, event);
                 const lead = leadPoint();
-                const hitLead = dist(pos.x, pos.y, lead.x, lead.y) <= leadRadius();
-                const hitBody = dist(pos.x, pos.y, body.x, body.y) <= bodyRadius();
+                const slop = touchHitSlop();
+                const hitLead = dist(pos.x, pos.y, lead.x, lead.y) <= leadRadius() + slop;
+                const hitBody = dist(pos.x, pos.y, body.x, body.y) <= bodyRadius() + slop;
                 if (hitLead) {
                     hits += 1;
                     sfx.hit();

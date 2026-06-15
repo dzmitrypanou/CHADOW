@@ -1,7 +1,15 @@
 (() => {
     'use strict';
 
-    const { dist, pointerPos } = window.AbsAimCore;
+    const { dist, pointerPos, isTouchInput, touchHitSlop } = window.AbsAimCore;
+
+    function targetRadius() {
+        return isTouchInput() ? 60 : 42;
+    }
+
+    function targetVisualRadius() {
+        return isTouchInput() ? 28 : 16;
+    }
 
     function createTrackingTrainer() {
         const DURATION_SEC = 30;
@@ -18,10 +26,13 @@
         let onTargetMs = 0;
         let lastTick = 0;
         let pointer = { x: 0, y: 0 };
-        const TARGET_RADIUS = 42;
         let target = { x: 0, y: 0 };
         let wasOnTarget = false;
         let lastLockSfxAt = 0;
+
+        function hitRadius() {
+            return targetRadius() + touchHitSlop();
+        }
 
         function remainingSec() {
             return Math.max(0, (endAt - performance.now()) / 1000);
@@ -104,7 +115,7 @@
                 const dt = now - lastTick;
                 lastTick = now;
                 updateTarget(now);
-                const onTarget = dist(pointer.x, pointer.y, target.x, target.y) <= TARGET_RADIUS;
+                const onTarget = dist(pointer.x, pointer.y, target.x, target.y) <= hitRadius();
                 if (onTarget && !wasOnTarget && now - lastLockSfxAt > 220) {
                     sfx.lockOn();
                     lastLockSfxAt = now;
@@ -123,7 +134,7 @@
 
                 ctx.save();
                 ctx.beginPath();
-                ctx.arc(target.x, target.y, TARGET_RADIUS, 0, Math.PI * 2);
+                ctx.arc(target.x, target.y, targetRadius(), 0, Math.PI * 2);
                 ctx.strokeStyle = 'rgba(76, 175, 80, 0.55)';
                 ctx.lineWidth = 3;
                 ctx.stroke();
@@ -131,13 +142,13 @@
                     ctx,
                     target.x,
                     target.y,
-                    16,
+                    targetVisualRadius(),
                     'rgba(76, 175, 80, 0.9)',
                     'rgba(200, 230, 201, 0.9)'
                 );
                 ctx.restore();
 
-                const onTarget = dist(pointer.x, pointer.y, target.x, target.y) <= TARGET_RADIUS;
+                const onTarget = dist(pointer.x, pointer.y, target.x, target.y) <= hitRadius();
                 window.AbsAimCore.drawCrosshair(
                     ctx,
                     pointer.x,

@@ -221,6 +221,32 @@ try {
             background: #1a2332;
         }
         #tactics-maps-table td { vertical-align: middle; }
+        .tactics-edit-preview {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .tactics-edit-preview img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #1a2332;
+        }
+        .tactics-edit-meta {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.84rem;
+            color: #9aa5b1;
+            line-height: 1.5;
+        }
+        .tactics-edit-meta code {
+            color: #ffd966;
+        }
+        .tactics-edit-file-field {
+            margin-top: 4px;
+        }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>
 </head>
@@ -352,6 +378,57 @@ try {
                         <tr><td colspan="8" style="text-align: center;">Загрузка...</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="modal" id="tacticsEditMapModal">
+                <div class="modal-content">
+                    <h2><i class="fas fa-edit"></i> Редактировать карту</h2>
+                    <form id="tacticsEditMapForm">
+                        <input type="hidden" name="map_code" id="tacticsEditMapCode">
+                        <input type="hidden" name="game" id="tacticsEditMapGame">
+                        <input type="hidden" name="battle_mode" id="tacticsEditMapMode">
+                        <div class="tactics-edit-preview">
+                            <img id="tacticsEditMapPreview" src="" alt="" width="120" height="120">
+                            <div class="tactics-edit-meta">
+                                <div>Код: <code id="tacticsEditMapCodeLabel"></code></div>
+                                <div>Игра: <span id="tacticsEditMapGameLabel"></span></div>
+                                <div>Режим: <span id="tacticsEditMapModeLabel"></span></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="tacticsEditMapNameRu">Название карты</label>
+                            <input type="text" name="display_name_ru" id="tacticsEditMapNameRu" maxlength="255" required autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="tacticsEditMapNameEn">Название (EN)</label>
+                            <input type="text" name="display_name_en" id="tacticsEditMapNameEn" maxlength="255" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="tacticsEditMapSideLength" id="tacticsEditMapSideLengthLabel">Размер поля (м)</label>
+                            <span class="tactics-upload-field-hint" id="tacticsEditMapSideLengthHint"></span>
+                            <input type="number" name="side_length" id="tacticsEditMapSideLength" min="100" max="20000" step="1" required>
+                        </div>
+                        <div class="form-group tactics-edit-file-field">
+                            <label for="tacticsEditMapFile">Новое изображение (необязательно)</label>
+                            <div class="tactics-file-field">
+                                <label for="tacticsEditMapFile" class="tactics-file-btn">
+                                    <i class="fas fa-folder-open" aria-hidden="true"></i>
+                                    Выбрать файл
+                                </label>
+                                <input type="file" id="tacticsEditMapFile" class="tactics-file-input" name="image" accept="image/webp,image/png,image/jpeg">
+                                <span class="tactics-file-name" id="tacticsEditMapFileName">Файл не выбран</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary" id="tacticsEditMapSubmit" style="flex: 1;">
+                                <i class="fas fa-save"></i> Сохранить
+                            </button>
+                            <button type="button" class="btn" id="tacticsEditMapCancel">
+                                <i class="fas fa-times"></i> Отмена
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         <?php endif; ?>
     </div>

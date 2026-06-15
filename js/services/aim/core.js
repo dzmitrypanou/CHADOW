@@ -156,6 +156,24 @@
         return Math.min(max, Math.max(min, value));
     }
 
+    function isTouchInput() {
+        if (isMobileDevice()) {
+            return true;
+        }
+        return typeof window !== 'undefined'
+            && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    }
+
+    /** Multiplier for target radii on touch screens. */
+    function touchTargetScale() {
+        return isTouchInput() ? 1.75 : 1;
+    }
+
+    /** Extra hit padding (logical px) for tap detection. */
+    function touchHitSlop() {
+        return isTouchInput() ? 14 : 0;
+    }
+
     window.AbsAimCore = {
         AIM_ARENA_WIDTH,
         AIM_ARENA_HEIGHT,
@@ -167,6 +185,9 @@
         randInt,
         clamp,
         isMobileDevice,
+        isTouchInput,
+        touchTargetScale,
+        touchHitSlop,
         applyDeviceClasses,
         refreshDeviceDetection,
         shouldShowCrosshair() {

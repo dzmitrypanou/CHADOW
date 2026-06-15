@@ -127,6 +127,13 @@ function mapDisplayName(code) {
     return row ? (row.display_name_ru || code) : code;
 }
 
+function mapDisplayNameEn(code) {
+    const row = dictionary.find((m) => m.map_code === code);
+    return row ? (row.display_name_en || '') : '';
+}
+
+let editMapAsset = null;
+
 function modeLabelForAsset(asset) {
     const game = asset?.game || '';
     const mode = asset?.battle_mode || '';
@@ -219,6 +226,7 @@ function renderTable() {
             <td>${formatBytes(a.size)}</td>
             <td>
                 <div class="action-buttons">
+                    <button type="button" class="action-btn edit" data-game="${escapeHtml(a.game)}" data-mode="${escapeHtml(a.battle_mode)}" data-code="${escapeHtml(a.map_code)}" title="Редактировать"><i class="fas fa-edit" aria-hidden="true"></i></button>
                     <a href="${escapeHtml(a.url)}" class="action-btn" target="_blank" rel="noopener" title="Открыть"><i class="fas fa-external-link-alt"></i></a>
                     <button type="button" class="action-btn delete" data-game="${escapeHtml(a.game)}" data-mode="${escapeHtml(a.battle_mode)}" data-code="${escapeHtml(a.map_code)}" title="Удалить"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
@@ -416,6 +424,142 @@ async function saveSideLength(mapCode, meters) {
     }
 }
 
+function syncEditSideLengthField(game) {
+    const label = document.getElementById('tacticsEditMapSideLengthLabel');
+    const input = document.getElementById('tacticsEditMapSideLength');
+    const hint = document.getElementById('tacticsEditMapSideLengthHint');
+    if (!label || !input) return;
+    label.textContent = sideLengthLabel(game);
+    const attrs = sideLengthInputAttrs(game);
+    input.min = attrs.min;
+    input.max = attrs.max;
+    input.step = attrs.step;
+    input.title = attrs.title;
+    input.placeholder = attrs.placeholder;
+    if (hint) {
+        hint.textContent = sideLengthHint(game);
+    }
+}
+
+function updateEditFileNameLabel() {
+    const input = document.getElementById('tacticsEditMapFile');
+    const label = document.getElementById('tacticsEditMapFileName');
+    if (!label) return;
+    const file = input?.files?.[0];
+    label.textContent = file ? file.name : 'Файл не выбран';
+    label.style.color = file ? '#e8eef2' : '';
+}
+
+function openEditMapModal(asset) {
+    if (!asset) return;
+    editMapAsset = asset;
+    const game = asset.game || 'wot';
+    const code = asset.map_code || '';
+    const cacheBust = asset.mtime ? '?t=' + asset.mtime : '';
+
+    document.getElementById('tacticsEditMapCode').value = code;
+    document.getElementById('tacticsEditMapGame').value = game;
+    document.getElementById('tacticsEditMapMode').value = asset.battle_mode || '';
+    document.getElementById('tacticsEditMapCodeLabel').textContent = code;
+    document.getElementById('tacticsEditMapGameLabel').textContent = gameLabels[game] || game;
+    document.getElementById('tacticsEditMapModeLabel').textContent = modeLabelForAsset(asset);
+    document.getElementById('tacticsEditMapNameRu').value = mapDisplayName(code);
+    document.getElementById('tacticsEditMapNameEn').value = mapDisplayNameEn(code);
+
+    syncEditSideLengthField(game);
+    const sideLen = mapSideLength(code);
+    document.getElementById('tacticsEditMapSideLength').value = formatSideLengthDisplay(sideLen, game)
+        || defaultSideLengthDisplay(game);
+
+    const preview = document.getElementById('tacticsEditMapPreview');
+    if (preview) {
+        preview.src = asset.url + cacheBust;
+    }
+
+    const fileInput = document.getElementById('tacticsEditMapFile');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    updateEditFileNameLabel();
+
+    document.getElementById('tacticsEditMapModal')?.classList.add('active');
+}
+
+function closeEditMapModal() {
+    editMapAsset = null;
+    document.getElementById('tacticsEditMapModal')?.classList.remove('active');
+}
+
+async function saveEditedMap(ev) {
+    ev.preventDefault();
+    if (!editMapAsset) return;
+
+    const form = document.getElementById('tacticsEditMapForm');
+    const btn = document.getElementById('tacticsEditMapSubmit');
+    if (!form) return;
+
+    const game = readUploadField(form, 'game') || 'wot';
+    const names = resolveUploadDisplayName(form);
+    if (!names) {
+        showNotification('Укажите название карты', 'error');
+        document.getElementById('tacticsEditMapNameRu')?.focus();
+        return;
+    }
+
+    const sideHu = parseSideLengthInput(readUploadField(form, 'side_length'), game);
+    if (!Number.isFinite(sideHu) || sideHu < 100 || sideHu > 20000) {
+        showNotification(sideLengthValidationMessage(game), 'error');
+        return;
+    }
+
+    const fileInput = form.elements.namedItem('image');
+    const file = fileInput instanceof HTMLInputElement ? fileInput.files?.[0] : null;
+    const maxBytes = window.TACTICS_MAP_UPLOAD_MAX_BYTES || 16 * 1024 * 1024;
+    if (file && file.size > maxBytes) {
+        const maxMb = Math.round(maxBytes / (1024 * 1024));
+        showNotification(`Файл слишком большой (макс. ${maxMb} МБ)`, 'error');
+        return;
+    }
+
+    const formData = new FormData(form);
+    formData.set('display_name_ru', names.displayNameRu);
+    if (names.displayNameEn) {
+        formData.set('display_name_en', names.displayNameEn);
+    } else {
+        formData.delete('display_name_en');
+    }
+    formData.set('side_length', String(sideHu));
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        formData.set('csrf_token', csrfMeta.getAttribute('content') || '');
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/admin/ajax/tactics_map_update.php', { method: 'POST', body: formData });
+        let json;
+        try {
+            json = await res.json();
+        } catch (parseErr) {
+            showNotification(res.status === 403
+                ? 'Сессия истекла — обновите страницу и войдите снова'
+                : 'Ошибка сервера', 'error');
+            return;
+        }
+        if (!json.success) {
+            showNotification(json.error || 'Ошибка сохранения', 'error');
+            return;
+        }
+        showNotification('Карта обновлена');
+        closeEditMapModal();
+        loadMaps();
+    } catch (e) {
+        showNotification('Ошибка сервера', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 async function deleteAsset(game, mode, mapCode) {
     if (!confirm('Удалить файл миникарты?')) return;
 
@@ -469,7 +613,26 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable();
     });
 
+    document.getElementById('tacticsEditMapForm')?.addEventListener('submit', saveEditedMap);
+    document.getElementById('tacticsEditMapCancel')?.addEventListener('click', closeEditMapModal);
+    document.getElementById('tacticsEditMapFile')?.addEventListener('change', updateEditFileNameLabel);
+    document.getElementById('tacticsEditMapModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'tacticsEditMapModal') {
+            closeEditMapModal();
+        }
+    });
+
     document.getElementById('tacticsMapsTableBody')?.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.action-btn.edit');
+        if (editBtn) {
+            const asset = assets.find((a) => a.map_code === editBtn.dataset.code
+                && a.game === editBtn.dataset.game
+                && a.battle_mode === editBtn.dataset.mode);
+            if (asset) {
+                openEditMapModal(asset);
+            }
+            return;
+        }
         const btn = e.target.closest('.action-btn.delete');
         if (btn) {
             deleteAsset(btn.dataset.game, btn.dataset.mode, btn.dataset.code);

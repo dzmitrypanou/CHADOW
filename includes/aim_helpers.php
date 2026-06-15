@@ -12,13 +12,13 @@ const AIM_PLAYER_NAME_MAX = 32;
 const AIM_SUBMIT_RATE_SEC = 30;
 
 const AIM_SCORE_RANGES = [
-    'flick' => [0, 15000],
-    'tracking' => [0, 1000],
-    'reaction' => [0, 10000],
-    'lead' => [0, 55000],
-    'gridshot' => [0, 5000],
-    'duckhunt' => [0, 12000],
-    'vugich' => [0, 12000],
+    'flick' => [0, 999999],
+    'tracking' => [0, 999999],
+    'reaction' => [0, 999999],
+    'lead' => [0, 999999],
+    'gridshot' => [0, 999999],
+    'duckhunt' => [0, 999999],
+    'vugich' => [0, 999999],
 ];
 
 const AIM_GRADE_ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
@@ -246,8 +246,7 @@ function aim_score_in_range(string $trainer, int $score): bool {
     if (!aim_trainer_valid($trainer)) {
         return false;
     }
-    $range = AIM_SCORE_RANGES[$trainer];
-    return $score >= (int) $range[0] && $score <= (int) $range[1];
+    return $score >= 0;
 }
 
 function aim_client_ip(): string {

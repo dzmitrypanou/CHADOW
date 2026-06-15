@@ -1951,6 +1951,106 @@ function tactics_admin_set_map_side_length($db, string $mapCode, $sideLength): a
 
 /**
  * @param Database $db
+ * @return array{ok:bool, error?:string, data?:array<string,mixed>}
+ */
+function tactics_admin_update_tactics_map(
+    $db,
+    string $mapCode,
+    string $game,
+    string $battleMode,
+    string $displayNameRu,
+    string $displayNameEn,
+    $sideLength,
+    ?array $fileInfo = null
+): array {
+    $mapCode = tactics_sanitize_map_code($mapCode);
+    $game = tactics_sanitize_game($game);
+    $battleMode = tactics_sanitize_battle_mode($battleMode, $game);
+
+    $displayNameRu = trim($displayNameRu);
+    $displayNameEn = trim($displayNameEn);
+    if ($displayNameRu === '' && $displayNameEn !== '') {
+        $displayNameRu = $displayNameEn;
+    }
+    if ($displayNameRu === '') {
+        return ['ok' => false, 'error' => 'empty_name'];
+    }
+    if (function_exists('mb_strlen') && mb_strlen($displayNameRu, 'UTF-8') > 255) {
+        $displayNameRu = mb_substr($displayNameRu, 0, 255, 'UTF-8');
+    } elseif (strlen($displayNameRu) > 255) {
+        $displayNameRu = substr($displayNameRu, 0, 255);
+    }
+    if ($displayNameEn === '') {
+        $displayNameEn = $displayNameRu;
+    }
+    if (function_exists('mb_strlen') && mb_strlen($displayNameEn, 'UTF-8') > 255) {
+        $displayNameEn = mb_substr($displayNameEn, 0, 255, 'UTF-8');
+    } elseif (strlen($displayNameEn) > 255) {
+        $displayNameEn = substr($displayNameEn, 0, 255);
+    }
+
+    $meters = tactics_sanitize_side_length($sideLength);
+    if ($meters === null) {
+        return ['ok' => false, 'error' => 'invalid_side_length'];
+    }
+
+    ensure_map_dictionary_table($db);
+    ensure_map_dictionary_admin_columns($db);
+
+    $exists = $db->fetchOne(
+        'SELECT map_code FROM map_dictionary WHERE map_code = ?',
+        [$mapCode]
+    );
+    if (!$exists) {
+        return ['ok' => false, 'error' => 'not_found'];
+    }
+
+    $assetPath = dirname(__DIR__) . '/assets/tactics/maps/' . $game . '/' . $battleMode . '/' . $mapCode;
+    $hasAsset = false;
+    foreach (['webp', 'png', 'jpg', 'jpeg'] as $ext) {
+        if (is_file($assetPath . '.' . $ext)) {
+            $hasAsset = true;
+            break;
+        }
+    }
+    if (!$hasAsset && $fileInfo === null) {
+        return ['ok' => false, 'error' => 'asset_not_found'];
+    }
+
+    try {
+        $db->query(
+            'UPDATE map_dictionary SET display_name_ru = ?, display_name_en = ?, side_length = ? WHERE map_code = ?',
+            [$displayNameRu, $displayNameEn, $meters, $mapCode]
+        );
+        tactics_admin_ensure_map_assignment($db, $mapCode, $game, $battleMode);
+    } catch (Throwable $e) {
+        return ['ok' => false, 'error' => 'db_error'];
+    }
+
+    $uploadData = null;
+    if ($fileInfo !== null) {
+        $upload = tactics_admin_save_map_upload($game, $battleMode, $mapCode, $fileInfo);
+        if (!$upload['ok']) {
+            return $upload;
+        }
+        $uploadData = $upload['data'] ?? null;
+    }
+
+    return [
+        'ok' => true,
+        'data' => array_merge([
+            'map_code' => $mapCode,
+            'game' => $game,
+            'battle_mode' => $battleMode,
+            'display_name_ru' => $displayNameRu,
+            'display_name_en' => $displayNameEn,
+            'side_length' => $meters,
+        ], is_array($uploadData) ? $uploadData : []),
+    ];
+}
+
+/**
+ * @param Database $db
  * @return array{ok:bool, error?:string}
  */
 function tactics_admin_delete_map_asset($db, string $game, string $battleMode, string $mapCode): array {

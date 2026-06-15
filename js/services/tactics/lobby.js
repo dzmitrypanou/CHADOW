@@ -135,6 +135,41 @@
                 ? i18n().t('createMapPreviewCustomHint')
                 : i18n().t('mapPreviewPlaceholder');
         }
+        updateCreatePreviewScale(pick);
+    }
+
+    function updateCreatePreviewScale(pick) {
+        const scaleEl = document.getElementById('tacticsCreatePreviewScale');
+        if (!scaleEl || !createMapPicker) return;
+
+        if (createMapPicker.shouldShowCustomUpload()) {
+            scaleEl.hidden = true;
+            scaleEl.textContent = '';
+            return;
+        }
+
+        const game = pick?.game || createMapPicker.game || 'wot';
+        const mode = pick?.battle_mode || createMapPicker.battleMode || 'random';
+        const mapCode = pick?.map_code || createMapPicker.selectEl?.value || '';
+        if (!mapCode) {
+            scaleEl.hidden = true;
+            scaleEl.textContent = '';
+            return;
+        }
+
+        const scale = maps().slideMapScaleSync({
+            map_code: mapCode,
+            game,
+            battle_mode: mode,
+        });
+        const label = scale ? maps().formatSlideScaleLabel(scale, game) : '';
+        if (label) {
+            scaleEl.textContent = label;
+            scaleEl.hidden = false;
+        } else {
+            scaleEl.hidden = true;
+            scaleEl.textContent = '';
+        }
     }
 
     async function updateCreatePreview(pick) {

@@ -1,7 +1,11 @@
 (() => {
     'use strict';
 
-    const { dist, rand, pointerPos } = window.AbsAimCore;
+    const { dist, rand, pointerPos, isTouchInput, touchHitSlop } = window.AbsAimCore;
+
+    function baseTargetRadius() {
+        return isTouchInput() ? 26 : 14;
+    }
 
     function createGridshotTrainer() {
         const DURATION_SEC = 45;
@@ -25,7 +29,7 @@
 
         function spawnOne(index) {
             const margin = 40;
-            const radius = 14;
+            const radius = baseTargetRadius();
             targets[index] = {
                 x: rand(margin + radius, width - margin - radius),
                 y: rand(margin + radius, height - margin - radius),
@@ -72,7 +76,7 @@
                     return;
                 }
                 const margin = 40;
-                const radius = 14;
+                const radius = baseTargetRadius();
                 const minX = margin + radius;
                 const minY = margin + radius;
                 const maxX = width - margin - radius;
@@ -113,7 +117,7 @@
                 const pos = pointerPos(canvas, event);
                 for (let i = 0; i < targets.length; i += 1) {
                     const t = targets[i];
-                    if (t && dist(pos.x, pos.y, t.x, t.y) <= t.radius) {
+                    if (t && dist(pos.x, pos.y, t.x, t.y) <= t.radius + touchHitSlop()) {
                         hits += 1;
                         sfx.hit();
                         spawnOne(i);

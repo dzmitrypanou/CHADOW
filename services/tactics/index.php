@@ -101,6 +101,7 @@ require __DIR__ . '/../../includes/site_header.php';
                                     <i class="fas fa-map" aria-hidden="true"></i>
                                     <span data-tactics-i18n="mapPreviewPlaceholder"><?php echo $lang === 'en' ? 'No preview' : 'Нет превью'; ?></span>
                                 </div>
+                                <span id="tacticsCreatePreviewScale" class="tactics-create-preview__scale" hidden></span>
                                 <div class="tactics-create-preview__meta" id="tacticsCreatePreviewMeta" hidden>
                                     <span id="tacticsCreatePreviewGame" class="tactics-create-preview__game"></span>
                                     <strong id="tacticsCreatePreviewMap" class="tactics-create-preview__map"></strong>

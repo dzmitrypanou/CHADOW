@@ -9688,6 +9688,29 @@ button.tactics-back-link {
     max-width: 18em;
 }
 
+.tactics-create-preview__scale {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(8, 14, 28, 0.78);
+    border: 1px solid rgba(141, 195, 255, 0.22);
+    color: #e8f2ff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.tactics-create-preview__scale[hidden] {
+    display: none !important;
+}
+
 .tactics-create-preview__meta {
     position: absolute;
     inset: auto 0 0;
