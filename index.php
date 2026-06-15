@@ -21,7 +21,7 @@ $bracketPublicHref = $bracketServiceHref;
 $bracketCreateLabel = $lang === 'en' ? 'Create bracket' : 'Создать сетку';
 $bracketPublicLabel = $lang === 'en' ? 'Public brackets' : 'Публичные сетки';
 $tacticsServiceHref = $lang === 'en' ? '/en/services/tactics' : '/services/tactics';
-$tacticsCreateHref = $tacticsServiceHref . '#tactics-create';
+$tacticsCreateHref = $tacticsServiceHref;
 $tacticsRoomsHref = $lang === 'en' ? '/en/services/tactics/rooms' : '/services/tactics/rooms';
 $tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать планшет';
 $tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
@@ -30,6 +30,27 @@ $onlineGamesServiceHref = $lang === 'en' ? '/en/services/onlinegames' : '/servic
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/ensure_map_dictionary.php';
+require_once __DIR__ . '/config/ensure_tactics.php';
+require_once __DIR__ . '/config/tactics_map_catalog.php';
+$tacticsBadgesHtml = '';
+try {
+    $tacticsDb = Database::getInstance();
+    ensure_map_dictionary_table($tacticsDb);
+    ensure_tactics_map_assignments_table($tacticsDb);
+    $tacticsMapRows = $tacticsDb->fetchAll(
+        'SELECT map_code, display_name_ru, display_name_en, side_length
+         FROM map_dictionary
+         ORDER BY display_name_ru'
+    );
+    $tacticsCatalog = tactics_build_map_catalog($tacticsMapRows, $lang, $tacticsDb);
+    $tacticsBadgesHtml = tactics_project_card_badges_html(
+        tactics_games_with_catalog_maps($tacticsCatalog['games'] ?? [])
+    );
+} catch (Throwable $e) {
+    $tacticsBadgesHtml = '';
+}
 $lestaApiConfigured = game_api_is_configured_for_realm('ru');
 $realmBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
@@ -43,12 +64,6 @@ $inDevBadgeHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge">' . htmlspecialchars($inDevLabel, ENT_QUOTES, 'UTF-8') . '</span>'
     . '</div>';
 $bracketBadgesHtml = '<div class="project-card-badge-row">'
-    . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
-    . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'
-    . '<span class="project-card-badge project-card-badge--dota2">Dota 2</span>'
-    . '</div>';
-$tacticsBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
     . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
     . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'

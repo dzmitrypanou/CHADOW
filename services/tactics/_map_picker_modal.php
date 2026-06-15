@@ -16,21 +16,6 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
             <button type="button" class="tactics-map-modal__close" data-tactics-map-modal-close aria-label="<?php echo $lang === 'en' ? 'Close' : 'Закрыть'; ?>"><i class="fas fa-times" aria-hidden="true"></i></button>
         </header>
         <div class="tactics-map-modal__body">
-            <div class="tactics-map-modal__section tactics-map-modal__section--custom tactics-map-modal__custom-scale" id="tacticsCustomMapPanel" hidden>
-                <div class="tactics-map-modal__section-head" data-tactics-i18n="customMapScaleTitle"><?php echo $lang === 'en' ? 'Map scale' : 'Масштаб карты'; ?></div>
-                <p class="tactics-map-modal__section-hint" data-tactics-i18n="customMapScaleHint"><?php echo $lang === 'en' ? 'Real-world size in meters for ruler and measurements' : 'Реальный размер в метрах для линейки и измерений'; ?></p>
-                <div class="tactics-map-modal__scale-grid">
-                    <label class="tactics-map-modal__scale-field">
-                        <span class="tactics-map-modal__field-label" data-tactics-i18n="customMapWidth"><?php echo $lang === 'en' ? 'Width, m' : 'Ширина, м'; ?></span>
-                        <input type="number" class="tactics-map-modal__scale-input" data-tactics-map-modal-scale-width min="100" max="20000" step="1" value="1000" inputmode="numeric">
-                    </label>
-                    <label class="tactics-map-modal__scale-field">
-                        <span class="tactics-map-modal__field-label" data-tactics-i18n="customMapHeight"><?php echo $lang === 'en' ? 'Height, m' : 'Высота, m'; ?></span>
-                        <input type="number" class="tactics-map-modal__scale-input" data-tactics-map-modal-scale-height min="100" max="20000" step="1" value="1000" inputmode="numeric">
-                    </label>
-                </div>
-                <input type="file" id="tacticsCustomMapFile" accept="image/webp,image/png,image/jpeg" hidden>
-            </div>
             <div class="tactics-map-modal__left">
                 <div class="tactics-map-modal__preview-card">
                     <div class="tactics-map-modal__preview-label" data-tactics-i18n="mapPreviewLabel"><?php echo $lang === 'en' ? 'Preview' : 'Превью'; ?></div>
@@ -43,8 +28,8 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
                     </div>
                 </div>
                 <label class="tactics-map-modal__field tactics-map-modal__field--mode">
-                    <span class="tactics-map-modal__field-label tactics-map-modal__field-label--sr" data-tactics-map-modal-mode-label data-tactics-i18n="fieldBattleMode"><?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?></span>
-                    <select class="tactics-map-modal__mode-select" data-tactics-map-modal-mode data-recruiting-select-skip="1" aria-label="<?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?>"></select>
+                    <span class="tactics-map-modal__field-label" data-tactics-map-modal-mode-label data-tactics-i18n="fieldMapType"><?php echo $lang === 'en' ? 'Map type' : 'Тип карты'; ?></span>
+                    <select class="tactics-map-modal__mode-select" data-tactics-map-modal-mode data-recruiting-select-skip="1" aria-label="<?php echo $lang === 'en' ? 'Map type' : 'Тип карты'; ?>"></select>
                 </label>
                 <div class="tactics-map-modal__game" data-tactics-map-modal-game-field data-tactics-game-field hidden>
                     <div class="tactics-map-picker-tabs recruiting-realm-tabs tactics-map-picker-tabs--game" data-tactics-game-tabs role="tablist"></div>
@@ -81,6 +66,14 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
                         ?></span>
                     </span>
                 </button>
+                <div class="tactics-map-modal__custom-scale" id="tacticsCustomMapPanel" hidden>
+                    <label class="tactics-map-modal__scale-field">
+                        <span class="tactics-map-modal__field-label" data-tactics-map-modal-scale-label data-tactics-i18n="customMapSideLength"><?php echo $lang === 'en' ? 'Field size (m)' : 'Размер поля (м)'; ?></span>
+                        <span class="tactics-map-modal__scale-hint" data-tactics-i18n="customMapScaleHint"><?php echo $lang === 'en' ? 'Real-world size in meters for ruler and measurements' : 'Реальный размер в метрах для линейки и измерений'; ?></span>
+                        <input type="number" class="tactics-map-modal__scale-input" data-tactics-map-modal-scale min="100" max="20000" step="1" value="1000" inputmode="numeric">
+                    </label>
+                    <input type="file" id="tacticsCustomMapFile" accept="image/webp,image/png,image/jpeg" hidden>
+                </div>
             </div>
         </div>
         <footer class="tactics-map-modal__footer">

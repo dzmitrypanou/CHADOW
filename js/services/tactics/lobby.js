@@ -73,13 +73,104 @@
 
     function lockNicknameFields() {
         if (!window.ABS_TACTICS_IS_LOGGED_IN) return;
-        ['tacticsNickname', 'tacticsJoinNickname'].forEach((id) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.readOnly = true;
-            el.setAttribute('aria-readonly', 'true');
-            el.classList.add('tactics-input--locked');
+        const el = document.getElementById('tacticsNickname');
+        if (!el) return;
+        el.readOnly = true;
+        el.setAttribute('aria-readonly', 'true');
+        el.classList.add('tactics-input--locked');
+    }
+
+    let createPreviewToken = 0;
+
+    function setCreatePreviewVisible(hasImage) {
+        const img = document.getElementById('tacticsCreateMapPreview');
+        const placeholder = document.getElementById('tacticsCreateMapPreviewPlaceholder');
+        if (img) {
+            img.hidden = !hasImage;
+            if (!hasImage) {
+                img.removeAttribute('src');
+            }
+        }
+        if (placeholder) {
+            placeholder.hidden = !!hasImage;
+        }
+    }
+
+    function bindCreatePreviewImage() {
+        const img = document.getElementById('tacticsCreateMapPreview');
+        if (!img || img.dataset.previewBound) return;
+        img.dataset.previewBound = '1';
+        img.addEventListener('error', () => {
+            setCreatePreviewVisible(false);
         });
+    }
+
+    function updateCreatePreviewMeta(pick) {
+        const meta = document.getElementById('tacticsCreatePreviewMeta');
+        const gameEl = document.getElementById('tacticsCreatePreviewGame');
+        const mapEl = document.getElementById('tacticsCreatePreviewMap');
+        const modeEl = document.getElementById('tacticsCreatePreviewMode');
+        const placeholderText = document.querySelector('#tacticsCreateMapPreviewPlaceholder span');
+        if (!meta || !createMapPicker) return;
+
+        const game = pick?.game || createMapPicker.game || 'wot';
+        const mode = pick?.battle_mode || createMapPicker.battleMode || 'random';
+        const mapCode = pick?.map_code || createMapPicker.selectEl?.value || '';
+
+        meta.hidden = false;
+        if (gameEl) gameEl.textContent = createMapPicker.gameLabel(game);
+        if (modeEl) modeEl.textContent = createMapPicker.modeLabel(mode, game);
+        if (mapEl) {
+            if (createMapPicker.shouldShowCustomUpload()) {
+                mapEl.textContent = i18n().t('customMapTitle');
+            } else {
+                const map = maps().findMap(mapCode, game, mode);
+                mapEl.textContent = map
+                    ? createMapPicker.getMapDisplayName(map)
+                    : maps().getSlideDefaultTitle(mapCode, game, mode, i18n().getLang());
+            }
+        }
+        if (placeholderText) {
+            placeholderText.textContent = createMapPicker.shouldShowCustomUpload()
+                ? i18n().t('createMapPreviewCustomHint')
+                : i18n().t('mapPreviewPlaceholder');
+        }
+    }
+
+    async function updateCreatePreview(pick) {
+        bindCreatePreviewImage();
+        const img = document.getElementById('tacticsCreateMapPreview');
+        if (!img) return;
+
+        const token = ++createPreviewToken;
+        const value = pick || createMapPicker?.getValue() || {};
+        updateCreatePreviewMeta(value);
+
+        if (createMapPicker?.shouldShowCustomUpload()) {
+            setCreatePreviewVisible(false);
+            return;
+        }
+
+        const mapCode = value.map_code || createMapPicker?.selectEl?.value || '';
+        if (!mapCode) {
+            setCreatePreviewVisible(false);
+            return;
+        }
+
+        const loaded = await maps().loadMapImage(
+            mapCode,
+            value.game || createMapPicker?.game,
+            value.battle_mode || createMapPicker?.battleMode,
+        );
+        if (token !== createPreviewToken) return;
+
+        if (loaded?.src) {
+            img.alt = document.getElementById('tacticsCreatePreviewMap')?.textContent || '';
+            img.src = loaded.src;
+            setCreatePreviewVisible(true);
+            return;
+        }
+        setCreatePreviewVisible(false);
     }
 
     function syncCreateSubmitState() {
@@ -123,6 +214,7 @@
         }
         syncCreateNickname(createMapPicker?.game || 'wot');
         syncCreateSubmitState();
+        updateCreatePreview(createMapPicker?.getValue());
     }
 
     async function handleCreate(ev) {
@@ -181,45 +273,6 @@
         }
     }
 
-    async function handleJoin(ev) {
-        ev.preventDefault();
-        const errEl = document.getElementById('tacticsJoinError');
-        showError(errEl, '');
-
-        const publicId = (document.getElementById('tacticsJoinCode')?.value || '').trim().toUpperCase();
-        const nickname = window.ABS_TACTICS_IS_LOGGED_IN
-            ? (nicknameForGame('wot') || document.getElementById('tacticsJoinNickname')?.value?.trim() || 'Guest')
-            : (document.getElementById('tacticsJoinNickname')?.value?.trim() || 'Guest');
-        const password = document.getElementById('tacticsJoinPassword')?.value || '';
-
-        const res = await store().postJson(window.ABS_TACTICS_JOIN_API, {
-            public_id: publicId,
-            nickname,
-            password,
-            client_id: store().getClientId(),
-            lang: i18n().getLang(),
-        });
-
-        if (!res.ok || !res.data.success) {
-            if (res.data.error && res.status === 403) {
-                const pwWrap = document.getElementById('tacticsJoinPasswordWrap');
-                if (pwWrap) pwWrap.hidden = false;
-            }
-            showError(errEl, res.data.error || i18n().t('joinError'));
-            return;
-        }
-
-        const payload = res.data.data;
-        const resolvedNickname = payload.nickname || nickname;
-        store().saveRoomSession(publicId, {
-            access_token: payload.access_token,
-            ws_token: payload.ws_token,
-            nickname: resolvedNickname,
-            client_id: store().getClientId(),
-        });
-        window.location.href = payload.room_href || (window.ABS_TACTICS_LOBBY_BASE + '/' + publicId);
-    }
-
     async function init() {
         bindVisibilityToggle();
         if (window.TacticsMapPicker) {
@@ -229,6 +282,7 @@
                 onChange: (value) => {
                     syncCreateNickname(value?.game || createMapPicker?.game || 'wot');
                     syncCreateSubmitState();
+                    updateCreatePreview(value);
                 },
             });
             await createMapPicker.init();
@@ -239,6 +293,7 @@
         }
         lockNicknameFields();
         syncCreateSubmitState();
+        updateCreatePreview(createMapPicker?.getValue());
 
         document.getElementById('tacticsNickname')?.addEventListener('input', (ev) => {
             if (!window.ABS_TACTICS_IS_LOGGED_IN && ev.target) {
@@ -247,11 +302,11 @@
         });
 
         document.getElementById('tacticsCreateForm')?.addEventListener('submit', handleCreate);
-        document.getElementById('tacticsJoinForm')?.addEventListener('submit', handleJoin);
 
         window.addEventListener('tactics:catalog-updated', () => {
             createMapPicker?.relocalize();
             syncCreateSubmitState();
+            updateCreatePreview(createMapPicker?.getValue());
         });
 
         scrollToCreatePanel();

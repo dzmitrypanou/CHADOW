@@ -57,6 +57,7 @@
             this.gameTabsEl = queryRoot?.querySelector('[data-tactics-game-tabs]');
             this.modeTabsEl = this.root?.querySelector('[data-tactics-mode-tabs]');
             this.modeFieldLabelEl = this.root?.querySelector('[data-tactics-mode-field-label]');
+            this.modeFieldEl = this.root?.querySelector('[data-tactics-mode-field]');
             this.mapFieldEl = this.root?.querySelector('[data-tactics-map-field]')
                 || this.modalEl?.querySelector('[data-tactics-map-field]');
             this.modalPreviewEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview]');
@@ -70,8 +71,8 @@
             this.modalGameFieldEl = this.modalEl?.querySelector('[data-tactics-map-modal-game-field]');
             this.mapSearchQuery = '';
             this.modalCustomPanelEl = this.modalEl?.querySelector('#tacticsCustomMapPanel');
-            this.modalScaleWidthEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-width]');
-            this.modalScaleHeightEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-height]');
+            this.modalScaleEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale]');
+            this.modalScaleLabelEl = this.modalEl?.querySelector('[data-tactics-map-modal-scale-label]');
             this.modalConfirmBtn = this.modalEl?.querySelector('[data-tactics-map-modal-confirm]');
             this.modalConfirmLabelEl = this.modalEl?.querySelector('[data-tactics-map-modal-confirm-label]');
             this.modalConfirmSpinnerEl = this.modalConfirmBtn?.querySelector('.tactics-map-modal__confirm-spinner');
@@ -137,7 +138,7 @@
         }
 
         shouldHideMapSelect() {
-            return this.game === 'dota2' && this.battleMode === 'standard';
+            return false;
         }
 
         shouldHideModalMapSelect() {
@@ -165,9 +166,10 @@
 
         readCustomMapScale() {
             const fallback = maps().defaultCustomMapScaleHu(this.game);
+            const side = this.sanitizeCustomMapScale(this.modalScaleEl?.value, fallback);
             return {
-                map_width_m: this.sanitizeCustomMapScale(this.modalScaleWidthEl?.value, fallback),
-                map_height_m: this.sanitizeCustomMapScale(this.modalScaleHeightEl?.value, fallback),
+                map_width_m: side,
+                map_height_m: side,
             };
         }
 
@@ -175,11 +177,9 @@
             const fallback = maps().defaultCustomMapScaleHu(this.game);
             const width = this.sanitizeCustomMapScale(value?.map_width_m, fallback);
             const height = this.sanitizeCustomMapScale(value?.map_height_m, fallback);
-            if (this.modalScaleWidthEl) {
-                this.modalScaleWidthEl.value = maps().formatCustomMapScaleInput(width, this.game);
-            }
-            if (this.modalScaleHeightEl) {
-                this.modalScaleHeightEl.value = maps().formatCustomMapScaleInput(height, this.game);
+            const side = value?.map_width_m != null ? width : (value?.map_height_m != null ? height : fallback);
+            if (this.modalScaleEl) {
+                this.modalScaleEl.value = maps().formatCustomMapScaleInput(side, this.game);
             }
         }
 
@@ -198,8 +198,6 @@
             const usesKhu = maps().usesHammerUnits(this.game);
             const usesUnits = maps().usesGameUnits(this.game);
             const hintEl = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapScaleHint"]');
-            const widthLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapWidth"]');
-            const heightLabel = this.modalCustomPanelEl?.querySelector('[data-tactics-i18n="customMapHeight"]');
             if (hintEl) {
                 if (usesKhu) {
                     hintEl.textContent = i18n().t('customMapScaleHintKhu');
@@ -207,27 +205,19 @@
                     hintEl.textContent = i18n().t(usesUnits ? 'customMapScaleHintUnits' : 'customMapScaleHint');
                 }
             }
-            if (widthLabel) {
+            if (this.modalScaleLabelEl) {
                 if (usesKhu) {
-                    widthLabel.textContent = i18n().t('customMapWidthKhu');
+                    this.modalScaleLabelEl.textContent = i18n().t('customMapSideLengthKhu');
                 } else {
-                    widthLabel.textContent = i18n().t(usesUnits ? 'customMapWidthUnits' : 'customMapWidth');
-                }
-            }
-            if (heightLabel) {
-                if (usesKhu) {
-                    heightLabel.textContent = i18n().t('customMapHeightKhu');
-                } else {
-                    heightLabel.textContent = i18n().t(usesUnits ? 'customMapHeightUnits' : 'customMapHeight');
+                    this.modalScaleLabelEl.textContent = i18n().t(usesUnits ? 'customMapSideLengthUnits' : 'customMapSideLength');
                 }
             }
             const attrs = maps().customMapScaleInputAttrs(this.game);
-            [this.modalScaleWidthEl, this.modalScaleHeightEl].forEach((el) => {
-                if (!el) return;
-                el.min = attrs.min;
-                el.max = attrs.max;
-                el.step = attrs.step;
-            });
+            if (this.modalScaleEl) {
+                this.modalScaleEl.min = attrs.min;
+                this.modalScaleEl.max = attrs.max;
+                this.modalScaleEl.step = attrs.step;
+            }
         }
 
         updateMapFieldVisibility() {
@@ -239,6 +229,16 @@
                 this.modalMapFieldEl.hidden = this.shouldHideModalMapSelect();
             }
             this.updateCustomPanelVisibility();
+        }
+
+        firstMapCode() {
+            const rows = this.getMapRows();
+            return rows[0]?.map_code || '';
+        }
+
+        mapCodeInRows(code) {
+            if (!code) return false;
+            return this.getMapRows().some((map) => map.map_code === code);
         }
 
         resolveMapCode(selectedCode) {
@@ -256,7 +256,14 @@
                 }
                 return selectedCode || '';
             }
-            return this.selectEl?.value || selectedCode || '';
+            if (selectedCode && this.mapCodeInRows(selectedCode)) {
+                return selectedCode;
+            }
+            const current = this.selectEl?.value || '';
+            if (current && this.mapCodeInRows(current)) {
+                return current;
+            }
+            return this.firstMapCode();
         }
 
         buildGameTabs() {
@@ -265,6 +272,34 @@
             const gameField = (this.modalEl || this.root)?.querySelector('[data-tactics-game-field]');
             if (this.lockGame) {
                 this.game = this.lockGame;
+                this.gameTabsEl.innerHTML = '';
+                this.gameTabsEl.hidden = true;
+                if (gameField) {
+                    gameField.hidden = true;
+                }
+                if (this.modalGameFieldEl) {
+                    this.modalGameFieldEl.hidden = true;
+                }
+                return;
+            }
+
+            const ids = this.gamesWithMaps();
+            this.ensureGameValid();
+
+            if (!ids.length) {
+                this.gameTabsEl.innerHTML = '';
+                this.gameTabsEl.hidden = true;
+                if (gameField) {
+                    gameField.hidden = true;
+                }
+                if (this.modalGameFieldEl) {
+                    this.modalGameFieldEl.hidden = true;
+                }
+                return;
+            }
+
+            if (ids.length === 1) {
+                this.game = ids[0];
                 this.gameTabsEl.innerHTML = '';
                 this.gameTabsEl.hidden = true;
                 if (gameField) {
@@ -286,8 +321,6 @@
 
             const catalog = this.catalog || {};
             const games = catalog.games || {};
-            const ids = Object.keys(games);
-            if (!ids.length) return;
 
             this.gameTabsEl.innerHTML = ids.map((gameId) => {
                 const meta = games[gameId] || {};
@@ -324,23 +357,29 @@
                 return;
             }
             if (!this.modeTabsEl) return;
-            const catalog = this.catalog || {};
-            const gameMeta = catalog.games?.[this.game] || {};
-            const modeIds = gameMeta.mode_ids || Object.keys(gameMeta.modes || {});
+            const modeIds = this.modeIdsForGame(this.game);
             if (!modeIds.length) {
                 this.modeTabsEl.innerHTML = '';
+                if (this.modeFieldEl) this.modeFieldEl.hidden = true;
                 return;
             }
 
-            if (!modeIds.includes(this.battleMode)) {
-                this.battleMode = gameMeta.default_mode || modeIds[0];
-            }
+            this.ensureBattleModeValid();
+
+            const layoutClass = modeIds.length <= 2
+                ? 'tactics-mode-switch--horizontal'
+                : 'tactics-mode-switch--vertical';
+            this.modeTabsEl.className = `tactics-mode-switch ${layoutClass}`;
 
             this.modeTabsEl.innerHTML = modeIds.map((modeId) => {
                 const active = modeId === this.battleMode;
                 const label = this.modeLabel(modeId, this.game);
-                return `<button type="button" class="recruiting-realm-tab${active ? ' is-active' : ''}" data-tactics-mode="${modeId}" role="tab" aria-selected="${active ? 'true' : 'false'}">${label}</button>`;
+                return `<button type="button" class="tactics-mode-switch__option${active ? ' is-active' : ''}" data-tactics-mode="${modeId}" role="tab" aria-selected="${active ? 'true' : 'false'}">${label}</button>`;
             }).join('');
+
+            if (this.modeFieldEl) {
+                this.modeFieldEl.hidden = modeIds.length <= 1;
+            }
 
             this.modeTabsEl.querySelectorAll('[data-tactics-mode]').forEach((btn) => {
                 btn.addEventListener('click', () => {
@@ -360,16 +399,12 @@
 
         buildModalModeSelect() {
             if (!this.modalModeEl) return;
-            const catalog = this.catalog || {};
-            const gameMeta = catalog.games?.[this.game] || {};
-            const modeIds = gameMeta.mode_ids || Object.keys(gameMeta.modes || {});
+            const modeIds = this.modeIdsForGame(this.game);
             if (!modeIds.length) {
                 this.modalModeEl.innerHTML = '';
                 return;
             }
-            if (!modeIds.includes(this.battleMode)) {
-                this.battleMode = gameMeta.default_mode || modeIds[0];
-            }
+            this.ensureBattleModeValid();
             this.modalModeEl.innerHTML = modeIds.map((modeId) => {
                 const selected = modeId === this.battleMode ? ' selected' : '';
                 return `<option value="${modeId}"${selected}>${this.modeLabel(modeId, this.game)}</option>`;
@@ -519,8 +554,7 @@
                 }
             });
 
-            this.modalScaleWidthEl?.addEventListener('input', () => this.notifyModalUpdate());
-            this.modalScaleHeightEl?.addEventListener('input', () => this.notifyModalUpdate());
+            this.modalScaleEl?.addEventListener('input', () => this.notifyModalUpdate());
 
             this.modalSearchEl?.addEventListener('input', () => {
                 this.mapSearchQuery = this.modalSearchEl.value || '';
@@ -697,6 +731,8 @@
             } else if (this.catalog?.default_mode) {
                 this.battleMode = this.catalog.default_mode;
             }
+            this.ensureGameValid();
+            this.ensureBattleModeValid();
         }
 
         async loadCatalog(forceReload) {
@@ -740,6 +776,43 @@
             return maps().getMapsFor(this.game, this.battleMode);
         }
 
+        modeIdsForGame(game) {
+            const gameId = game || this.game;
+            const gameMeta = this.catalog?.games?.[gameId] || {};
+            const allIds = gameMeta.mode_ids || Object.keys(gameMeta.modes || {});
+            return allIds.filter((modeId) => maps().getMapsFor(gameId, modeId).length > 0);
+        }
+
+        gamesWithMaps() {
+            if (typeof maps().gamesWithMaps === 'function') {
+                return maps().gamesWithMaps();
+            }
+            const catalog = this.catalog || {};
+            return Object.keys(catalog.games || {}).filter((gameId) => this.modeIdsForGame(gameId).length > 0);
+        }
+
+        ensureGameValid() {
+            const ids = this.gamesWithMaps();
+            if (!ids.length) return;
+            if (!ids.includes(this.game)) {
+                const preferred = this.catalog?.default_game;
+                this.game = (preferred && ids.includes(preferred)) ? preferred : ids[0];
+            }
+        }
+
+        ensureBattleModeValid(game) {
+            const gameId = game || this.game;
+            const modeIds = this.modeIdsForGame(gameId);
+            if (!modeIds.length) return;
+            if (!modeIds.includes(this.battleMode)) {
+                const gameMeta = this.catalog?.games?.[gameId] || {};
+                const preferred = gameMeta.default_mode;
+                this.battleMode = (preferred && modeIds.includes(preferred))
+                    ? preferred
+                    : modeIds[0];
+            }
+        }
+
         hasMaps() {
             return this.getMapRows().length > 0;
         }
@@ -749,7 +822,7 @@
             const rows = this.getMapRows();
             const code = this.resolveMapCode(selectedCode);
             maps().populateSelect(this.selectEl, i18n().getLang(), code, rows);
-            if (code && this.selectEl.value !== code) {
+            if (code && this.mapCodeInRows(code) && this.selectEl.value !== code) {
                 this.selectEl.value = code;
             }
             this.refreshMapSelect();
@@ -765,14 +838,11 @@
             }
             this.resetMapSearch();
             this.game = game;
-            const gameMeta = this.catalog?.games?.[game];
-            const modeIds = gameMeta?.mode_ids || Object.keys(gameMeta?.modes || {});
-            if (modeIds.length && !modeIds.includes(this.battleMode)) {
-                this.battleMode = gameMeta?.default_mode || modeIds[0];
-            }
+            this.ensureGameValid(game);
+            this.ensureBattleModeValid(game);
             this.buildGameTabs();
             this.buildModeTabs();
-            this.renderSelect();
+            this.renderSelect(this.firstMapCode());
             this.onChange(this.getValue());
         }
 
@@ -780,7 +850,7 @@
             this.battleMode = mode;
             this.resetMapSearch();
             this.buildModeTabs();
-            this.renderSelect();
+            this.renderSelect(this.firstMapCode());
             this.onChange(this.getValue());
             this.notifyModalUpdate();
         }

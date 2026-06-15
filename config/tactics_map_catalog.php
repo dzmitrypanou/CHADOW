@@ -394,3 +394,60 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
         'default_mode' => 'random',
     ];
 }
+
+function tactics_game_has_catalog_maps(array $catalogGames, string $game): bool {
+    $game = tactics_sanitize_game($game);
+    $modes = $catalogGames[$game]['modes'] ?? [];
+    foreach ($modes as $rows) {
+        if (is_array($rows) && count($rows) > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function tactics_games_with_catalog_maps(array $catalogGames): array {
+    $out = [];
+    foreach (TACTICS_GAMES as $game) {
+        if (tactics_game_has_catalog_maps($catalogGames, $game)) {
+            $out[] = $game;
+        }
+    }
+    return $out;
+}
+
+function tactics_project_card_badge_class(string $game): string {
+    $map = [
+        'wot' => 'project-card-badge--wg',
+        'lesta' => 'project-card-badge--lesta',
+        'cs2' => 'project-card-badge--cs2',
+        'dota2' => 'project-card-badge--dota2',
+    ];
+    return $map[tactics_sanitize_game($game)] ?? '';
+}
+
+function tactics_project_card_badge_label(string $game): string {
+    $map = [
+        'wot' => 'WG',
+        'lesta' => 'LESTA',
+        'cs2' => 'CS2',
+        'dota2' => 'Dota 2',
+    ];
+    $game = tactics_sanitize_game($game);
+    return $map[$game] ?? tactics_game_label($game);
+}
+
+function tactics_project_card_badges_html(array $games): string {
+    if (!$games) {
+        return '';
+    }
+    $html = '<div class="project-card-badge-row">';
+    foreach ($games as $game) {
+        $class = tactics_project_card_badge_class($game);
+        $label = tactics_project_card_badge_label($game);
+        $html .= '<span class="project-card-badge' . ($class !== '' ? ' ' . $class : '') . '">'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</span>';
+    }
+    return $html . '</div>';
+}

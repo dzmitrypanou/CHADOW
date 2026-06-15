@@ -10,9 +10,9 @@ $mapSelectId = $mapSelectId ?? 'tacticsMapSelect';
         <span class="tactics-field-label" data-tactics-i18n="fieldGame"><?php echo $lang === 'en' ? 'Game' : 'Игра'; ?></span>
         <div class="tactics-map-picker-tabs recruiting-realm-tabs tactics-map-picker-tabs--game" data-tactics-game-tabs role="tablist"></div>
     </div>
-    <div class="tactics-field">
+    <div class="tactics-field" data-tactics-mode-field>
         <span class="tactics-field-label" data-tactics-mode-field-label data-tactics-i18n="fieldBattleMode"><?php echo $lang === 'en' ? 'Battle mode' : 'Режим боя'; ?></span>
-        <div class="tactics-map-picker-tabs recruiting-realm-tabs tactics-map-picker-tabs--modes" data-tactics-mode-tabs role="tablist"></div>
+        <div class="tactics-mode-switch tactics-mode-switch--vertical" data-tactics-mode-tabs role="tablist"></div>
     </div>
     <label class="tactics-field" data-tactics-map-field>
         <span class="tactics-field-label" data-tactics-i18n="fieldMap"><?php echo $lang === 'en' ? 'Map' : 'Карта'; ?></span>

@@ -156,6 +156,18 @@
         return Array.isArray(rows) ? rows : [];
     }
 
+    function gameHasMaps(game) {
+        const gameMeta = catalogCache?.games?.[game];
+        if (!gameMeta) return false;
+        const modeIds = gameMeta.mode_ids || Object.keys(gameMeta.modes || {});
+        return modeIds.some((modeId) => getMapsFor(game, modeId).length > 0);
+    }
+
+    function gamesWithMaps() {
+        const games = catalogCache?.games || {};
+        return Object.keys(games).filter((gameId) => gameHasMaps(gameId));
+    }
+
     function findMap(mapCode, game, battleMode) {
         const code = (mapCode || '').toLowerCase();
         const g = game ? String(game).toLowerCase() : '';
@@ -638,6 +650,8 @@
         getCatalog,
         getMapsSync,
         getMapsFor,
+        gameHasMaps,
+        gamesWithMaps,
         findMap,
         getSlideDefaultTitle,
         getSlideTitle,
