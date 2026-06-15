@@ -1350,9 +1350,9 @@ function tactics_validate_create_input(array $input, string $lang = 'ru'): array
         return ['ok' => false, 'error' => $lang === 'en' ? 'Title too long' : 'Слишком длинное название'];
     }
 
-    $visibility = trim((string) ($input['visibility'] ?? 'open'));
+    $visibility = trim((string) ($input['visibility'] ?? 'closed'));
     if (!tactics_visibility_valid($visibility)) {
-        $visibility = 'open';
+        $visibility = 'closed';
     }
 
     $game = tactics_sanitize_game((string) ($input['game'] ?? 'wot'));

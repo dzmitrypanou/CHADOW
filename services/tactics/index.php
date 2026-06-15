@@ -83,14 +83,14 @@ require __DIR__ . '/../../includes/site_header.php';
                                 <?php echo $lang === 'en' ? 'Room visibility' : 'Видимость комнаты'; ?>
                             </span>
                             <div id="tacticsVisibilitySwitch" class="bracket-visibility-switch" role="radiogroup" aria-labelledby="tacticsVisibility-label">
-                                <label class="bracket-visibility-switch__option is-active">
-                                    <input type="radio" name="visibility" value="open" checked>
+                                <label class="bracket-visibility-switch__option">
+                                    <input type="radio" name="visibility" value="open">
                                     <span class="bracket-visibility-switch__text" data-tactics-i18n="visibilityOpen">
                                         <?php echo $lang === 'en' ? 'Open — listed publicly' : 'Открытая — в общем списке'; ?>
                                     </span>
                                 </label>
-                                <label class="bracket-visibility-switch__option">
-                                    <input type="radio" name="visibility" value="closed">
+                                <label class="bracket-visibility-switch__option is-active">
+                                    <input type="radio" name="visibility" value="closed" checked>
                                     <span class="bracket-visibility-switch__text" data-tactics-i18n="visibilityClosed">
                                         <?php echo $lang === 'en' ? 'Closed — link only' : 'Закрытая — только по ссылке'; ?>
                                     </span>

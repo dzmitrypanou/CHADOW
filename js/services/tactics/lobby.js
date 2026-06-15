@@ -144,7 +144,7 @@
             showError(errEl, i18n().t('noMapsForMode'));
             return;
         }
-        const visibility = document.querySelector('input[name="visibility"]:checked')?.value || 'open';
+        const visibility = document.querySelector('input[name="visibility"]:checked')?.value || 'closed';
         const password = document.getElementById('tacticsPassword')?.value || '';
 
         btn.disabled = true;

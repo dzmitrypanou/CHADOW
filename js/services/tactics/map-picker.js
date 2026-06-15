@@ -188,6 +188,9 @@
             if (this.modalCustomPanelEl) {
                 this.modalCustomPanelEl.hidden = !showCustom;
             }
+            if (this.modalEl) {
+                this.modalEl.classList.toggle('is-custom-map-mode', showCustom);
+            }
             this.updateScaleUnitLabels();
         }
 

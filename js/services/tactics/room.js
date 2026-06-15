@@ -237,6 +237,9 @@
         if (customPanel) {
             customPanel.hidden = !showCustomPanel;
         }
+        if (modal) {
+            modal.classList.toggle('is-custom-map-mode', showCustomPanel);
+        }
         if (uploadBtn) {
             uploadBtn.hidden = !showUpload;
             uploadBtn.disabled = customUploadBusy || !showUpload;
