@@ -15381,38 +15381,88 @@ body.tactics-confirm-open {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    justify-content: center;
+    gap: 7px;
+    min-width: 84px;
+    padding: 8px 10px 9px;
     cursor: default;
 }
 
 .aim-volume-stat__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: 0.35em;
-    white-space: nowrap;
+    text-align: center;
     line-height: 1.2;
 }
 
-.aim-volume-stat__head .aim-hud-label {
-    margin: 0;
+.aim-volume-stat__title {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.45em;
+    max-width: 100%;
 }
 
-.aim-volume-stat__head .aim-hud-value {
-    margin: 0;
-    font-size: 1.1rem;
+.aim-volume-stat__label {
+    font-size: 0.72rem;
+    color: rgba(175, 200, 228, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.aim-volume-stat__pct {
+    font-size: 0.72rem;
     font-weight: 700;
     color: #e8f2ff;
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .aim-hud-stat--volume .aim-volume-control__slider {
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     min-width: 0;
     max-width: none;
-    height: 4px;
+    height: 12px;
     margin: 0;
     padding: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.aim-hud-stat--volume .aim-volume-control__slider::-webkit-slider-runnable-track {
+    height: 3px;
+    background: rgba(113, 163, 230, 0.24);
+    border: none;
+    border-radius: 0;
+}
+
+.aim-hud-stat--volume .aim-volume-control__slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 9px;
+    height: 9px;
+    margin-top: -3px;
+    background: #8ecbff;
+    border: 1px solid rgba(10, 18, 36, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(113, 163, 230, 0.32);
+}
+
+.aim-hud-stat--volume .aim-volume-control__slider::-moz-range-track {
+    height: 3px;
+    background: rgba(113, 163, 230, 0.24);
+    border: none;
+    border-radius: 0;
+}
+
+.aim-hud-stat--volume .aim-volume-control__slider::-moz-range-thumb {
+    width: 9px;
+    height: 9px;
+    border: 1px solid rgba(10, 18, 36, 0.85);
+    border-radius: 50%;
+    background: #8ecbff;
+    box-shadow: 0 0 0 1px rgba(113, 163, 230, 0.32);
 }
 
 .aim-volume-control--compact .aim-volume-control__slider {
@@ -16751,12 +16801,20 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
         margin-top: 0;
     }
 
-    .aim-volume-stat__head .aim-hud-value {
-        font-size: 0.92rem;
+    .aim-hud-stat--volume {
+        min-width: 72px;
+        padding: 5px 8px 6px;
+        gap: 5px;
     }
 
-    .aim-hud-stat--volume {
-        gap: 4px;
+    .aim-volume-stat__label,
+    .aim-volume-stat__pct {
+        font-size: 0.62rem;
+        letter-spacing: 0.02em;
+    }
+
+    .aim-hud-stat--volume .aim-volume-control__slider {
+        height: 10px;
     }
 
     .aim-overlay-card {

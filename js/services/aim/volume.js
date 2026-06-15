@@ -118,11 +118,15 @@
             const head = document.createElement('div');
             head.className = 'aim-volume-stat__head';
 
-            label.className = 'aim-hud-label';
-            valueEl.className = 'aim-hud-value';
+            const title = document.createElement('span');
+            title.className = 'aim-volume-stat__title';
 
-            head.appendChild(label);
-            head.appendChild(valueEl);
+            label.className = 'aim-volume-stat__label';
+            valueEl.className = 'aim-volume-stat__pct';
+
+            title.appendChild(label);
+            title.appendChild(valueEl);
+            head.appendChild(title);
             wrap.appendChild(head);
             wrap.appendChild(slider);
         } else {
