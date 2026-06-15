@@ -147,7 +147,7 @@ function aim_trainer_meta(string $trainer, string $lang = 'ru'): ?array {
             'duration_sec' => 60,
             'ru' => [
                 'title' => 'Vugich-симулятор',
-                'desc' => 'Попадайте в движущиеся мишени, пока экран трясётся как при землетрясении.',
+                'desc' => 'Попадайте в движущиеся мишени, пока прицел трясётся как при землетрясении.',
             ],
             'en' => [
                 'title' => 'Vugich Simulator',

@@ -56,6 +56,10 @@ document.getElementById('siteSettingsForm')?.addEventListener('submit', async e 
             if (siteNameEn && typeof data.site_name_en === 'string') siteNameEn.value = data.site_name_en;
             if (wgApplicationId && typeof data.wg_application_id === 'string') wgApplicationId.value = data.wg_application_id;
             if (lestaApplicationId && typeof data.lesta_application_id === 'string') lestaApplicationId.value = data.lesta_application_id;
+            const seoGoogleVerification = document.getElementById('seo_google_verification');
+            const seoYandexVerification = document.getElementById('seo_yandex_verification');
+            if (seoGoogleVerification && typeof data.seo_google_verification === 'string') seoGoogleVerification.value = data.seo_google_verification;
+            if (seoYandexVerification && typeof data.seo_yandex_verification === 'string') seoYandexVerification.value = data.seo_yandex_verification;
             showNotification('Настройки сайта сохранены');
         } else {
             showNotification(data.error || 'Ошибка', 'error');

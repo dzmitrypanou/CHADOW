@@ -78,64 +78,82 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
                 </div>
             </div>
             <div class="site-footer-top">
-                <?php if (!empty($siteFooterMenuItems)): ?>
-                <nav class="site-footer-nav" aria-label="<?php echo $absLang === 'en' ? 'Footer links' : 'Ссылки в подвале'; ?>">
-                    <?php foreach ($siteFooterMenuItems as $item):
-                        $itemBaseHref = site_menu_normalize_href($item['href'] ?? '');
-                        $itemHref = $itemBaseHref;
-                        $itemExternal = preg_match('#^https?://#i', $itemBaseHref) === 1;
-                        $itemHrefRu = $itemBaseHref;
-                        $itemHrefEn = $itemBaseHref;
-                        if (!$itemExternal && is_string($itemBaseHref) && strpos($itemBaseHref, '/') === 0) {
-                            if ($itemBaseHref === '/') {
-                                $itemHrefEn = '/en';
-                            } elseif (strpos($itemBaseHref, '/en/') === 0 || $itemBaseHref === '/en') {
+                <div class="site-footer-toolbar">
+                    <div class="site-lang-switch site-lang-switch-footer" aria-label="Language switch">
+                        <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($footerLangRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
+                            <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span> RU
+                        </a>
+                        <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($footerLangEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
+                            <span class="site-lang-flag fi fi-us" aria-hidden="true"></span> US
+                        </a>
+                    </div>
+                    <?php if (!empty($siteFooterMenuItems)): ?>
+                    <div class="site-footer-menu" id="siteFooterMenu">
+                        <button
+                            type="button"
+                            class="site-footer-menu-toggle"
+                            id="siteFooterMenuToggle"
+                            aria-expanded="false"
+                            aria-controls="siteFooterMenuPanel"
+                            aria-label="<?php echo $absLang === 'en' ? 'Footer menu' : 'Меню в подвале'; ?>"
+                        >
+                            <span class="site-footer-menu-bars" aria-hidden="true"></span>
+                        </button>
+                        <nav
+                            class="site-footer-nav site-footer-nav--dropdown"
+                            id="siteFooterMenuPanel"
+                            aria-label="<?php echo $absLang === 'en' ? 'Footer links' : 'Ссылки в подвале'; ?>"
+                        >
+                            <?php foreach ($siteFooterMenuItems as $item):
+                                $itemBaseHref = site_menu_normalize_href($item['href'] ?? '');
+                                $itemHref = $itemBaseHref;
+                                $itemExternal = preg_match('#^https?://#i', $itemBaseHref) === 1;
+                                $itemHrefRu = $itemBaseHref;
                                 $itemHrefEn = $itemBaseHref;
-                                $itemHrefRu = $itemBaseHref === '/en' ? '/' : substr($itemBaseHref, 3);
-                                if ($itemHrefRu === '') {
-                                    $itemHrefRu = '/';
+                                if (!$itemExternal && is_string($itemBaseHref) && strpos($itemBaseHref, '/') === 0) {
+                                    if ($itemBaseHref === '/') {
+                                        $itemHrefEn = '/en';
+                                    } elseif (strpos($itemBaseHref, '/en/') === 0 || $itemBaseHref === '/en') {
+                                        $itemHrefEn = $itemBaseHref;
+                                        $itemHrefRu = $itemBaseHref === '/en' ? '/' : substr($itemBaseHref, 3);
+                                        if ($itemHrefRu === '') {
+                                            $itemHrefRu = '/';
+                                        }
+                                    } else {
+                                        $itemHrefEn = '/en' . $itemBaseHref;
+                                    }
+                                    $itemHref = $absLang === 'en' ? $itemHrefEn : $itemHrefRu;
                                 }
-                            } else {
-                                $itemHrefEn = '/en' . $itemBaseHref;
-                            }
-                            $itemHref = $absLang === 'en' ? $itemHrefEn : $itemHrefRu;
-                        }
-                        $itemLabel = $absLang === 'en'
-                            ? (!empty($item['label_en']) ? (string) $item['label_en'] : (string) ($item['label'] ?? ''))
-                            : (string) ($item['label'] ?? '');
-                        $itemLabelRu = (string) ($item['label'] ?? '');
-                        $itemLabelEn = !empty($item['label_en']) ? (string) $item['label_en'] : $itemLabelRu;
-                    ?>
-                    <a
-                        href="<?php echo htmlspecialchars($itemHref, ENT_QUOTES, 'UTF-8'); ?>"
-                        class="site-footer-nav-link"
-                        data-base-href="<?php echo htmlspecialchars($itemBaseHref, ENT_QUOTES, 'UTF-8'); ?>"
-                        data-href-ru="<?php echo htmlspecialchars($itemHrefRu, ENT_QUOTES, 'UTF-8'); ?>"
-                        data-href-en="<?php echo htmlspecialchars($itemHrefEn, ENT_QUOTES, 'UTF-8'); ?>"
-                        data-label-ru="<?php echo htmlspecialchars($itemLabelRu, ENT_QUOTES, 'UTF-8'); ?>"
-                        data-label-en="<?php echo htmlspecialchars($itemLabelEn, ENT_QUOTES, 'UTF-8'); ?>"
-                        <?php echo $itemExternal ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>
-                    ><?php echo htmlspecialchars($itemLabel, ENT_QUOTES, 'UTF-8'); ?></a>
-                    <?php endforeach; ?>
-                </nav>
-                <?php endif; ?>
-                <div class="site-lang-switch site-lang-switch-footer" aria-label="Language switch">
-                    <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($footerLangRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
-                        <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span> RU
-                    </a>
-                    <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($footerLangEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
-                        <span class="site-lang-flag fi fi-us" aria-hidden="true"></span> US
-                    </a>
+                                $itemLabel = $absLang === 'en'
+                                    ? (!empty($item['label_en']) ? (string) $item['label_en'] : (string) ($item['label'] ?? ''))
+                                    : (string) ($item['label'] ?? '');
+                                $itemLabelRu = (string) ($item['label'] ?? '');
+                                $itemLabelEn = !empty($item['label_en']) ? (string) $item['label_en'] : $itemLabelRu;
+                            ?>
+                            <a
+                                href="<?php echo htmlspecialchars($itemHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                class="site-footer-nav-link"
+                                data-base-href="<?php echo htmlspecialchars($itemBaseHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-href-ru="<?php echo htmlspecialchars($itemHrefRu, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-href-en="<?php echo htmlspecialchars($itemHrefEn, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-label-ru="<?php echo htmlspecialchars($itemLabelRu, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-label-en="<?php echo htmlspecialchars($itemLabelEn, ENT_QUOTES, 'UTF-8'); ?>"
+                                <?php echo $itemExternal ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>
+                            ><?php echo htmlspecialchars($itemLabel, ENT_QUOTES, 'UTF-8'); ?></a>
+                            <?php endforeach; ?>
+                        </nav>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="footer-links">
-                <a href="https://twitch.tv/immortal_emperor" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-twitch"></i> Twitch</a>
-                <span class="separator">•</span>
-                <a href="https://t.me/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-telegram"></i> Telegram</a>
-                <span class="separator">•</span>
-                <a href="https://vk.com/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-vk"></i> VK</a>
-                <span class="separator">•</span>
-                <a href="https://www.donationalerts.com/r/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fas fa-university"></i> Donation</a>
+                <a href="https://twitch.tv/immortal_emperor" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Twitch"><i class="fab fa-twitch" aria-hidden="true"></i><span class="social-link-label">Twitch</span></a>
+                <span class="separator" aria-hidden="true">•</span>
+                <a href="https://t.me/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Telegram"><i class="fab fa-telegram" aria-hidden="true"></i><span class="social-link-label">Telegram</span></a>
+                <span class="separator" aria-hidden="true">•</span>
+                <a href="https://vk.com/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="VK"><i class="fab fa-vk" aria-hidden="true"></i><span class="social-link-label">VK</span></a>
+                <span class="separator" aria-hidden="true">•</span>
+                <a href="https://www.donationalerts.com/r/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Donation"><i class="fas fa-university" aria-hidden="true"></i><span class="social-link-label">Donation</span></a>
             </div>
             <div class="footer-text">
                 Copyright (c) 2026 Analysis ABS replays <span class="version">ver. <span id="siteVersion"><?php echo htmlspecialchars($siteVersion); ?></span></span> by <a href="https://tanki.su/ru/community/accounts/282194247" target="_blank" rel="noopener noreferrer" class="version footer-author-link">Immortal_Emperor</a>.
@@ -159,6 +177,7 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
         <script src="/js/landing-i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
         <?php endif; ?>
         <script src="/js/site-title.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+        <script src="/js/footer-menu.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
         <script src="/js/lang-switch.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
         <?php
         if (!isset($userLoggedIn) && empty($GLOBALS['__chadow_auth_ready'])) {

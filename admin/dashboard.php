@@ -16,6 +16,8 @@ $siteNameRu = function_exists('get_site_name') ? get_site_name($db, 'ru') : 'Cha
 $siteNameEn = function_exists('get_site_name') ? get_site_name($db, 'en') : 'Chadow';
 $wgApplicationId = function_exists('get_site_setting') ? (string) get_site_setting($db, 'wg_application_id', '') : '';
 $lestaApplicationId = function_exists('get_site_setting') ? (string) get_site_setting($db, 'lesta_application_id', '') : '';
+$seoGoogleVerification = function_exists('get_site_setting') ? (string) get_site_setting($db, 'seo_google_verification', '') : '';
+$seoYandexVerification = function_exists('get_site_setting') ? (string) get_site_setting($db, 'seo_yandex_verification', '') : '';
 
 if ($username === '') {
     $avatarLetter = '?';
@@ -157,6 +159,16 @@ $statsOk = $tankStats !== null && $mapStats !== null;
                                     <label for="lesta_application_id">Lesta API application_id</label>
                                     <input type="text" name="lesta_application_id" id="lesta_application_id" maxlength="64" value="<?php echo htmlspecialchars($lestaApplicationId, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ключ с developers.lesta.ru" autocomplete="off">
                                     <small class="form-hint">RU: поиск игроков, % попаданий, ссылки на кланы, OAuth Lesta.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="seo_google_verification">Google Search Console (meta-тег)</label>
+                                    <input type="text" name="seo_google_verification" id="seo_google_verification" maxlength="128" value="<?php echo htmlspecialchars($seoGoogleVerification, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Код из content=… (если не DNS)" autocomplete="off">
+                                    <small class="form-hint">Опционально. Если домен уже подтверждён через DNS TXT — оставьте пустым.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="seo_yandex_verification">Яндекс.Вебмастер (meta-тег)</label>
+                                    <input type="text" name="seo_yandex_verification" id="seo_yandex_verification" maxlength="128" value="<?php echo htmlspecialchars($seoYandexVerification, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Код из content=…" autocomplete="off">
+                                    <small class="form-hint">Код верификации из Яндекс.Вебмастера.</small>
                                 </div>
                                 <label class="profile-setting-toggle" for="replay_storage_enabled">
                                     <input type="checkbox" name="replay_storage_enabled" id="replay_storage_enabled" value="1"<?php echo $replayStorageEnabled ? ' checked' : ''; ?>>

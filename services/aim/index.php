@@ -43,6 +43,10 @@ $metaDescription = $lang === 'en'
     : 'Мини-игры для тренировки прицеливания и реакции: flick, tracking, reaction, lead shot, gridshot и утиная охота с глобальным топом.';
 $bodyClass = 'page-aim';
 $seoSlug = 'services/aim';
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
 $extraHeadHtml = aim_device_sniff_script();
 
 require __DIR__ . '/../../includes/site_header.php';

@@ -48,6 +48,10 @@ $metaDescription = $lang === 'en'
 $bodyClass = 'page-recruiting';
 $seoSlug = 'services/recruiting';
 
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
 $postHref = abs_build_lang_href($lang, 'services/recruiting/post');
 $boardBase = abs_build_lang_href($lang, 'services/recruiting');
 

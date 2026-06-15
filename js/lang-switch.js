@@ -52,7 +52,7 @@
                 const logoText = logo.querySelector('.site-logo-text');
                 if (logoText) {
                     logoText.textContent = txt;
-                } else {
+                } else if (!logo.querySelector('.site-logo-img')) {
                     logo.textContent = txt;
                 }
             }
@@ -67,11 +67,6 @@
                 a.href = href;
             }
         });
-
-        const lawHelpWrap = document.getElementById('siteLawHelpWrap');
-        if (lawHelpWrap) {
-            lawHelpWrap.hidden = isEn;
-        }
 
         if (typeof window.absUpdateDocumentTitle === 'function'
             && !document.body.classList.contains('page-recruiting')

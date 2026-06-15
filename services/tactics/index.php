@@ -33,6 +33,11 @@ $metaDescription = $lang === 'en'
 $bodyClass = 'page-tactics page-tactics-lobby';
 $seoSlug = 'services/tactics';
 
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
+
 $roomsHref = abs_build_lang_href($lang, 'services/tactics/rooms');
 
 $extraHeadHtml = (isset($extraHeadHtml) ? $extraHeadHtml : '')

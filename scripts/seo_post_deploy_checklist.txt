@@ -1,0 +1,23 @@
+SEO post-deploy checklist (chadow.ru)
+=====================================
+
+Google Search Console
+- Verify domain via DNS TXT (@ or apex) if not done yet
+- Submit sitemap: https://chadow.ru/sitemap.xml
+- Request indexing for / and /services/abs
+
+Yandex Webmaster
+- Add site and verify (meta tag in Admin → Settings → SEO, or DNS TXT)
+- Submit the same sitemap URL
+
+Social previews
+- Check https://chadow.ru/assets/seo/og-image.png loads over HTTPS
+- Test share preview (Telegram, VK, Discord) for homepage and /services/abs
+
+Performance
+- Run PageSpeed Insights on / and /services/abs
+- Fix regressions if LCP or CLS are poor
+
+Ongoing
+- Monthly: GSC / Webmaster coverage and crawl errors
+- After major releases: confirm sitemap lastmod updates

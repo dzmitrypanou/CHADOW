@@ -25,6 +25,8 @@ $siteNameRu = isset($_POST['site_name_ru']) ? trim((string) $_POST['site_name_ru
 $siteNameEn = isset($_POST['site_name_en']) ? trim((string) $_POST['site_name_en']) : '';
 $wgApplicationId = isset($_POST['wg_application_id']) ? trim((string) $_POST['wg_application_id']) : '';
 $lestaApplicationId = isset($_POST['lesta_application_id']) ? trim((string) $_POST['lesta_application_id']) : '';
+$seoGoogleVerification = isset($_POST['seo_google_verification']) ? trim((string) $_POST['seo_google_verification']) : '';
+$seoYandexVerification = isset($_POST['seo_yandex_verification']) ? trim((string) $_POST['seo_yandex_verification']) : '';
 
 if ($siteNameRu === '' || $siteNameEn === '') {
     echo json_encode(['success' => false, 'error' => 'Укажите название сайта на обоих языках'], JSON_UNESCAPED_UNICODE);
@@ -42,6 +44,8 @@ try {
     set_site_setting($db, 'replay_storage_enabled', $replayStorageEnabled ? '1' : '0');
     set_site_setting($db, 'wg_application_id', $wgApplicationId);
     set_site_setting($db, 'lesta_application_id', $lestaApplicationId);
+    set_site_setting($db, 'seo_google_verification', $seoGoogleVerification);
+    set_site_setting($db, 'seo_yandex_verification', $seoYandexVerification);
     echo json_encode([
         'success' => true,
         'replay_storage_enabled' => $replayStorageEnabled,
@@ -49,6 +53,8 @@ try {
         'site_name_en' => $siteNameEn,
         'wg_application_id' => $wgApplicationId,
         'lesta_application_id' => $lestaApplicationId,
+        'seo_google_verification' => $seoGoogleVerification,
+        'seo_yandex_verification' => $seoYandexVerification,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
     http_response_code(500);

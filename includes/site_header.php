@@ -52,17 +52,35 @@ try {
     $_siteSettingsDb = Database::getInstance();
     $siteNameRu = get_site_name($_siteSettingsDb, 'ru');
     $siteNameEn = get_site_name($_siteSettingsDb, 'en');
+    $seoGoogleVerification = trim((string) get_site_setting($_siteSettingsDb, 'seo_google_verification', ''));
+    $seoYandexVerification = trim((string) get_site_setting($_siteSettingsDb, 'seo_yandex_verification', ''));
 } catch (Throwable $e) {
     $siteNameRu = 'Chadow';
     $siteNameEn = 'Chadow';
+    $seoGoogleVerification = '';
+    $seoYandexVerification = '';
+}
+if (!isset($seoGoogleVerification)) {
+    $seoGoogleVerification = '';
+}
+if (!isset($seoYandexVerification)) {
+    $seoYandexVerification = '';
 }
 $siteName = $absLang === 'en' ? $siteNameEn : $siteNameRu;
 $pageTitleRaw = isset($pageTitle) ? trim((string) $pageTitle) : '';
 if (!isset($pageTitleRu)) {
-    $pageTitleRu = $absLang === 'ru' ? $pageTitleRaw : '';
+    if ($pageTitleRaw === '') {
+        $pageTitleRu = $siteNameRu;
+    } else {
+        $pageTitleRu = $absLang === 'ru' ? $pageTitleRaw : '';
+    }
 }
 if (!isset($pageTitleEn)) {
-    $pageTitleEn = $absLang === 'en' ? $pageTitleRaw : '';
+    if ($pageTitleRaw === '') {
+        $pageTitleEn = $siteNameEn;
+    } else {
+        $pageTitleEn = $absLang === 'en' ? $pageTitleRaw : '';
+    }
 }
 $pageTitleForLang = $absLang === 'en'
     ? ($pageTitleEn !== '' ? $pageTitleEn : $pageTitleRu)
@@ -81,11 +99,19 @@ $canonicalUrl = isset($canonicalUrl) && trim((string) $canonicalUrl) !== ''
 $alternateRuUrl = $seoUrls['alternate_ru'];
 $alternateEnUrl = $seoUrls['alternate_en'];
 $ogType = isset($ogType) && trim((string) $ogType) !== '' ? trim((string) $ogType) : 'website';
-$defaultOgImagePath = '/assets/seo/og-image.svg';
+$defaultOgImagePath = '/assets/seo/og-image.png';
 $defaultOgImageUrl = abs_absolute_url($defaultOgImagePath);
 $ogImage = isset($ogImage) && trim((string) $ogImage) !== '' ? trim((string) $ogImage) : $defaultOgImageUrl;
 if ($ogImage !== '' && !preg_match('#^https?://#i', $ogImage)) {
     $ogImage = abs_absolute_url($ogImage);
+}
+$ogImageType = 'image/png';
+if (preg_match('/\.jpe?g$/i', $ogImage)) {
+    $ogImageType = 'image/jpeg';
+} elseif (preg_match('/\.webp$/i', $ogImage)) {
+    $ogImageType = 'image/webp';
+} elseif (preg_match('/\.svg$/i', $ogImage)) {
+    $ogImageType = 'image/svg+xml';
 }
 $twitterCard = $ogImage !== '' ? 'summary_large_image' : 'summary';
 $ogLocale = $absLang === 'en' ? 'en_US' : 'ru_RU';
@@ -93,7 +119,26 @@ $ogLocaleAlternate = $absLang === 'en' ? 'ru_RU' : 'en_US';
 if (isset($jsonLdData) && is_array($jsonLdData)) {
     $jsonLd = $jsonLdData;
 } elseif ($siteSlugCurrent !== '') {
-    $jsonLd = abs_seo_web_page_json_ld($pageTitle, $metaDescription, $canonicalUrl, $absLang, $siteName);
+    $webPage = abs_seo_web_page_json_ld($pageTitle, $metaDescription, $canonicalUrl, $absLang, $siteName);
+    $graphExtra = [];
+    if (isset($seoSoftwareApp) && is_array($seoSoftwareApp)) {
+        $appName = trim((string) ($seoSoftwareApp['name'] ?? $pageTitleForLang));
+        $appDesc = trim((string) ($seoSoftwareApp['description'] ?? $metaDescription));
+        $appCategory = trim((string) ($seoSoftwareApp['category'] ?? 'GameApplication'));
+        if ($appName !== '') {
+            $graphExtra[] = abs_seo_software_app_json_ld(
+                $appName,
+                $appDesc !== '' ? $appDesc : $metaDescription,
+                $canonicalUrl,
+                $absLang,
+                $appCategory !== '' ? $appCategory : 'GameApplication'
+            );
+        }
+    }
+    if (isset($seoBreadcrumbs) && is_array($seoBreadcrumbs) && $seoBreadcrumbs !== []) {
+        $graphExtra[] = abs_seo_breadcrumb_json_ld($seoBreadcrumbs);
+    }
+    $jsonLd = $graphExtra !== [] ? abs_seo_page_graph_json_ld($webPage, $graphExtra) : $webPage;
 } else {
     $jsonLd = abs_seo_default_json_ld($siteName, $absLang, $canonicalUrl);
 }
@@ -156,6 +201,12 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <meta name="description" content="<?php echo htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <meta name="robots" content="<?php echo htmlspecialchars($metaRobots, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if ($seoGoogleVerification !== ''): ?>
+    <meta name="google-site-verification" content="<?php echo htmlspecialchars($seoGoogleVerification, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <?php if ($seoYandexVerification !== ''): ?>
+    <meta name="yandex-verification" content="<?php echo htmlspecialchars($seoYandexVerification, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
     <?php if ($canonicalUrl !== ''): ?>
     <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
     <?php endif; ?>
@@ -184,7 +235,7 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <meta name="twitter:description" content="<?php echo htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <?php if ($ogImage !== ''): ?>
     <meta name="twitter:image" content="<?php echo htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8'); ?>">
-    <meta property="og:image:type" content="image/svg+xml">
+    <meta property="og:image:type" content="<?php echo htmlspecialchars($ogImageType, ENT_QUOTES, 'UTF-8'); ?>">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:image:alt" content="<?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?>">
@@ -208,9 +259,9 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <link rel="stylesheet" href="<?php echo htmlspecialchars($faStylesheetHref, ENT_QUOTES, 'UTF-8'); ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="/css/style.css?v=<?php echo htmlspecialchars($siteVersion); ?>">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.svg">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
     <?php if (!empty($extraHeadHtml)) {
         echo $extraHeadHtml;
     } ?>
@@ -224,7 +275,7 @@ $GLOBALS['__chadow_auth_ready'] = true;
 <?php if (empty($tacticsRoomShell)): ?>
     <div class="ambient-bg" id="ambientBg" aria-hidden="true"></div>
     <div class="container">
-        <div class="header">
+        <div class="header<?php echo empty($siteMenuItems) ? ' header--no-nav' : ''; ?>">
             <h1 class="site-heading">
                 <span class="site-heading-main">
                     <a
@@ -236,25 +287,14 @@ $GLOBALS['__chadow_auth_ready'] = true;
                         data-href-ru="<?php echo htmlspecialchars($homeRuHref, ENT_QUOTES, 'UTF-8'); ?>"
                         data-href-en="<?php echo htmlspecialchars($homeEnHref, ENT_QUOTES, 'UTF-8'); ?>"
                     >
-                        <span class="site-logo-mark" aria-hidden="true"></span>
-                        <span class="site-logo-text"><?php echo htmlspecialchars($siteLogoText, ENT_QUOTES, 'UTF-8'); ?></span>
-                    </a>
-                    <span class="site-law-help-wrap" id="siteLawHelpWrap"<?php echo $absLang === 'en' ? ' hidden' : ''; ?>>
-                        <button
-                            type="button"
-                            class="site-law-help"
-                            id="siteLawHelp"
-                            aria-describedby="siteLawHelpTip"
-                            aria-expanded="false"
-                            aria-label="О Федеральном законе № 168-ФЗ"
+                        <img
+                            class="site-logo-img"
+                            src="/assets/icons/logo-header.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>"
+                            width="230"
+                            height="50"
+                            alt="<?php echo htmlspecialchars($siteLogoText, ENT_QUOTES, 'UTF-8'); ?>"
                         >
-                            <i class="fas fa-question-circle" aria-hidden="true"></i>
-                        </button>
-                        <span class="site-law-help-tip" id="siteLawHelpTip" role="tooltip">
-                            <span class="site-law-help-tip-line">Федеральный закон № 168-ФЗ (защита русского языка).</span>
-                            <span class="site-law-help-tip-line">Информация для потребителей на сайте представлена на русском языке.</span>
-                        </span>
-                    </span>
+                    </a>
                 </span>
             </h1>
             <div class="header-right">

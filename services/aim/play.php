@@ -50,6 +50,15 @@ abs_set_page_titles(
 $metaDescription = $meta['desc'] ?? ($lang === 'en' ? 'Aim training mini-game.' : 'Мини-игра для тренировки прицела.');
 $bodyClass = 'page-aim page-aim-play page-aim-play-' . $trainer;
 $seoSlug = 'services/aim/' . $trainer;
+$seoSoftwareApp = [
+    'name' => (string) ($meta['title'] ?? $pageTitle),
+    'description' => $metaDescription,
+];
+$seoBreadcrumbs = [
+    ['name' => 'Chadow', 'url' => abs_absolute_url(abs_build_lang_href($lang, ''))],
+    ['name' => $lang === 'en' ? 'Aim Trainers' : 'Аим-тренажеры', 'url' => abs_absolute_url($hubHref)],
+    ['name' => (string) ($meta['title'] ?? $pageTitle), 'url' => abs_absolute_url($playHref)],
+];
 $extraHeadHtml = aim_device_sniff_script();
 
 require __DIR__ . '/../../includes/site_header.php';

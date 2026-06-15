@@ -197,4 +197,86 @@ function abs_seo_web_page_json_ld(
     ];
 }
 
+/**
+ * @param array<int, array<string, mixed>> $items
+ * @return array<string, mixed>
+ */
+function abs_seo_json_ld_graph(array $items): array
+{
+    return [
+        '@context' => 'https://schema.org',
+        '@graph' => array_values($items),
+    ];
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function abs_seo_software_app_json_ld(
+    string $name,
+    string $description,
+    string $url,
+    string $lang,
+    string $category = 'GameApplication'
+): array {
+    return [
+        '@type' => 'SoftwareApplication',
+        'name' => $name,
+        'description' => $description,
+        'url' => $url,
+        'applicationCategory' => $category,
+        'operatingSystem' => 'Web',
+        'offers' => [
+            '@type' => 'Offer',
+            'price' => '0',
+            'priceCurrency' => 'USD',
+        ],
+        'inLanguage' => $lang === 'en' ? 'en' : 'ru',
+    ];
+}
+
+/**
+ * @param array<int, array{name:string,url:string}> $items
+ * @return array<string, mixed>
+ */
+function abs_seo_breadcrumb_json_ld(array $items): array
+{
+    $list = [];
+    foreach ($items as $index => $item) {
+        $name = trim((string) ($item['name'] ?? ''));
+        $url = trim((string) ($item['url'] ?? ''));
+        if ($name === '' || $url === '') {
+            continue;
+        }
+        $list[] = [
+            '@type' => 'ListItem',
+            'position' => count($list) + 1,
+            'name' => $name,
+            'item' => $url,
+        ];
+    }
+
+    return [
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => $list,
+    ];
+}
+
+/**
+ * @param array<string, mixed> $webPage
+ * @param array<int, array<string, mixed>> $extra
+ * @return array<string, mixed>
+ */
+function abs_seo_page_graph_json_ld(array $webPage, array $extra = []): array
+{
+    $items = [$webPage];
+    foreach ($extra as $node) {
+        if (is_array($node) && $node !== []) {
+            $items[] = $node;
+        }
+    }
+
+    return abs_seo_json_ld_graph($items);
+}
+
 abs_redirect_www_to_apex();

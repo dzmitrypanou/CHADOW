@@ -21,6 +21,10 @@ $metaDescription = $lang === 'en'
     : 'Загружайте .mtreplay и .wotreplay для анализа статистики команды, рейтинга WGSRT и детальных метрик боёв World of Tanks.';
 $bodyClass = 'page-abs';
 $seoSlug = 'services/abs';
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
 require __DIR__ . '/../../includes/site_header.php';
 ?>
 

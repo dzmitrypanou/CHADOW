@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ensure_cms_pages.php';
+require_once __DIR__ . '/config/ensure_cms_seo_pages.php';
 $lang = 'ru';
 try {
     require_once __DIR__ . '/includes/lang.php';
@@ -31,6 +32,7 @@ if ($slug === '' || !preg_match('/^[a-z0-9\-]{1,128}$/', $slug)) {
 try {
     $db = Database::getInstance();
     ensure_cms_pages_table($db);
+    ensure_cms_seo_pages($db);
     $page = $db->fetchOne(
         'SELECT id, slug, title, title_en, body_html, body_html_en
          FROM cms_pages

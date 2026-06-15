@@ -8,8 +8,8 @@ try {
 }
 
 $metaDescription = $lang === 'en'
-    ? 'Chadow project hub: ABS replay analysis, server status, recruiting tools, tournament brackets, and more for World of Tanks.'
-    : 'Портал Chadow: анализ АБС реплеев, статус серверов, рекрутинг, турнирные сетки и другие сервисы для World of Tanks.';
+    ? 'Chadow project hub: ABS replay analysis, server status, recruiting, tournament brackets, aim training, and more for World of Tanks.'
+    : 'Портал Chadow: анализ АБС реплеев, статус серверов, рекрутинг, турнирные сетки, тренировка прицела и другие сервисы для World of Tanks.';
 $bodyClass = 'page-landing';
 
 $absServiceHref = $lang === 'en' ? '/en/services/abs' : '/services/abs';

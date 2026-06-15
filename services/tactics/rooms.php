@@ -37,9 +37,19 @@ $metaDescription = $lang === 'en'
     : 'Список открытых тактических комнат — выберите и присоединяйтесь.';
 $bodyClass = 'page-tactics page-tactics-rooms';
 $seoSlug = 'services/tactics/rooms';
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
 
 $lobbyHref = abs_build_lang_href($lang, 'services/tactics');
 $roomBase = abs_build_lang_href($lang, 'services/tactics');
+$roomsHref = abs_absolute_url(abs_build_lang_href($lang, 'services/tactics/rooms'));
+$seoBreadcrumbs = [
+    ['name' => 'Chadow', 'url' => abs_absolute_url(abs_build_lang_href($lang, ''))],
+    ['name' => $lang === 'en' ? 'Tactical Board' : 'Тактический планшет', 'url' => abs_absolute_url($lobbyHref)],
+    ['name' => $pageTitle, 'url' => $roomsHref],
+];
 
 require __DIR__ . '/../../includes/site_header.php';
 ?>

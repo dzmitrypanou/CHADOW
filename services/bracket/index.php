@@ -38,6 +38,11 @@ $metaDescription = $lang === 'en'
 $bodyClass = 'page-bracket';
 $seoSlug = 'services/bracket';
 
+$seoSoftwareApp = [
+    'name' => $pageTitle,
+    'description' => $metaDescription,
+];
+
 $createHref = abs_build_lang_href($lang, 'services/bracket/create');
 $isLoggedIn = user_is_logged_in();
 $loginHref = user_auth_path('/auth/login') . '?return=' . rawurlencode($createHref);

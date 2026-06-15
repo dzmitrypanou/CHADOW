@@ -10,10 +10,16 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "/assets/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/favicon.png",
+      "sizes": "368x368",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
