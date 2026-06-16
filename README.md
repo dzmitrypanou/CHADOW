@@ -1,6 +1,6 @@
 # Chadow.ru
 
-Портал игровых сервисов для сообщества World of Tanks: анализ АБС-реплеев, онлайн серверов, рекрутинг, турнирные сетки, тактический планшет, аим-тренажёры, мини-игры и лаунчер Minecraft.
+Портал игровых сервисов для сообщества World of Tanks: анализ АБС-реплеев, онлайн серверов, рекрутинг, турнирные сетки, тактический планшет, аим-тренажёры, мини-игры и [лаунчер Minecraft](https://github.com/dzmitrypanou/ChadowGamesLauncher).
 
 **Сайт:** [chadow.ru](https://chadow.ru)  
 **Репозиторий:** [github.com/dzmitrypanou/chadow.ru](https://github.com/dzmitrypanou/chadow.ru)  
