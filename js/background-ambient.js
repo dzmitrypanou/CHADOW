@@ -79,7 +79,6 @@
                 item.classList.add('is-updating');
             }, 2200 + Math.random() * 2600);
 
-            // Each widget has its own slow random relocation cycle.
             window.setTimeout(() => {
                 scheduleRelocation(item, value, param, baseOpacity);
             }, Math.floor(1000 + Math.random() * 7000));

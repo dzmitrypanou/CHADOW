@@ -1,13 +1,5 @@
 <?php
-/**
- * Простая поддержка локали для публичной части.
- *
- * Логика:
- * - /en/... => lang = 'en'
- * - всё остальное => lang = 'ru'
- *
- * Для тестов можно также передавать query-параметр lang=en|ru.
- */
+
 function abs_detect_lang(): string
 {
     $path = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
@@ -18,8 +10,6 @@ function abs_detect_lang(): string
         return 'en';
     }
 
-    // Query-параметр оставляем только как fallback для тестов.
-    // Путь имеет приоритет, чтобы /en не переключался на ru из-за ?lang=ru.
     $q = $_GET['lang'] ?? '';
     $q = is_string($q) ? strtolower(trim($q)) : '';
     if ($q === 'en' || $q === 'ru') {
@@ -29,9 +19,6 @@ function abs_detect_lang(): string
     return 'ru';
 }
 
-/**
- * Язык для API-запросов: путь, query lang=, тело JSON (lang) или Referer с /en/.
- */
 function abs_resolve_lang(?array $input = null): string
 {
     if (is_array($input)) {
@@ -57,13 +44,6 @@ function abs_resolve_lang(?array $input = null): string
     return $lang;
 }
 
-/**
- * Возвращает slug текущего публичного пути без языкового префикса.
- * Примеры:
- * - / => ''
- * - /about => 'about'
- * - /en/about => 'about'
- */
 function abs_extract_slug_from_request(): string
 {
     $path = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
@@ -72,7 +52,6 @@ function abs_extract_slug_from_request(): string
     }
     $path = rtrim($path, '/');
 
-    // Убираем /en префикс
     if ($path === '/en') {
         return '';
     }
@@ -84,7 +63,7 @@ function abs_extract_slug_from_request(): string
     if ($slug === '') {
         return '';
     }
-    // CMS-страницы (один сегмент) и сервисы вроде services/abs
+
     if (!preg_match('/^[a-z0-9\-]+(?:\/[a-z0-9\-]+)*$/i', $slug)) {
         return '';
     }
@@ -101,9 +80,6 @@ function abs_build_lang_href(string $lang, string $slug): string
     return $lang === 'en' ? ('/en/' . $slug) : ('/' . $slug);
 }
 
-/**
- * Заголовки вкладки для обеих локалей (до подключения site_header.php).
- */
 function abs_set_page_titles(string $ru, string $en): void
 {
     global $pageTitle, $pageTitleRu, $pageTitleEn;

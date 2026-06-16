@@ -1,9 +1,5 @@
 <?php
-/**
- * Ссылки «Разделы админки» для карточки на дашборде.
- *
- * @var string|null $navCurrent
- */
+
 require_once __DIR__ . '/admin_sections.php';
 
 $navCurrent = $navCurrent ?? '';

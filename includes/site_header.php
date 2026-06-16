@@ -1,8 +1,5 @@
 <?php
-/**
- * Шапка публичного сайта (общая для index.php, page.php и т.д.).
- * Перед подключением задайте при необходимости: $pageTitle, $bodyClass, $siteVersion, $extraHeadHtml
- */
+
 if (!headers_sent()) {
     header('X-Frame-Options: SAMEORIGIN');
     header('X-Content-Type-Options: nosniff');
@@ -176,7 +173,7 @@ if (empty($tacticsRoomShell)) {
 $siteLogoTextRu = $siteNameRu;
 $siteLogoTextEn = $siteNameEn;
 $siteLogoText = $siteName;
-$siteSlug = abs_extract_slug_from_request(); // slug без /en
+$siteSlug = abs_extract_slug_from_request();
 $langRuHref = abs_build_lang_href('ru', $siteSlug);
 $langEnHref = abs_build_lang_href('en', $siteSlug);
 $homeRuHref = '/';

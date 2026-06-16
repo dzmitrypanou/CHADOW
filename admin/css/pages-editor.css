@@ -8,7 +8,6 @@
     margin-bottom: 0;
 }
 
-/* Сильнее, чем .pages-cms-form label { display: block }, иначе текст наезжает на свитчер */
 .pages-cms-form label.cms-published-switch {
     display: flex;
     align-items: center;
@@ -245,7 +244,6 @@
     color: #6b7784;
 }
 
-/* Не тянуть жёлтый h1/h2 из admin.css — заголовки как обычный текст редактора */
 .pages-editor-shell .ql-editor h1,
 .pages-editor-shell .ql-editor h2 {
     color: #e8eef2;
@@ -263,7 +261,6 @@
     stroke: #e8eef2;
 }
 
-/* Как на сайте: корневые и вложенные списки с одинаковым шагом 1.5em */
 .pages-editor-shell .ql-editor ol,
 .pages-editor-shell .ql-editor ul {
     padding-left: 1.5em;
@@ -274,7 +271,6 @@
     padding-left: 1.5em;
 }
 
-/* ~один пробел после маркера/номера (на сайте 1ch) */
 .pages-editor-shell .ql-editor li:not(.ql-direction-rtl)::before {
     margin-right: 1ch;
 }
@@ -282,7 +278,6 @@
     margin-left: 1ch;
 }
 
-/* Выпадающие списки тулбара (выравнивание, заголовки и т.д.) — тёмный фон вместо белого */
 .pages-editor-shell .ql-toolbar.ql-snow .ql-picker-options {
     background: #1f262c;
     border: 1px solid #2a3138;

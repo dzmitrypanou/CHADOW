@@ -1,16 +1,4 @@
 <?php
-/**
- * Фоновое обновление кэша онлайна и графиков.
- *
- * Рекомендуется: systemd-сервис chadow-online-cache (--loop, каждые 15 с).
- *   sudo deploy/systemd/install-online-cache-service.sh
- *
- * Разовый запуск:  php scripts/refresh_online_cache.php
- * Принудительно:   php scripts/refresh_online_cache.php --force
- * Постоянный цикл: php scripts/refresh_online_cache.php --loop
- *
- * Запасной вариант — cron каждые 15 с или URL-cron /api/cron_refresh_online.php?token=...
- */
 
 if (php_sapi_name() !== 'cli') {
     fwrite(STDERR, "CLI only\n");

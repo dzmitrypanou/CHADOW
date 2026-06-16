@@ -27,7 +27,7 @@
 
     function getHrefForLang(currentHref, lang) {
         if (typeof currentHref !== 'string' || currentHref === '') return currentHref;
-        if (/^https?:\/\//i.test(currentHref)) return currentHref;
+        if (/^https?:\/\
         if (currentHref[0] !== '/') return currentHref;
         return buildLangPath(currentHref, lang);
     }
@@ -63,7 +63,7 @@
             const label = a.getAttribute(isEn ? 'data-label-en' : 'data-label-ru');
             const href = a.getAttribute(isEn ? 'data-href-en' : 'data-href-ru');
             if (label) a.textContent = label;
-            if (href && !/^https?:\/\//i.test(href)) {
+            if (href && !/^https?:\/\
                 a.href = href;
             }
         });

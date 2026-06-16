@@ -14,7 +14,6 @@ const TACTICS_DOTA2_CUSTOM_MAP_CODE = 'dota2_custom';
 
 const TACTICS_CS2_CUSTOM_MAP_CODE = 'cs2_custom';
 
-/** Карты только на Lesta / «Мир танков». */
 const TACTICS_LESTA_ONLY_MAPS = [
     'battle_for_moscow',
     'caucasus',
@@ -32,7 +31,6 @@ const TACTICS_LESTA_ONLY_MAPS = [
     'cosmic_2026',
 ];
 
-/** Карты только на Wargaming / World of Tanks (нет на Lesta). */
 const TACTICS_WOT_ONLY_MAPS = [
     'sweden',
     'westfeld',
@@ -48,7 +46,6 @@ const TACTICS_WOT_ONLY_MAPS = [
     'last_frontier_v',
 ];
 
-/** Карты «Остальное»: ивенты, epic, варианты режимов и прочие нестандартные. */
 const TACTICS_OTHER_MAPS = [
     'sweden',
     'westfeld',
@@ -71,7 +68,6 @@ const TACTICS_OTHER_MAPS = [
     'japort',
 ];
 
-/** Встречный бой — базовые карты (без суффиксов режимов). */
 const TACTICS_ENCOUNTER_MAPS = [
     'airfield',
     'cliff',
@@ -105,7 +101,6 @@ const TACTICS_ENCOUNTER_MAPS = [
     'kaliningrad',
 ];
 
-/** Атака/оборона — варианты карт и отдельные коды из словаря. */
 const TACTICS_ASSAULT_MAPS = [
     'germany_att',
     'ruinberg_att',
@@ -302,11 +297,6 @@ function tactics_cs2_custom_map_row(string $lang = 'ru'): array {
     return tactics_custom_map_row('cs2', $lang);
 }
 
-/**
- * @param array<int, array<string, mixed>> $rows map_dictionary rows
- * @param Database|null $db
- * @return array<string, mixed>
- */
 function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null): array {
     require_once __DIR__ . '/../includes/tactics_helpers.php';
 

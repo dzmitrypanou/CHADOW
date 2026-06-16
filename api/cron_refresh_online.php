@@ -1,13 +1,4 @@
 <?php
-/**
- * URL-cron для обновления кэша онлайна (если нет доступа к CLI).
- *
- * Задайте переменную окружения ONLINE_CRON_TOKEN на сервере и вызывайте:
- * GET /api/cron_refresh_online.php?token=YOUR_TOKEN
- *
- * Запасной вариант без CLI. Интервал не чаще BACKGROUND_REFRESH_INTERVAL_SECONDS (15 с).
- * Предпочтительно: systemd chadow-online-cache (--loop).
- */
 
 header('Content-Type: application/json; charset=utf-8');
 

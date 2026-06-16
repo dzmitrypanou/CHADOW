@@ -1,9 +1,5 @@
 <?php
-/**
- * Единый список разделов админ-панели.
- *
- * @return list<array{id:string, href:string, label:string, icon:string, admin_only?:bool}>
- */
+
 function admin_panel_sections(): array {
     return [
         [
@@ -69,7 +65,7 @@ function admin_panel_sections(): array {
         [
             'id' => 'minecraft',
             'href' => '/admin/minecraft',
-            'label' => 'Minecraft сервер',
+            'label' => 'Chadow Games Launcher',
             'icon' => 'fas fa-cube',
             'admin_only' => true,
         ],

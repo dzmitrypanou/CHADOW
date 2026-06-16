@@ -4,15 +4,15 @@ const FilesUI = {
         if (!filesList) return;
 
         const isEn = AppConstants.LANG === 'en';
-        
+
         if (fileData.length === 0) {
             filesList.innerHTML = '';
             filesList.style.display = 'none';
             return;
         }
-        
+
         filesList.style.display = 'block';
-        
+
         filesList.innerHTML = `
             <div class="files-header">
                 <span>${isEn ? 'Loaded files' : 'Загруженные файлы'} <span class="badge">${fileData.length}</span></span>

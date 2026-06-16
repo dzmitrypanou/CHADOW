@@ -102,7 +102,7 @@
                     share_my_cursor: parsed.share_my_cursor !== false,
                 };
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
         return { ...DEFAULT_SLIDE_VIEW_PREFS };
     }
 
@@ -113,7 +113,7 @@
                 show_remote_cursors: !!canvasCtrl.showRemoteCursors,
                 share_my_cursor: !!canvasCtrl.shareMyCursor,
             }));
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
     }
 
     function ensureSlideView(slide) {
@@ -524,7 +524,7 @@
     }
 
     function setSaveStatus() {
-        /* connection / save status hidden per UI design */
+
     }
 
     async function copyTextToClipboard(text) {
@@ -537,7 +537,7 @@
                 return true;
             }
         } catch (e) {
-            /* fallback below */
+
         }
 
         const textarea = document.createElement('textarea');
@@ -1463,7 +1463,7 @@
                     }
                 }
             } catch (e) {
-                // ignore
+
             }
             window.location.href = fallback;
         });

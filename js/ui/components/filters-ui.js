@@ -3,24 +3,24 @@ const FiltersUI = {
         const container = document.getElementById('filtersContainer');
         if (!container) return;
         const isEn = AppConstants.LANG === 'en';
-        
+
         const savedColumns = AppState.getVisibleColumns();
-        
+
         const allPlayers = StatsCalculator.getAllPlayers();
         const friendlyPlayers = allPlayers.friendly
             .map(p => ({ name: p.name, clan: p.clan, battles: p.battles }))
             .sort((a, b) => a.name.localeCompare(b.name));
-        
+
         const enemyPlayers = allPlayers.enemy
             .map(p => ({ name: p.name, clan: p.clan, battles: p.battles }))
             .sort((a, b) => a.name.localeCompare(b.name));
-        
+
         const selectedFriendly = AppState.userSettings.selectedPlayers?.friendly || [];
         const selectedEnemy = AppState.userSettings.selectedPlayers?.enemy || [];
-        
+
         const showOnlySelectedFriendly = AppState.userSettings.showOnlySelectedFriendly || false;
         const showOnlySelectedEnemy = AppState.userSettings.showOnlySelectedEnemy || false;
-        
+
         container.innerHTML = `
             <div class="filters-panel">
                 <div class="filter-section">
@@ -61,7 +61,7 @@ const FiltersUI = {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="filter-group players-filter-group">
                                 <div class="players-header">
                                     <label class="filter-label">${isEn ? 'Enemy team:' : 'Команда противников:'}</label>
@@ -94,7 +94,7 @@ const FiltersUI = {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="filter-row">
                             <div class="filter-group columns-group">
                                 <label class="filter-label">${isEn ? 'Visible columns:' : 'Отображаемые столбцы:'}</label>
@@ -116,7 +116,7 @@ const FiltersUI = {
                 </div>
             </div>
         `;
-        
+
         this.attachFilterEventHandlers();
         this.attachSearchHandlers();
         this.attachColumnsActionHandlers();
@@ -133,12 +133,12 @@ const FiltersUI = {
                 </div>
             `;
         }
-        
+
         let playersToShow = players;
         if (showOnlySelected) {
             playersToShow = players.filter(p => selected.includes(p.name));
         }
-        
+
         if (playersToShow.length === 0) {
             return `
                 <div class="no-players-message">
@@ -146,7 +146,7 @@ const FiltersUI = {
                 </div>
             `;
         }
-        
+
         return playersToShow.map(player => `
             <label class="player-checkbox-label">
                 <input type="checkbox" class="player-checkbox" data-team="${team}" data-player="${player.name}" ${selected.includes(player.name) ? 'checked' : ''}>
@@ -182,7 +182,7 @@ const FiltersUI = {
             header.removeEventListener('click', Events.handleFilterClick);
             header.addEventListener('click', Events.handleFilterClick);
         });
-        
+
         document.querySelectorAll('.column-checkbox-input').forEach(cb => {
             cb.removeEventListener('change', Events.handleColumnChange);
             cb.addEventListener('change', Events.handleColumnChange);
@@ -192,22 +192,22 @@ const FiltersUI = {
             cb.addEventListener('change', (e) => {
                 const team = e.target.dataset.team;
                 const player = e.target.dataset.player;
-                
+
                 if (!AppState.userSettings.selectedPlayers) {
                     AppState.userSettings.selectedPlayers = { friendly: [], enemy: [] };
                 }
-                
+
                 const key = team === 'friendly' ? 'friendly' : 'enemy';
-                
+
                 if (e.target.checked) {
                     if (!AppState.userSettings.selectedPlayers[key].includes(player)) {
                         AppState.userSettings.selectedPlayers[key].push(player);
                     }
                 } else {
-                    AppState.userSettings.selectedPlayers[key] = 
+                    AppState.userSettings.selectedPlayers[key] =
                         AppState.userSettings.selectedPlayers[key].filter(p => p !== player);
                 }
-                
+
                 AppState.saveSettings();
                 this.updateSelectedCounts();
                 Renderer.updateDisplay();
@@ -276,13 +276,13 @@ const FiltersUI = {
         const friendlySearch = document.getElementById('friendlySearch');
         const friendlyList = document.getElementById('friendlyPlayersList');
         const friendlyNoResults = document.getElementById('friendlyNoResults');
-        
+
         if (friendlySearch && friendlyList && friendlyNoResults) {
             friendlySearch.addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase().trim();
                 const checkboxes = friendlyList.querySelectorAll('.player-checkbox-label');
                 let visibleCount = 0;
-                
+
                 checkboxes.forEach(label => {
                     const name = label.querySelector('.player-checkbox-name').textContent.toLowerCase();
                     if (name.includes(searchTerm) || searchTerm === '') {
@@ -292,7 +292,7 @@ const FiltersUI = {
                         label.style.display = 'none';
                     }
                 });
-                
+
                 if (visibleCount === 0 && searchTerm !== '') {
                     friendlyNoResults.style.display = 'flex';
                 } else {
@@ -304,13 +304,13 @@ const FiltersUI = {
         const enemySearch = document.getElementById('enemySearch');
         const enemyList = document.getElementById('enemyPlayersList');
         const enemyNoResults = document.getElementById('enemyNoResults');
-        
+
         if (enemySearch && enemyList && enemyNoResults) {
             enemySearch.addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase().trim();
                 const checkboxes = enemyList.querySelectorAll('.player-checkbox-label');
                 let visibleCount = 0;
-                
+
                 checkboxes.forEach(label => {
                     const name = label.querySelector('.player-checkbox-name').textContent.toLowerCase();
                     if (name.includes(searchTerm) || searchTerm === '') {
@@ -320,7 +320,7 @@ const FiltersUI = {
                         label.style.display = 'none';
                     }
                 });
-                
+
                 if (visibleCount === 0 && searchTerm !== '') {
                     enemyNoResults.style.display = 'flex';
                 } else {
@@ -387,107 +387,107 @@ const FiltersUI = {
     refreshPlayersLists() {
         const friendlyList = document.getElementById('friendlyPlayersList');
         const enemyList = document.getElementById('enemyPlayersList');
-        
+
         const allPlayers = StatsCalculator.getAllPlayers();
         const friendlyPlayers = allPlayers.friendly
             .map(p => ({ name: p.name, clan: p.clan, battles: p.battles }))
             .sort((a, b) => a.name.localeCompare(b.name));
-        
+
         const enemyPlayers = allPlayers.enemy
             .map(p => ({ name: p.name, clan: p.clan, battles: p.battles }))
             .sort((a, b) => a.name.localeCompare(b.name));
-        
+
         if (friendlyList) {
             const selectedFriendly = AppState.userSettings.selectedPlayers?.friendly || [];
             const showOnlySelectedFriendly = AppState.userSettings.showOnlySelectedFriendly || false;
-            
-            const validSelectedFriendly = selectedFriendly.filter(name => 
+
+            const validSelectedFriendly = selectedFriendly.filter(name =>
                 friendlyPlayers.some(p => p.name === name)
             );
-            
+
             if (validSelectedFriendly.length !== selectedFriendly.length) {
                 AppState.userSettings.selectedPlayers.friendly = validSelectedFriendly;
                 AppState.saveSettings();
             }
-            
+
             friendlyList.innerHTML = this.renderPlayerCheckboxes(friendlyPlayers, 'friendly', validSelectedFriendly, showOnlySelectedFriendly);
-            
+
             document.querySelectorAll('#friendlyPlayersList .player-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const team = e.target.dataset.team;
                     const player = e.target.dataset.player;
-                    
+
                     if (!AppState.userSettings.selectedPlayers) {
                         AppState.userSettings.selectedPlayers = { friendly: [], enemy: [] };
                     }
-                    
+
                     const key = team === 'friendly' ? 'friendly' : 'enemy';
-                    
+
                     if (e.target.checked) {
                         if (!AppState.userSettings.selectedPlayers[key].includes(player)) {
                             AppState.userSettings.selectedPlayers[key].push(player);
                         }
                     } else {
-                        AppState.userSettings.selectedPlayers[key] = 
+                        AppState.userSettings.selectedPlayers[key] =
                             AppState.userSettings.selectedPlayers[key].filter(p => p !== player);
                     }
-                    
+
                     AppState.saveSettings();
                     this.updateSelectedCounts();
                     Renderer.updateDisplay();
                 });
             });
         }
-        
+
         if (enemyList) {
             const selectedEnemy = AppState.userSettings.selectedPlayers?.enemy || [];
             const showOnlySelectedEnemy = AppState.userSettings.showOnlySelectedEnemy || false;
-            
-            const validSelectedEnemy = selectedEnemy.filter(name => 
+
+            const validSelectedEnemy = selectedEnemy.filter(name =>
                 enemyPlayers.some(p => p.name === name)
             );
-            
+
             if (validSelectedEnemy.length !== selectedEnemy.length) {
                 AppState.userSettings.selectedPlayers.enemy = validSelectedEnemy;
                 AppState.saveSettings();
             }
-            
+
             enemyList.innerHTML = this.renderPlayerCheckboxes(enemyPlayers, 'enemy', validSelectedEnemy, showOnlySelectedEnemy);
-            
+
             document.querySelectorAll('#enemyPlayersList .player-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const team = e.target.dataset.team;
                     const player = e.target.dataset.player;
-                    
+
                     if (!AppState.userSettings.selectedPlayers) {
                         AppState.userSettings.selectedPlayers = { friendly: [], enemy: [] };
                     }
-                    
+
                     const key = team === 'friendly' ? 'friendly' : 'enemy';
-                    
+
                     if (e.target.checked) {
                         if (!AppState.userSettings.selectedPlayers[key].includes(player)) {
                             AppState.userSettings.selectedPlayers[key].push(player);
                         }
                     } else {
-                        AppState.userSettings.selectedPlayers[key] = 
+                        AppState.userSettings.selectedPlayers[key] =
                             AppState.userSettings.selectedPlayers[key].filter(p => p !== player);
                     }
-                    
+
                     AppState.saveSettings();
                     this.updateSelectedCounts();
                     Renderer.updateDisplay();
                 });
             });
         }
-        
+
         this.updateSelectedCounts();
-        
+
         const friendlySearch = document.getElementById('friendlySearch');
         const enemySearch = document.getElementById('enemySearch');
         const friendlyNoResults = document.getElementById('friendlyNoResults');
         const enemyNoResults = document.getElementById('enemyNoResults');
-        
+
         if (friendlySearch) friendlySearch.value = '';
         if (enemySearch) enemySearch.value = '';
         if (friendlyNoResults) friendlyNoResults.style.display = 'none';
@@ -497,24 +497,24 @@ const FiltersUI = {
     updateSelectedCounts() {
         const friendlyCounter = document.getElementById('friendlyCounter');
         const enemyCounter = document.getElementById('enemyCounter');
-        
+
         const allPlayers = StatsCalculator.getAllPlayers();
         const friendlyTotal = allPlayers.friendly.length;
         const enemyTotal = allPlayers.enemy.length;
-        
+
         if (friendlyCounter) {
             const selectedFriendly = AppState.userSettings.selectedPlayers?.friendly?.length || 0;
             friendlyCounter.textContent = `${selectedFriendly}/${friendlyTotal}`;
         }
-        
+
         if (enemyCounter) {
             const selectedEnemy = AppState.userSettings.selectedPlayers?.enemy?.length || 0;
             enemyCounter.textContent = `${selectedEnemy}/${enemyTotal}`;
         }
-        
+
         const showSelectedFriendly = document.getElementById('showSelectedFriendly');
         const showSelectedEnemy = document.getElementById('showSelectedEnemy');
-        
+
         if (showSelectedFriendly) {
             if (AppState.userSettings.showOnlySelectedFriendly) {
                 showSelectedFriendly.classList.add('active');
@@ -522,7 +522,7 @@ const FiltersUI = {
                 showSelectedFriendly.classList.remove('active');
             }
         }
-        
+
         if (showSelectedEnemy) {
             if (AppState.userSettings.showOnlySelectedEnemy) {
                 showSelectedEnemy.classList.add('active');

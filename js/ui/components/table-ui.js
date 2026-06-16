@@ -109,8 +109,8 @@ const TableUI = {
         const colspan = headers.filter(h => h.always || visibleColumns[h.key]).length;
         if (!tbody || !thead) return;
         if (teamTitle) {
-            teamTitle.innerHTML = AppState.showEnemyTeam ? 
-                (isEn ? 'Enemy team statistics' : 'Статистика команды противников') : 
+            teamTitle.innerHTML = AppState.showEnemyTeam ?
+                (isEn ? 'Enemy team statistics' : 'Статистика команды противников') :
                 (isEn ? 'Allied team statistics' : 'Статистика команды союзников');
         }
         this.updateMapTags();
@@ -129,8 +129,8 @@ const TableUI = {
         if (AppState.fileData.length === 0) {
             html = `<tr><td colspan="${colspan}" class="empty-table-message"><div class="empty-table-content"><i class="fas fa-inbox empty-icon"></i><br>${isEn ? 'No replays uploaded' : 'Не загружены реплеи'}</div><\/td><\/tr>`;
         } else {
-            const currentTeamPlayers = AppState.showEnemyTeam ? 
-                Array.from(AppState.enemyStats.values()) : 
+            const currentTeamPlayers = AppState.showEnemyTeam ?
+                Array.from(AppState.enemyStats.values()) :
                 Array.from(AppState.playersStats.values());
             if (currentTeamPlayers.length === 0) {
                 html = `<tr><td colspan="${colspan}" class="empty-table-message"><div class="empty-table-content"><i class="fas fa-users empty-icon"></i><br>${isEn ? 'No players in this team' : 'В этой команде нет игроков'}</div><\/td><\/tr>`;
@@ -163,7 +163,7 @@ const TableUI = {
                         if (p.battleName && p.battleName !== p.name) {
                             rightElements.push(`<i class="fas fa-eye battle-name-indicator" data-battlename="${p.battleName}" title="${isEn ? 'Nick in battle' : 'Ник в бою'}: ${p.battleName}"></i>`);
                         }
-                        const rightPart = rightElements.length > 0 ? 
+                        const rightPart = rightElements.length > 0 ?
                             `<span class="player-right-elements">${rightElements.join(' ')}</span>` : '';
                         let rowHtml = `<tr class="player-row ${isExpanded ? 'expanded-row' : ''}" data-player="${p.name || ''}">`;
                         headers.forEach(header => {

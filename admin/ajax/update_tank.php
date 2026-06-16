@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($tankType, $allowedTankTypes, true)) {
         $tankType = 'medium';
     }
-    
+
     if ($id <= 0 || empty($displayName)) {
         echo json_encode(['success' => false, 'error' => 'Не заполнены обязательные поля']);
         exit();
@@ -31,10 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($displayNameEn === '') {
         $displayNameEn = $displayName;
     }
-    
+
     $isPremium = ($techType === 'premium') ? 1 : 0;
     $isCollectible = ($techType === 'collectible') ? 1 : 0;
-    
+
     $db->update(
         "UPDATE tank_dictionary
          SET display_name_ru = ?,
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          WHERE id = ?",
         [$displayName, $displayNameEn, $nation, $tankType, $tier, $isPremium, $isCollectible, $isModerated, $id]
     );
-    
+
     echo json_encode(['success' => true]);
 } else {
     echo json_encode(['success' => false, 'error' => 'Неверный метод запроса']);

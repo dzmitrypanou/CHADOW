@@ -181,21 +181,21 @@ async function reloadGradesData() {
                         <input type="hidden" name="color_${grade.id}" value="${grade.color}" class="grade-color-input">
                     </td>
                     <td>
-                        <input type="text" name="name_${grade.id}" value="${escapeHtml(grade.grade_name)}" 
+                        <input type="text" name="name_${grade.id}" value="${escapeHtml(grade.grade_name)}"
                                class="grade-input" placeholder="Название (RU)" required>
                     </td>
                     <td>
-                        <input type="text" name="name_en_${grade.id}" value="${escapeHtml(grade.grade_name_en || '')}" 
+                        <input type="text" name="name_en_${grade.id}" value="${escapeHtml(grade.grade_name_en || '')}"
                                class="grade-input" placeholder="Name (EN)">
                     </td>
                     <td>
-                        <input type="text" name="code_${grade.id}" value="${grade.grade_code}" 
+                        <input type="text" name="code_${grade.id}" value="${grade.grade_code}"
                                class="grade-input" placeholder="Код CSS" required pattern="[a-z-]+">
                     </td>
                     <td>
                         <div class="number-wrapper">
-                            <input type="number" step="any" 
-                                   name="min_${grade.id}" value="${grade.min_value}" 
+                            <input type="number" step="any"
+                                   name="min_${grade.id}" value="${grade.min_value}"
                                    class="number-input number-input-small" id="min_${grade.id}" required>
                             <div class="number-controls">
                                 <button type="button" class="number-up" onclick="incrementNumber('min_${grade.id}', 1)">▲</button>
@@ -205,8 +205,8 @@ async function reloadGradesData() {
                     </td>
                     <td>
                         <div class="number-wrapper">
-                            <input type="number" step="any" 
-                                   name="max_${grade.id}" value="${grade.max_value}" 
+                            <input type="number" step="any"
+                                   name="max_${grade.id}" value="${grade.max_value}"
                                    class="number-input number-input-small" id="max_${grade.id}" required>
                             <div class="number-controls">
                                 <button type="button" class="number-up" onclick="incrementNumber('max_${grade.id}', 1)">▲</button>
@@ -215,17 +215,17 @@ async function reloadGradesData() {
                         </div>
                     </td>
                     <td>
-                        <input type="text" name="desc_${grade.id}" value="${escapeHtml(grade.description || '')}" 
+                        <input type="text" name="desc_${grade.id}" value="${escapeHtml(grade.description || '')}"
                                class="grade-input" placeholder="Описание (RU)">
                     </td>
                     <td>
-                        <input type="text" name="desc_en_${grade.id}" value="${escapeHtml(grade.description_en || '')}" 
+                        <input type="text" name="desc_en_${grade.id}" value="${escapeHtml(grade.description_en || '')}"
                                class="grade-input" placeholder="Description (EN)">
                     </td>
                     <td>
                         <div class="number-wrapper">
-                            <input type="number" step="any" 
-                                   name="order_${grade.id}" value="${grade.sort_order}" 
+                            <input type="number" step="any"
+                                   name="order_${grade.id}" value="${grade.sort_order}"
                                    class="number-input number-input-small" id="order_${grade.id}">
                             <div class="number-controls">
                                 <button type="button" class="number-up" onclick="incrementNumber('order_${grade.id}', 1)">▲</button>
@@ -275,7 +275,7 @@ function addGrade() {
         </td>
         <td>
             <div class="number-wrapper">
-                <input type="number" step="any" name="min_${newId}" value="0" 
+                <input type="number" step="any" name="min_${newId}" value="0"
                        class="number-input number-input-small" id="min_${newId}" required>
                 <div class="number-controls">
                     <button type="button" class="number-up" onclick="incrementNumber('min_${newId}', 1)">▲</button>
@@ -285,7 +285,7 @@ function addGrade() {
          </td>
          <td>
             <div class="number-wrapper">
-                <input type="number" step="any" name="max_${newId}" value="1000" 
+                <input type="number" step="any" name="max_${newId}" value="1000"
                        class="number-input number-input-small" id="max_${newId}" required>
                 <div class="number-controls">
                     <button type="button" class="number-up" onclick="incrementNumber('max_${newId}', 1)">▲</button>
@@ -301,7 +301,7 @@ function addGrade() {
          </td>
          <td>
             <div class="number-wrapper">
-                <input type="number" step="any" name="order_${newId}" value="${rowCount + 1}" 
+                <input type="number" step="any" name="order_${newId}" value="${rowCount + 1}"
                        class="number-input number-input-small" id="order_${newId}">
                 <div class="number-controls">
                     <button type="button" class="number-up" onclick="incrementNumber('order_${newId}', 1)">▲</button>

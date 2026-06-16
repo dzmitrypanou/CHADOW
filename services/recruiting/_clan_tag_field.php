@@ -1,10 +1,5 @@
 <?php
-/**
- * Поле «тег клана / название команды» с выбором типа.
- *
- * Expects: $lang, $clanTagValue, $clanTagType, $clanTagInputName, $clanTagTypeName, $clanTagInputId
- * Optional: $clanTagFieldClass, $showClanTagHint (bool), $clanTagAutoType (bool)
- */
+
 $clanTagValue = isset($clanTagValue) ? (string) $clanTagValue : '';
 $clanTagType = recruiting_clan_tag_type_normalize((string) ($clanTagType ?? 'clan_tag'));
 $clanTagInputName = isset($clanTagInputName) ? (string) $clanTagInputName : 'clan_tag';

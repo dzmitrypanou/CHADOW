@@ -103,7 +103,7 @@
     text-align: left;
     padding-left: 16px;
 }
-/* Единая высота полей с числами (как в градации) */
+
 .coefficients-table .number-wrapper {
     display: block;
     width: 100%;
@@ -146,7 +146,7 @@
     vertical-align: middle;
     white-space: nowrap;
 }
-/* Единая высота полей в градации (текст и числа со стрелками) */
+
 .grades-table .grade-input,
 .grades-table .number-wrapper .number-input {
     min-height: 38px;
@@ -212,7 +212,7 @@
     width: 52px;
     vertical-align: middle;
 }
-/* Квадрат по высоте с полями строки (min-height 38px) */
+
 .grades-table .grade-actions .btn.btn-icon {
     width: 38px;
     height: 38px;

@@ -129,7 +129,6 @@
         if (range && range.length > 0) positionFloat(activeQuill, range);
     }, true);
 
-    // Backward compatibility for code that expects a single editor.
     window.__cmsQuill = quillRu || quillEn;
 
     window.cmsGetEditorHtml = function () {

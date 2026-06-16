@@ -4,6 +4,7 @@
     const STRINGS = {
         ru: {
             open: 'Открыть',
+            download: 'Скачать',
             inDev: 'в разработке',
             testVersion: 'Тестовая версия',
             cards: {
@@ -68,6 +69,7 @@
         },
         en: {
             open: 'Open',
+            download: 'Download',
             inDev: 'In development',
             testVersion: 'Test version',
             cards: {
@@ -179,7 +181,20 @@
         if (titleEl) titleEl.textContent = card.title;
 
         const descEl = cardEl.querySelector('.project-card-desc');
-        if (descEl) descEl.textContent = card.desc;
+        if (descEl) {
+            if (id === 'games-launcher') {
+                const descRu = cardEl.getAttribute('data-desc-ru') || '';
+                const descEn = cardEl.getAttribute('data-desc-en') || '';
+                const customDesc = lang === 'en' ? (descEn || descRu) : (descRu || descEn);
+                if (customDesc) {
+                    descEl.textContent = customDesc;
+                } else if (card.desc) {
+                    descEl.textContent = card.desc;
+                }
+            } else if (card.desc) {
+                descEl.textContent = card.desc;
+            }
+        }
 
         const multiActions = MULTI_ACTION_CARDS[id];
         if (multiActions) {
@@ -190,18 +205,29 @@
                 setActionLabel(actionEl, card[labelKey]);
             });
         } else {
-            const href = dict.hrefs[id];
+            const href = id === 'games-launcher'
+                ? (cardEl.getAttribute('data-download-href') || dict.hrefs[id])
+                : dict.hrefs[id];
             if (href && cardEl.tagName === 'A') {
                 cardEl.href = href;
             }
 
             const actionEl = cardEl.querySelector('.project-card-action');
             if (actionEl && !actionEl.classList.contains('project-card-action--placeholder')) {
-                setActionLabel(actionEl, dict.open);
+                const actionLabel = id === 'games-launcher' && cardEl.classList.contains('project-card--active')
+                    ? dict.download
+                    : dict.open;
+                setActionLabel(actionEl, actionLabel);
             }
         }
 
         cardEl.querySelectorAll('.project-card-badge').forEach((badge) => {
+            if (badge.getAttribute('data-badge-custom') === '1') {
+                const ru = badge.getAttribute('data-label-ru') || '';
+                const en = badge.getAttribute('data-label-en') || '';
+                badge.textContent = lang === 'en' ? (en || ru) : (ru || en);
+                return;
+            }
             if (badge.classList.contains('project-card-badge--test')) {
                 badge.textContent = dict.testVersion;
             } else if (cardEl.classList.contains('project-card--disabled')

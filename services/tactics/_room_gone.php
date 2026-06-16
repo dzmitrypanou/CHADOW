@@ -1,9 +1,5 @@
 <?php
-/**
- * @var string $lang
- * @var string $lobbyHref
- * @var bool $asOverlay
- */
+
 $asOverlay = !empty($asOverlay);
 $createHref = rtrim($lobbyHref, '/') . '#tactics-create';
 $roomsHref = $roomsHref ?? $lobbyHref;

@@ -1,45 +1,70 @@
-#!/usr/bin/env python3
+
+
 """Подготовка дампа u2668592_abs.sql для импорта в chadow."""
-from __future__ import annotations
 
-import re
-import sys
-from pathlib import Path
+from__future__importannotations
 
+importre
 
-def prepare_dump(text: str) -> str:
-    for table in ("ad_images", "ads"):
-        text = re.sub(
-            rf"-- Table structure for table `{table}`.*?(?=-- Table structure for table `)",
-            "",
-            text,
-            flags=re.DOTALL,
-        )
+importsys
 
-    text = re.sub(
-        r",?\s*CONSTRAINT `[^`]+` FOREIGN KEY \([^)]+\) REFERENCES `[^`]+` \([^)]+\)"
-        r"(?: ON DELETE (?:CASCADE|RESTRICT|SET NULL))?",
-        "",
-        text,
-    )
-    text = re.sub(r",\s*\n\s*\)", "\n)", text)
-    return text
+frompathlibimportPath
 
+defprepare_dump(text:str)->str:
 
-def main() -> int:
-    root = Path(__file__).resolve().parent
-    src = Path(sys.argv[1]) if len(sys.argv) > 1 else root.parent.parent / "Downloads" / "u2668592_abs.sql"
-    dst = Path(sys.argv[2]) if len(sys.argv) > 2 else root / "chadow_import.sql"
+    fortablein("ad_images","ads"):
 
-    if not src.is_file():
-        print(f"Файл не найден: {src}", file=sys.stderr)
-        return 1
+        text=re.sub(
 
-    prepared = prepare_dump(src.read_text(encoding="utf-8"))
-    dst.write_text(prepared, encoding="utf-8")
-    print(f"OK: {dst} ({dst.stat().st_size} bytes)")
-    return 0
+rf"-- Table structure for table `{table}`.*?(?=-- Table structure for table `)",
 
+"",
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+text,
+
+flags=re.DOTALL,
+
+)
+
+text=re.sub(
+
+r",?\s*CONSTRAINT `[^`]+` FOREIGN KEY \([^)]+\) REFERENCES `[^`]+` \([^)]+\)"
+
+r"(?: ON DELETE (?:CASCADE|RESTRICT|SET NULL))?",
+
+"",
+
+text,
+
+)
+
+text=re.sub(r",\s*\n\s*\)","\n)",text)
+
+returntext
+
+defmain()->int:
+
+    root=Path(__file__).resolve().parent
+
+src=Path(sys.argv[1])iflen(sys.argv)>1elseroot.parent.parent/"Downloads"/"u2668592_abs.sql"
+
+dst=Path(sys.argv[2])iflen(sys.argv)>2elseroot/"chadow_import.sql"
+
+ifnotsrc.is_file():
+
+        print(f"Файл не найден: {src}",file=sys.stderr)
+
+return1
+
+prepared=prepare_dump(src.read_text(encoding="utf-8"))
+
+dst.write_text(prepared,encoding="utf-8")
+
+print(f"OK: {dst} ({dst.stat().st_size} bytes)")
+
+return0
+
+if__name__=="__main__":
+
+    raiseSystemExit(main())
+

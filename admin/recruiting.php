@@ -68,42 +68,35 @@ try {
                 grid-template-columns: 1fr;
             }
         }
-        #recruiting-table td {
+
             vertical-align: top;
         }
-        #recruiting-table th:nth-child(1),
-        #recruiting-table td:nth-child(1) {
+
             width: 15%;
         }
-        #recruiting-table th:nth-child(2),
-        #recruiting-table td:nth-child(2) {
+
             width: 6%;
         }
-        #recruiting-table th:nth-child(3),
-        #recruiting-table td:nth-child(3) {
+
             width: 24%;
         }
-        #recruiting-table th:nth-child(4),
-        #recruiting-table td:nth-child(4) {
+
             width: 12%;
         }
-        #recruiting-table th:nth-child(5),
-        #recruiting-table td:nth-child(5) {
+
             width: 10%;
         }
-        #recruiting-table th:nth-child(6),
-        #recruiting-table td:nth-child(6) {
+
             width: 13%;
         }
-        #recruiting-table th:nth-child(7),
-        #recruiting-table td:nth-child(7) {
+
             width: 20%;
             min-width: 188px;
             overflow: visible;
             white-space: normal;
             text-overflow: clip;
         }
-        #recruiting-table .recruiting-actions-cell .action-buttons {
+
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
@@ -132,7 +125,7 @@ try {
         .recruiting-status-badge.pending {
             background: rgba(255, 217, 102, 0.15);
             border: 1px solid rgba(255, 217, 102, 0.35);
-            color: #ffd966;
+            color:
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -143,17 +136,17 @@ try {
         .recruiting-status-badge.approved {
             background: rgba(76, 175, 80, 0.15);
             border: 1px solid rgba(76, 175, 80, 0.3);
-            color: #4caf50;
+            color:
         }
         .recruiting-status-badge.rejected {
             background: rgba(255, 138, 138, 0.15);
             border: 1px solid rgba(255, 138, 138, 0.3);
-            color: #ff8a8a;
+            color:
         }
         .recruiting-status-badge.hidden {
             background: rgba(158, 158, 158, 0.15);
             border: 1px solid rgba(158, 158, 158, 0.3);
-            color: #bdbdbd;
+            color:
         }
         .recruiting-type-badge {
             display: inline-block;
@@ -162,13 +155,13 @@ try {
             font-size: 0.72rem;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color: #90caf9;
+            color:
             white-space: nowrap;
         }
         .recruiting-realm-badge {
             font-weight: 600;
             font-size: 0.8rem;
-            color: #ffd966;
+            color:
         }
         .recruiting-view-body {
             white-space: pre-wrap;
@@ -177,7 +170,7 @@ try {
             overflow-y: auto;
             padding: 12px;
             background: rgba(0, 0, 0, 0.2);
-            border: 1px solid #2a3138;
+            border: 1px solid
             border-radius: 4px;
             margin-top: 8px;
         }
@@ -187,7 +180,7 @@ try {
             margin-bottom: 12px;
         }
         .recruiting-view-meta dt {
-            color: #9aa5b1;
+            color:
             font-size: 0.8rem;
         }
         .recruiting-view-meta dd {
@@ -199,7 +192,7 @@ try {
             background: rgba(255, 138, 138, 0.1);
             border: 1px solid rgba(255, 138, 138, 0.25);
             border-radius: 4px;
-            color: #ff8a8a;
+            color:
             font-size: 0.9rem;
         }
     </style>

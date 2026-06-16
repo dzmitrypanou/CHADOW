@@ -7,7 +7,6 @@
         return p;
     }
 
-    /** Standard bracket seed order for size (power of 2). */
     function bracketSeedOrder(size) {
         if (size <= 1) return [0];
         const half = bracketSeedOrder(size / 2);
@@ -37,11 +36,6 @@
         return { seeded, size, names };
     }
 
-    /**
-     * @param {string[]} participants
-     * @param {{ bracketSize?: number }} [options]
-     * @returns {{ participants: string[], settings: object, matches: object[] }}
-     */
     function generateSingle(participants, options = {}) {
         const names = participants
             .map((p) => String(p).trim())

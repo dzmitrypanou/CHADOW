@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Таблицы русских подписей для кодов наций и типов техники (в tank_dictionary хранятся коды).
- *
- * @param Database $db
- */
+
 function ensure_dictionary_labels_tables($db) {
     static $ensured = false;
     if ($ensured) {
@@ -31,7 +27,6 @@ function ensure_dictionary_labels_tables($db) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
-    // Для старых установок — добавляем колонки.
     try {
         $pdo->exec('ALTER TABLE nation_labels ADD COLUMN display_name_en VARCHAR(128) NOT NULL DEFAULT \'\' AFTER display_name_ru');
     } catch (Throwable $e) {}

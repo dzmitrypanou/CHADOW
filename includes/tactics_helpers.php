@@ -143,9 +143,6 @@ function tactics_b64url_decode(string $data): string {
     return (string) base64_decode(strtr($data, '-_', '+/'), true);
 }
 
-/**
- * @return array<string, mixed>|null
- */
 function tactics_verify_signed_token($db, string $token, ?string $expectedPublicId = null): ?array {
     $parts = explode('.', $token, 2);
     if (count($parts) !== 2) {
@@ -743,9 +740,6 @@ function tactics_format_item(array $row, bool $includeRoomData = true, bool $inc
     return $item;
 }
 
-/**
- * Drop canvas JSON from inactive slides for faster initial HTML payload.
- */
 function tactics_strip_inactive_slide_canvas(array $roomItem): array {
     $roomData = $roomItem['room_data'] ?? null;
     if (!is_array($roomData) || !is_array($roomData['slides'] ?? null)) {
@@ -776,9 +770,6 @@ function tactics_format_profile_item(array $row, string $lang): array {
     return $item;
 }
 
-/**
- * @return array<int, array<string, mixed>>
- */
 function tactics_fetch_user_rooms($db, int $userId): array {
     return $db->fetchAll(
         'SELECT ' . tactics_sql_select_columns('r') . ', r.password_hash
@@ -1132,9 +1123,6 @@ function tactics_default_nickname_for_user(?array $profile, string $lang = 'ru',
     return $lang === 'en' ? 'Guest' : 'Гость';
 }
 
-/**
- * @return array<string, string>
- */
 function tactics_game_nicknames_for_user(?array $profile, string $lang = 'ru'): array {
     $nicknames = [];
     foreach (TACTICS_GAMES as $game) {
@@ -1416,9 +1404,6 @@ function tactics_room_view_path(string $publicId): string {
     return '/services/tactics/' . rawurlencode($publicId);
 }
 
-/**
- * @return array{success:bool, data?:list<array<string,mixed>>, stats?:array<string,int>, error?:string}
- */
 function tactics_admin_fetch_rooms($db, array $query): array {
     $search = trim((string) ($query['q'] ?? ''));
     $visibility = trim((string) ($query['visibility'] ?? ''));
@@ -1517,9 +1502,6 @@ function tactics_admin_delete_room($db, int $id): bool {
     return tactics_delete_room($db, (string) ($existing['public_id'] ?? ''));
 }
 
-/**
- * @return list<array<string, mixed>>
- */
 function tactics_scan_map_assets(): array {
     $root = dirname(__DIR__) . '/assets/tactics/maps';
     $items = [];
@@ -1589,7 +1571,7 @@ function tactics_admin_persist_uploaded_file(string $tmp, string $destPath): boo
     if (@move_uploaded_file($tmp, $destPath)) {
         return true;
     }
-    // На сервере /tmp и document root часто на разных разделах — rename() тогда падает.
+
     if (@copy($tmp, $destPath)) {
         @unlink($tmp);
 
@@ -1610,9 +1592,6 @@ function tactics_remove_map_image_variants(string $destBasePath): void {
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, ext?:string, path?:string, size?:int}
- */
 function tactics_save_uploaded_map_image(array $fileInfo, string $destBasePath, int $maxBytes): array {
     $error = (int) ($fileInfo['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($error !== UPLOAD_ERR_OK) {
@@ -1658,9 +1637,6 @@ function tactics_save_uploaded_map_image(array $fileInfo, string $destBasePath, 
     ];
 }
 
-/**
- * @return array{ok:bool, error?:string, data?:array<string,mixed>}
- */
 function tactics_admin_save_map_upload(string $game, string $battleMode, string $mapCode, array $fileInfo): array {
     $game = tactics_sanitize_game($game);
     $battleMode = tactics_sanitize_battle_mode($battleMode, $game);
@@ -1763,9 +1739,6 @@ function tactics_propose_map_code(string $displayName, string $battleMode, strin
     return substr($slug . '_' . $suffix, 0, 64);
 }
 
-/**
- * @param Database $db
- */
 function tactics_generate_unique_map_code($db, string $baseCode): string {
     $code = tactics_sanitize_map_code($baseCode);
     if ($code === 'cliff' && strtolower(trim($baseCode)) !== 'cliff') {
@@ -1783,10 +1756,6 @@ function tactics_generate_unique_map_code($db, string $baseCode): string {
     return $candidate;
 }
 
-/**
- * @param Database $db
- * @return array<string, array<string, array<string, true>>>
- */
 function tactics_fetch_map_assignment_index($db): array {
     require_once __DIR__ . '/../config/ensure_tactics.php';
     ensure_tactics_map_assignments_table($db);
@@ -1811,9 +1780,6 @@ function tactics_fetch_map_assignment_index($db): array {
     return $index;
 }
 
-/**
- * @param Database $db
- */
 function tactics_admin_ensure_map_assignment($db, string $mapCode, string $game, string $battleMode): void {
     require_once __DIR__ . '/../config/ensure_tactics.php';
     ensure_tactics_map_assignments_table($db);
@@ -1826,10 +1792,6 @@ function tactics_admin_ensure_map_assignment($db, string $mapCode, string $game,
     );
 }
 
-/**
- * @param Database $db
- * @return array{ok:bool, error?:string, data?:array<string,mixed>}
- */
 function tactics_admin_create_tactics_map(
     $db,
     string $game,
@@ -1928,9 +1890,6 @@ function tactics_admin_create_tactics_map(
     ];
 }
 
-/**
- * @return array{ok:bool, error?:string, side_length?:int}
- */
 function tactics_admin_set_map_side_length($db, string $mapCode, $sideLength): array {
     $mapCode = tactics_sanitize_map_code($mapCode);
     $meters = tactics_sanitize_side_length($sideLength);
@@ -1949,10 +1908,6 @@ function tactics_admin_set_map_side_length($db, string $mapCode, $sideLength): a
     return ['ok' => true, 'side_length' => $meters];
 }
 
-/**
- * @param Database $db
- * @return array{ok:bool, error?:string, data?:array<string,mixed>}
- */
 function tactics_admin_update_tactics_map(
     $db,
     string $mapCode,
@@ -2049,10 +2004,6 @@ function tactics_admin_update_tactics_map(
     ];
 }
 
-/**
- * @param Database $db
- * @return array{ok:bool, error?:string}
- */
 function tactics_admin_delete_map_asset($db, string $game, string $battleMode, string $mapCode): array {
     $game = tactics_sanitize_game($game);
     $battleMode = tactics_sanitize_battle_mode($battleMode);
@@ -2168,9 +2119,6 @@ function tactics_update_presence_cursor(
     $stmt->execute([$publicId, $clientId, $nickname, $slideId, $payloadJson]);
 }
 
-/**
- * @return list<array{clientId: string, nickname: string, cursor?: array<string, mixed>|null}>
- */
 function tactics_fetch_presence_participants($db, string $publicId): array {
     if (!tactics_public_id_valid($publicId)) {
         return [];
@@ -2249,9 +2197,6 @@ function tactics_push_room_event(
     return (int) $db->getConnection()->lastInsertId();
 }
 
-/**
- * @return list<array<string, mixed>>
- */
 function tactics_fetch_room_events($db, string $publicId, int $sinceId): array {
     if (!tactics_public_id_valid($publicId)) {
         return [];
@@ -2315,9 +2260,6 @@ function tactics_purge_room_realtime($db): void {
     );
 }
 
-/**
- * @return list<array{clientId: string, nickname: string}>|null
- */
 function tactics_fetch_ws_presence($db, string $token): ?array {
     $url = tactics_ws_internal_base_url()
         . '/presence?token='
@@ -2349,9 +2291,6 @@ function tactics_fetch_ws_presence($db, string $token): ?array {
     return $participants;
 }
 
-/**
- * @return list<array<string, mixed>>
- */
 function tactics_fetch_room_chat($db, string $publicId, int $sinceId = 0, int $limit = 100): array {
     if (!tactics_public_id_valid($publicId)) {
         return [];

@@ -203,7 +203,6 @@ require __DIR__ . '/includes/admin_head.php';
             if (li) li.remove();
         }
 
-        /** Адрес вида …/pages.php?edit=123 — при обновлении страницы открыта та же запись */
         function setEditInUrl(id) {
             const url = new URL(window.location.href);
             if (id != null && id !== '' && String(id) !== '0') {

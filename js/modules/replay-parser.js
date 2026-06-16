@@ -2,34 +2,34 @@ const ReplayParser = {
     extractAllJSON(text) {
         const results = [];
         let pos = 0;
-        
+
         while (pos < text.length) {
             const startIdx = text.indexOf('{', pos);
             if (startIdx === -1) break;
-            
+
             let braceCount = 0;
             let inString = false;
             let escapeNext = false;
             let endIdx = -1;
-            
+
             for (let i = startIdx; i < text.length; i++) {
                 const char = text[i];
-                
+
                 if (escapeNext) {
                     escapeNext = false;
                     continue;
                 }
-                
+
                 if (char === '\\' && inString) {
                     escapeNext = true;
                     continue;
                 }
-                
+
                 if (char === '"' && !escapeNext) {
                     inString = !inString;
                     continue;
                 }
-                
+
                 if (!inString) {
                     if (char === '{') {
                         braceCount++;
@@ -42,7 +42,7 @@ const ReplayParser = {
                     }
                 }
             }
-            
+
             if (endIdx !== -1) {
                 try {
                     const jsonStr = text.substring(startIdx, endIdx);
@@ -54,20 +54,20 @@ const ReplayParser = {
                 pos = text.length;
             }
         }
-        
+
         return results;
     },
 
     async getNormalizedVehicleName(vehicleType) {
         if (!vehicleType) return AppConstants.LANG === 'en' ? 'Unknown' : 'Неизвестно';
-        
+
         let displayName = await API.getTankName(vehicleType);
-        
+
         if (displayName === API.extractTankNameFromCode(vehicleType)) {
             const generatedName = API.extractTankNameFromCode(vehicleType);
             const tankType = API.determineTankType(vehicleType);
             const tier = API.determineTier(vehicleType);
-            
+
             const added = await API.addNewTank(vehicleType, generatedName, tankType, tier, false);
             if (added) {
                 displayName = await API.getTankName(vehicleType);
@@ -75,7 +75,7 @@ const ReplayParser = {
                 displayName = generatedName;
             }
         }
-        
+
         return displayName;
     },
 
@@ -141,7 +141,7 @@ const ReplayParser = {
         if (!jsonObjects || jsonObjects.length === 0) {
             return null;
         }
-        
+
         const battleData = jsonObjects[0];
         if (!battleData) {
             return null;
@@ -152,25 +152,25 @@ const ReplayParser = {
 
         const battleType = battleData.battleType;
         const gameplayID = battleData.gameplayID;
-        
+
         let playerStats = null;
         let playerStatsObj = null;
         let vehiclesStatsObj = null;
         let playersInfoObj = null;
         let allPlayersData = null;
-        
+
         const battleNameToRealName = new Map();
         const battleNameToClan = new Map();
         const battleNameToGlobalId = new Map();
-        
+
         for (let i = 1; i < jsonObjects.length; i++) {
             const obj = jsonObjects[i];
             if (!obj) continue;
-            
+
             if (obj && obj.personal) {
                 playerStatsObj = obj;
             }
-            
+
             if (obj && obj.vehicles && typeof obj.vehicles === 'object') {
                 const firstKey = Object.keys(obj.vehicles)[0];
                 if (firstKey) {
@@ -180,36 +180,36 @@ const ReplayParser = {
                     }
                 }
             }
-            
+
             if (obj && obj.players) {
                 playersInfoObj = obj;
-                
+
                 Object.entries(obj.players).forEach(([globalId, playerInfo]) => {
                     if (playerInfo && playerInfo.name) {
                         const battleName = playerInfo.name.trim();
                         const realName = (playerInfo.realName || playerInfo.name).trim();
                         const clan = playerInfo.clanAbbrev || '';
-                        
+
                         battleNameToRealName.set(battleName, realName);
                         battleNameToClan.set(battleName, clan);
                         battleNameToGlobalId.set(battleName, globalId);
                     }
                 });
             }
-            
+
             if (obj && typeof obj === 'object' && !obj.vehicles && !obj.players && !obj.personal) {
                 const keys = Object.keys(obj);
                 if (keys.length > 0 && /^\d+$/.test(keys[0])) {
                     const firstKey = keys[0];
                     const firstValue = obj[firstKey];
-                    
+
                     if (firstValue && (firstValue.vehicleType !== undefined || firstValue.name !== undefined)) {
                         allPlayersData = obj;
                     }
                 }
             }
         }
-        
+
         if (playerStatsObj && playerStatsObj.personal) {
             for (let key in playerStatsObj.personal) {
                 const stats = playerStatsObj.personal[key];
@@ -219,10 +219,10 @@ const ReplayParser = {
                 }
             }
         }
-        
+
         let playerSessionId = null;
         let playerTeam = null;
-        
+
         if (battleData.vehicles && battleData.playerName) {
             for (let sessionId in battleData.vehicles) {
                 const vehicle = battleData.vehicles[sessionId];
@@ -233,10 +233,10 @@ const ReplayParser = {
                 }
             }
         }
-        
+
         let teamStats = [];
         let enemyTeamStats = [];
-        
+
         const isComp7 = battleType === 43 || battleType === '43' || gameplayID === 'comp7' || gameplayID === 34;
         const battleVehicles = battleData.vehicles && typeof battleData.vehicles === 'object'
             ? Object.values(battleData.vehicles).filter(v => v && v.team !== undefined)
@@ -251,22 +251,22 @@ const ReplayParser = {
             battleVehicleTeamsCount < 2 ||
             allPlayersCount > battleVehiclesCount
         );
-        
+
         const allPlayers = [];
-        
+
         const createPlayerStat = async (sessionId, playerData, stats) => {
             if (!playerData) return null;
-            
+
             const battleName = playerData.name || (AppConstants.LANG === 'en' ? 'Unknown' : 'Неизвестно');
             const battleNameTrimmed = battleName.trim();
-            
+
             const realName = battleNameToRealName.get(battleNameTrimmed) || battleNameTrimmed;
             const clan = battleNameToClan.get(battleNameTrimmed) || playerData.clanAbbrev || '';
             const globalId = battleNameToGlobalId.get(battleNameTrimmed);
-            
+
             const team = playerData.team;
             if (team === undefined) return null;
-            
+
             let survived = 1;
             if (stats) {
                 if (stats.deathCount !== undefined) {
@@ -275,9 +275,9 @@ const ReplayParser = {
                     survived = stats.deathReason === -1 ? 1 : 0;
                 }
             }
-            
+
             const vehicleName = await ReplayParser.getNormalizedVehicleName(playerData.vehicleType || playerData.vehicle);
-            
+
             return {
                 sessionId,
                 name: realName,
@@ -302,20 +302,20 @@ const ReplayParser = {
                 team: team
             };
         };
-        
+
         const promises = [];
-        
+
         if (shouldUseAllPlayersData) {
             Object.entries(allPlayersData).forEach(([sessionId, playerData]) => {
                 if (!/^\d+$/.test(sessionId) || !playerData) return;
-                
+
                 let stats = {};
                 if (vehiclesStatsObj && vehiclesStatsObj.vehicles && vehiclesStatsObj.vehicles[sessionId]) {
                     if (Array.isArray(vehiclesStatsObj.vehicles[sessionId])) {
                         stats = vehiclesStatsObj.vehicles[sessionId][0] || {};
                     }
                 }
-                
+
                 promises.push(createPlayerStat(sessionId, playerData, stats).then(playerStat => {
                     if (playerStat) {
                         allPlayers.push(playerStat);
@@ -326,14 +326,14 @@ const ReplayParser = {
             if (battleData.vehicles) {
                 Object.entries(battleData.vehicles).forEach(([sessionId, vehicleData]) => {
                     if (!vehicleData) return;
-                    
+
                     let stats = {};
                     if (vehiclesStatsObj && vehiclesStatsObj.vehicles && vehiclesStatsObj.vehicles[sessionId]) {
                         if (Array.isArray(vehiclesStatsObj.vehicles[sessionId])) {
                             stats = vehiclesStatsObj.vehicles[sessionId][0] || {};
                         }
                     }
-                    
+
                     promises.push(createPlayerStat(sessionId, vehicleData, stats).then(playerStat => {
                         if (playerStat) {
                             allPlayers.push(playerStat);
@@ -342,9 +342,9 @@ const ReplayParser = {
                 });
             }
         }
-        
+
         await Promise.all(promises);
-        
+
         if (playerTeam === null || playerTeam === undefined) {
             const me = (battleData.playerName || '').trim();
             if (me) {
@@ -354,9 +354,9 @@ const ReplayParser = {
                 }
             }
         }
-        
+
         let winnerTeam = null;
-        
+
         if (battleData.winnerTeam !== undefined && battleData.winnerTeam !== null) {
             winnerTeam = battleData.winnerTeam;
         } else if (battleData.common && battleData.common.winnerTeam !== undefined) {
@@ -367,17 +367,17 @@ const ReplayParser = {
             const team1Capture = allPlayers
                 .filter(p => p.team === 1)
                 .reduce((sum, p) => sum + p.capture, 0);
-                
+
             const team2Capture = allPlayers
                 .filter(p => p.team === 2)
                 .reduce((sum, p) => sum + p.capture, 0);
-            
+
             if (team1Capture >= 100 || team2Capture >= 100) {
                 winnerTeam = team1Capture >= 100 ? 1 : 2;
             } else {
                 const team2Alive = allPlayers.filter(p => p.team === 2 && p.survived === 1).length;
                 const team1Alive = allPlayers.filter(p => p.team === 1 && p.survived === 1).length;
-                
+
                 if (team2Alive === 0 && team1Alive > 0) {
                     winnerTeam = 1;
                 } else if (team1Alive === 0 && team2Alive > 0) {
@@ -386,18 +386,17 @@ const ReplayParser = {
             }
         }
 
-        /* 0 / -1 в реплее — ничья (нет победителя) */
         const wn = winnerTeam != null ? Number(winnerTeam) : NaN;
         if (wn === 0 || wn === -1) {
             winnerTeam = null;
         }
-        
+
         teamStats = allPlayers.filter(p => p.team === playerTeam);
         enemyTeamStats = allPlayers.filter(p => p.team !== playerTeam);
 
         const wtNum = winnerTeam != null ? Number(winnerTeam) : NaN;
         const hasWinner = winnerTeam != null && !Number.isNaN(wtNum) && wtNum !== 0 && wtNum !== -1;
-        
+
         if (hasWinner) {
             const wt = wtNum;
             teamStats.forEach(p => {
@@ -418,21 +417,21 @@ const ReplayParser = {
                 p.isDraw = true;
             });
         }
-        
+
         const isWin = hasWinner && wtNum === playerTeam;
         const isDraw = !hasWinner;
-        
+
         let rawMapName = battleData.mapName;
         if (!rawMapName) {
             rawMapName = battleData.mapDisplayName || 'unknown';
         }
-        
+
         const cleanMapName = this.cleanMapName(rawMapName);
         let mapDisplayName = '';
         if (typeof battleData.mapDisplayName === 'string' && battleData.mapDisplayName.trim() !== '') {
             mapDisplayName = battleData.mapDisplayName.trim();
         }
-        
+
         let dateTime = battleData.dateTime;
         if (!dateTime) {
             const now = new Date();
@@ -445,7 +444,7 @@ const ReplayParser = {
                 second: '2-digit'
             }).replace(/\./g, '.').replace(/,/, '');
         }
-        
+
         return {
             battleData,
             playerStats,

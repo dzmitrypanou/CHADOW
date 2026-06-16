@@ -32,9 +32,6 @@ class OnlineService
         return $lang === 'en' ? 'API unavailable' : 'API недоступен';
     }
 
-    /**
-     * @return array<string, string>
-     */
     public static function realmDisplayLabels(string $lang = 'ru'): array
     {
         $isEn = $lang === 'en';
@@ -47,9 +44,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @return list<string>
-     */
     public function enabledRealms(): array
     {
         $realms = [];
@@ -62,9 +56,6 @@ class OnlineService
         return $realms;
     }
 
-    /**
-     * @return array<string, string>
-     */
     public function enabledRealmLabels(string $lang = 'ru'): array
     {
         $labels = self::realmDisplayLabels($lang);
@@ -78,10 +69,6 @@ class OnlineService
         return $enabled;
     }
 
-    /**
-     * @param array<string, mixed>|null $data
-     * @return array<string, mixed>|null
-     */
     public function filterDataForEnabledRealms(?array $data): ?array
     {
         if (!is_array($data)) {
@@ -113,10 +100,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<string, mixed> $charts
-     * @return array<string, mixed>
-     */
     public function filterChartsForEnabledRealms(array $charts): array
     {
         $enabled = array_flip($this->enabledRealms());
@@ -130,9 +113,6 @@ class OnlineService
         return $filtered;
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
     public function getCachedRow(): ?array
     {
         try {
@@ -143,9 +123,6 @@ class OnlineService
         }
     }
 
-    /**
-     * @return array{allowed:bool,remaining:int,wait_seconds:int,fetches_in_window:int}
-     */
     public function getFetchRateState(?array $row): array
     {
         $now = time();
@@ -181,11 +158,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * Быстрая отдача из кэша без запроса к API (для SSR).
-     *
-     * @return array{success:bool,data:?array,charts:?array,from_cache:bool,stale:bool,fetched_at:?string,fetch_status:string,error:?string,rate_limit:array,rate_limited:bool}
-     */
     public function getStatusFromCache(): array
     {
         $row = $this->getCachedRow();
@@ -209,9 +181,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<string, mixed>|null $row
-     */
     public function isCacheStale(?array $row): bool
     {
         if (!$this->isValidCacheRow($row)) {
@@ -231,11 +200,6 @@ class OnlineService
         return (time() - $fetchedTs) >= self::CACHE_MIN_INTERVAL_SECONDS;
     }
 
-    /**
-     * Фоновое обновление по расписанию (systemd --loop / cron): не чаще BACKGROUND_REFRESH_INTERVAL_SECONDS.
-     *
-     * @return array{success:bool,data:?array,charts:?array,from_cache:bool,stale:bool,fetched_at:?string,fetch_status:string,error:?string,rate_limit:array,rate_limited:bool,skipped?:bool}
-     */
     public function runScheduledRefresh(bool $force = false): array
     {
         $row = $this->getCachedRow();
@@ -254,9 +218,6 @@ class OnlineService
         return $result;
     }
 
-    /**
-     * @param array<string, mixed>|null $row
-     */
     public function isBackgroundRefreshDue(?array $row): bool
     {
         if (!$row || ($row['fetch_status'] ?? '') !== 'ok') {
@@ -276,9 +237,6 @@ class OnlineService
         return (time() - $fetchedTs) >= self::BACKGROUND_REFRESH_INTERVAL_SECONDS;
     }
 
-    /**
-     * @return array{success:bool,data:?array,charts:?array,from_cache:bool,stale:bool,fetched_at:?string,fetch_status:string,error:?string,rate_limit:array,rate_limited:bool}
-     */
     public function getStatus(bool $forceRefresh = false): array
     {
         $row = $this->getCachedRow();
@@ -305,9 +263,6 @@ class OnlineService
         return $this->fetchAndStore();
     }
 
-    /**
-     * @return array{success:bool,data:?array,charts:?array,from_cache:bool,stale:bool,fetched_at:?string,fetch_status:string,error:?string,rate_limit:array,rate_limited:bool}
-     */
     private function returnCachedRow(array $row, bool $stale): array
     {
         $rate = $this->getFetchRateState($row);
@@ -337,9 +292,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<string, mixed>|null $row
-     */
     private function isValidCacheRow(?array $row): bool
     {
         if (!$row || ($row['fetch_status'] ?? '') !== 'ok') {
@@ -358,10 +310,6 @@ class OnlineService
         return !empty($data['summary']) || !empty($data['clusters']);
     }
 
-    /**
-     * @param array<string, mixed> $charts
-     * @return array<string, mixed>
-     */
     private function sanitizeCharts(array $charts): array
     {
         $sanitized = [];
@@ -382,11 +330,6 @@ class OnlineService
         return $sanitized;
     }
 
-    /**
-     * @param array<string, mixed> $charts
-     * @param array<int, array<string, mixed>> $summary
-     * @return array<string, mixed>
-     */
     private function filterChartsForSummary(array $charts, array $summary): array
     {
         $summaryRealms = [];
@@ -414,9 +357,6 @@ class OnlineService
         return $filtered;
     }
 
-    /**
-     * @return array<int, int>
-     */
     private function decodeFetchLog($value): array
     {
         if ($value === null || $value === '') {
@@ -436,10 +376,6 @@ class OnlineService
         return $log;
     }
 
-    /**
-     * @param array<int, int> $log
-     * @return array<int, int>
-     */
     private function pruneFetchLog(array $log, ?int $now = null): array
     {
         $now = $now ?? time();
@@ -451,9 +387,6 @@ class OnlineService
         return $log;
     }
 
-    /**
-     * @return array{success:bool,data:?array,charts:?array,from_cache:bool,stale:bool,fetched_at:?string,fetch_status:string,error:?string,rate_limit:array,rate_limited:bool}
-     */
     private function fetchAndStore(): array
     {
         $existing = $this->getCachedRow();
@@ -537,11 +470,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<string, mixed> $fetchedData
-     * @param array<string, mixed>|null $existingData
-     * @return array<string, mixed>
-     */
     private function mergeDataWithExisting(array $fetchedData, ?array $existingData): array
     {
         if (!is_array($existingData) || ($existingData['source'] ?? '') !== self::SOURCE_WGN_API) {
@@ -606,9 +534,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @return array{cluster:array<string,mixed>,summary:array<string,mixed>}|null
-     */
     private function fetchRealmData(string $realm, string $appId): ?array
     {
         $client = TankiClient::forRealm($realm);
@@ -624,9 +549,6 @@ class OnlineService
         return self::buildRealmData($realm, $response['servers']);
     }
 
-    /**
-     * @return array{ok:bool,data:?array}
-     */
     private function fetchFromApis(): array
     {
         $clusters = [];
@@ -667,10 +589,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<int, array{server:string,players_online:int}> $servers
-     * @return array{cluster:array<string,mixed>,summary:array<string,mixed>}
-     */
     private static function buildRealmData(string $realm, array $servers): array
     {
         $realm = TankiClient::normalizeRealm($realm);
@@ -721,12 +639,6 @@ class OnlineService
         ];
     }
 
-    /**
-     * @param array<string, mixed> $charts
-     * @param array<int, array<string, mixed>> $summary
-     * @param array<int, array<string, mixed>> $clusters
-     * @return array<string, mixed>
-     */
     private function appendChartHistory(array $charts, array $summary, array $clusters = []): array
     {
         $bucketSeconds = max(60, self::CHART_STORAGE_BUCKET_SECONDS);
@@ -782,9 +694,6 @@ class OnlineService
         return $charts;
     }
 
-    /**
-     * @param array<string, mixed> $chart
-     */
     private function appendSeriesPoint(array &$chart, string $seriesName, int $timestamp, int $value): void
     {
         if (!isset($chart['series']) || !is_array($chart['series'])) {
@@ -846,10 +755,6 @@ class OnlineService
         $chart['series'][$seriesIndex]['data'] = $data;
     }
 
-    /**
-     * @param mixed $seriesPayload
-     * @return array<int, array<string, mixed>>
-     */
     public static function normalizeChartSeries($seriesPayload): array
     {
         if (!is_array($seriesPayload)) {
@@ -904,10 +809,6 @@ class OnlineService
         return $normalized;
     }
 
-    /**
-     * @param array<int, array{0:int,1:int}> $points
-     * @return array<int, array{0:int,1:int}>
-     */
     public static function downsampleSeries(array $points, int $maxPoints): array
     {
         $count = count($points);
@@ -934,7 +835,6 @@ class OnlineService
             return 0;
         }
 
-        // Legacy cache rows could contain Unix seconds. Convert those to milliseconds.
         if ($timestamp < 100000000000) {
             return $timestamp * 1000;
         }
@@ -942,10 +842,6 @@ class OnlineService
         return $timestamp;
     }
 
-    /**
-     * @param array<int, array<string, mixed>> $summary
-     * @return array<string, bool>
-     */
     private function realmFlagsFromSummary(array $summary): array
     {
         $flags = [];
@@ -962,10 +858,6 @@ class OnlineService
         return $flags;
     }
 
-    /**
-     * @param array<string, mixed> $uptime
-     * @return array<string, mixed>
-     */
     public function filterUptimeForEnabledRealms(array $uptime): array
     {
         $enabled = array_flip($this->enabledRealms());
@@ -979,9 +871,6 @@ class OnlineService
         return $filtered;
     }
 
-    /**
-     * @param array<string, mixed> $fields
-     */
     private function upsertCache(array $fields): void
     {
         $existing = $this->getCachedRow();
@@ -1009,9 +898,6 @@ class OnlineService
         );
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
     private function decodeJsonField($value): ?array
     {
         if ($value === null || $value === '') {

@@ -1,5 +1,5 @@
 <?php
-/** @var string $lang */
+
 ?>
 <div class="tactics-confirm" id="tacticsConfirmModal" hidden>
     <div class="tactics-confirm__backdrop" data-tactics-confirm-backdrop tabindex="-1" aria-hidden="true"></div>

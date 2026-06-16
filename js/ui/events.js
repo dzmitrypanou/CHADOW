@@ -8,7 +8,7 @@ const Events = {
 
         if (uploadArea && fileInput) {
             uploadArea.addEventListener('click', () => fileInput.click());
-            
+
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 uploadArea.classList.add('drag-over');
@@ -54,8 +54,8 @@ const Events = {
 
         if (downloadBtn) {
             downloadBtn.addEventListener('click', () => {
-                const players = AppState.showEnemyTeam ? 
-                    Array.from(AppState.enemyStats.values()) : 
+                const players = AppState.showEnemyTeam ?
+                    Array.from(AppState.enemyStats.values()) :
                     Array.from(AppState.playersStats.values());
                 if (typeof Utils !== 'undefined') {
                     Utils.downloadAsJPEG();
@@ -108,7 +108,7 @@ const Events = {
         document.addEventListener('click', (e) => {
             const th = e.target.closest('th[data-sort]');
             if (!th) return;
-            
+
             const column = th.dataset.sort;
             if (AppState.currentSort.column === column) {
                 AppState.currentSort.direction = AppState.currentSort.direction === 'asc' ? 'desc' : 'asc';
@@ -116,7 +116,7 @@ const Events = {
                 AppState.currentSort.column = column;
                 AppState.currentSort.direction = 'desc';
             }
-            
+
             AppState.saveSettings();
             Renderer.updateDisplay();
         });
@@ -127,9 +127,9 @@ const Events = {
         const section = header.dataset.section;
         const content = header.nextElementSibling;
         const icon = header.querySelector('.filter-expand-icon');
-        
+
         if (!content) return;
-        
+
         if (content.style.display === 'none' || !content.style.display) {
             content.style.display = 'block';
             header.classList.add('expanded');
@@ -143,7 +143,7 @@ const Events = {
             AppState.userSettings.expandedSections = AppState.userSettings.expandedSections || {};
             AppState.userSettings.expandedSections[section] = false;
         }
-        
+
         AppState.saveSettings();
     },
 
@@ -152,7 +152,7 @@ const Events = {
         const section = header.dataset.section;
         const content = header.nextElementSibling;
         const icon = header.querySelector('.filter-expand-icon');
-        
+
         if (content.style.display === 'none' || !content.style.display) {
             content.style.display = 'block';
             header.classList.add('expanded');
@@ -166,7 +166,7 @@ const Events = {
             AppState.userSettings.expandedSections = AppState.userSettings.expandedSections || {};
             AppState.userSettings.expandedSections[section] = false;
         }
-        
+
         AppState.saveSettings();
     },
 
@@ -191,7 +191,7 @@ const Events = {
         FiltersUI.renderFilters();
         Renderer.updateDisplay();
     },
-    
+
     handleColumnChange() {
         const visibleColumns = {};
         document.querySelectorAll('.column-checkbox-input').forEach(c => {

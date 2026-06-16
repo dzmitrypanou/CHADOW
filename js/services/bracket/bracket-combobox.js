@@ -13,10 +13,6 @@
         return options.filter((n) => String(n).includes(q));
     }
 
-    /**
-     * @param {HTMLElement} root
-     * @param {{ min?: number, max?: number, defaultValue?: number }} [options]
-     */
     function wireNumberCombobox(root, options = {}) {
         if (!root || root.dataset.bracketComboboxEnhanced === '1') return root;
 
@@ -129,15 +125,6 @@
         return root;
     }
 
-    /**
-     * @param {HTMLElement} root
-     * @param {{
-     *   items?: Array<{ index: number, label: string, hint?: string, searchText?: string }>,
-     *   initialIndex?: number,
-     *   onSelect?: (index: number) => void,
-     *   onFilter?: (query: string, filtered: Array<{ index: number }>) => void,
-     * }} [options]
-     */
     function wireGroupPicker(root, options = {}) {
         if (!root || root.dataset.bracketComboboxEnhanced === '1') return null;
 

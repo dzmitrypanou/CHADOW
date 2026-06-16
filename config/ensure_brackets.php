@@ -2,11 +2,6 @@
 require_once __DIR__ . '/ensure_site_users.php';
 require_once __DIR__ . '/runtime_flags.php';
 
-/**
- * Турнирные сетки.
- *
- * @param Database $db
- */
 function ensure_brackets_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -45,9 +40,6 @@ function ensure_brackets_table($db) {
     ensure_brackets_columns($pdo);
 }
 
-/**
- * @return array<string, true>
- */
 function brackets_existing_columns($pdo): array {
     $columns = [];
     try {
@@ -74,7 +66,7 @@ function ensure_brackets_columns($pdo): void {
         try {
             $pdo->exec($sql);
         } catch (Throwable $e) {
-            // idempotent
+
         }
     };
 
@@ -125,7 +117,7 @@ function ensure_brackets_format_enum($pdo): void {
             . "ENUM('single', 'double', 'group', 'group_se', 'group_de') NOT NULL"
         );
     } catch (Throwable $e) {
-        // idempotent
+
     }
 
     try {
@@ -154,6 +146,6 @@ function ensure_brackets_format_enum($pdo): void {
             }
         }
     } catch (Throwable $e) {
-        // idempotent
+
     }
 }

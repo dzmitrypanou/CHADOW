@@ -2,11 +2,6 @@
 require_once __DIR__ . '/ensure_site_users.php';
 require_once __DIR__ . '/runtime_flags.php';
 
-/**
- * Таблица результатов аим-тренажёров.
- *
- * @param Database $db
- */
 function ensure_aim_scores_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -78,7 +73,7 @@ function aim_ensure_scores_device_column($pdo): void {
              ADD INDEX idx_trainer_device_score (trainer, device, score DESC)'
         );
     } catch (Throwable $e) {
-        // Column may already exist.
+
     }
 }
 
@@ -89,7 +84,7 @@ function aim_ensure_trainer_enum_column($pdo): void {
              ENUM('flick', 'tracking', 'reaction', 'lead', 'gridshot', 'duckhunt', 'vugich') NOT NULL"
         );
     } catch (Throwable $e) {
-        // Column may already include all trainers.
+
     }
 }
 
@@ -97,7 +92,7 @@ function aim_ensure_scores_grade_column($pdo): void {
     try {
         $pdo->exec('ALTER TABLE aim_scores MODIFY COLUMN grade VARCHAR(4) NOT NULL');
     } catch (Throwable $e) {
-        // Column may already be the right type.
+
     }
 }
 
@@ -122,6 +117,6 @@ function aim_ensure_scores_foreign_key($pdo): void {
              FOREIGN KEY (user_id) REFERENCES site_users(id) ON DELETE SET NULL'
         );
     } catch (Throwable $e) {
-        // FK is optional; table works without it for guest scores.
+
     }
 }

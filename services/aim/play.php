@@ -26,7 +26,7 @@ try {
     require_once __DIR__ . '/../../config/ensure_aim.php';
     ensure_aim_scores_table($userDb);
 } catch (Throwable $e) {
-    // play page still works offline
+
 }
 
 $meta = aim_trainer_meta($trainer, $lang);

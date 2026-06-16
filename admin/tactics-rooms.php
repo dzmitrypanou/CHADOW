@@ -35,7 +35,7 @@ try {
     <style>
         .tactics-stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         @media (max-width: 768px) { .tactics-stats-grid { grid-template-columns: 1fr; } }
-        #tactics-rooms-table td { vertical-align: top; }
+
         .tactics-vis-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -43,14 +43,14 @@ try {
             font-size: 0.72rem;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color: #90caf9;
+            color:
         }
         .tactics-vis-badge.closed {
             background: rgba(255, 152, 0, 0.12);
             border-color: rgba(255, 183, 77, 0.35);
-            color: #ffcc80;
+            color:
         }
-        .tactics-maps-cell { font-size: 0.82rem; color: #9aa5b1; max-width: 220px; }
+        .tactics-maps-cell { font-size: 0.82rem; color:
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>
 </head>

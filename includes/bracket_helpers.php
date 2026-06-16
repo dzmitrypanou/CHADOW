@@ -108,9 +108,6 @@ function bracket_guest_can_edit(array $row, ?string $editToken): bool {
         && bracket_edit_token_valid($row, $editToken);
 }
 
-/**
- * @return list<string>
- */
 function bracket_claim_all_guest_brackets_from_cookies($db, int $userId): array {
     if ($userId <= 0) {
         return [];
@@ -296,9 +293,6 @@ function bracket_game_display_label(string $game, ?string $realm, string $lang =
     return $label;
 }
 
-/**
- * @return array{ok:bool, data?:array{game:string,game_realm:?string}, error?:string}
- */
 function bracket_validate_game_input(?string $game, ?string $realm, string $lang = 'ru', bool $required = true): array {
     $game = trim((string) ($game ?? ''));
     if ($game === '') {
@@ -382,9 +376,6 @@ function bracket_bracket_size(int $participantCount): int {
     return $size;
 }
 
-/**
- * @return list<string>
- */
 function bracket_group_winner_prize_tiers(int $groupCount): array {
     $count = max(BRACKET_MIN_GROUPS, min(BRACKET_MAX_GROUPS, $groupCount));
     $tiers = [];
@@ -395,10 +386,6 @@ function bracket_group_winner_prize_tiers(int $groupCount): array {
     return $tiers;
 }
 
-/**
- * @param array<string, mixed>|null $bracketData
- * @return list<string>
- */
 function bracket_resolve_prize_tiers(string $format, int $participantCount, ?array $bracketData = null): array {
     if ($format === 'group') {
         $groupCount = (int) ($bracketData['settings']['groupCount'] ?? BRACKET_MIN_GROUPS);
@@ -409,9 +396,6 @@ function bracket_resolve_prize_tiers(string $format, int $participantCount, ?arr
     return bracket_prize_tiers($participantCount);
 }
 
-/**
- * @return list<string>
- */
 function bracket_prize_tiers(int $participantCount): array {
     $size = bracket_bracket_size($participantCount);
     $tiers = ['1', '2'];
@@ -521,10 +505,6 @@ function bracket_tournament_phase_label(string $phase, string $lang = 'ru'): str
     return $map[$phase] ?? $phase;
 }
 
-/**
- * @param mixed $raw
- * @return array<string, string>
- */
 function bracket_parse_prize_pool($raw): array {
     if (is_string($raw)) {
         $decoded = json_decode($raw, true);
@@ -594,9 +574,6 @@ function bracket_validate_prize_pool(array $pool, int $participantCount, string 
     return ['ok' => true, 'data' => $clean];
 }
 
-/**
- * @return array{ok:bool, data?:array, error?:string}
- */
 function bracket_validate_meta_input(array $input, string $lang = 'ru', ?int $participantCount = null, string $format = 'single', ?array $bracketData = null): array {
     $result = [];
 
@@ -666,10 +643,6 @@ function bracket_normalize_bracket_size($size): int {
     return in_array($n, BRACKET_SIZE_OPTIONS, true) ? $n : 8;
 }
 
-/**
- * @param array<int, mixed> $participants
- * @return array<int, string>
- */
 function bracket_normalize_participant_slots(array $participants, ?int $bracketSize = null): array {
     $normalized = [];
     foreach ($participants as $p) {
@@ -715,9 +688,6 @@ function bracket_filled_participant_count(array $participants): int {
     return $count;
 }
 
-/**
- * @param mixed $data
- */
 function bracket_validate_bracket_data($data, string $lang = 'ru'): array {
     if (!is_array($data)) {
         return ['ok' => false, 'error' => $lang === 'en' ? 'Invalid bracket data' : 'Некорректные данные сетки'];
@@ -1034,9 +1004,6 @@ function bracket_edit_token_valid(array $row, ?string $editToken): bool {
     return $storedHash !== '' && password_verify($editToken, $storedHash);
 }
 
-/**
- * @return array{ok:bool, error?:string}
- */
 function bracket_assert_owner($db, array $row, ?int $userId, ?string $editToken): array {
     $ownerId = bracket_row_owner_id($row);
 
@@ -1055,11 +1022,6 @@ function bracket_assert_owner($db, array $row, ?int $userId, ?string $editToken)
     return ['ok' => true];
 }
 
-/**
- * Привязать гостевую сетку к аккаунту (после входа/регистрации).
- *
- * @return array{ok:bool, error?:string, public_id?:string}
- */
 function bracket_claim_guest_bracket($db, string $publicId, int $userId, string $editToken): array {
     if (!bracket_public_id_valid($publicId) || $userId <= 0) {
         return ['ok' => false, 'error' => 'Некорректные данные'];

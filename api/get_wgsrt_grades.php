@@ -18,7 +18,7 @@ try {
     ensure_wgsrt_grades_lang_columns($db);
     $lang = abs_detect_lang();
     $grades = $db->fetchAll("
-        SELECT 
+        SELECT
             grade_name,
             grade_name_en,
             grade_code,
@@ -28,7 +28,7 @@ try {
             description,
             description_en,
             sort_order
-        FROM wgsrt_grades 
+        FROM wgsrt_grades
         ORDER BY sort_order
     ");
     foreach ($grades as &$grade) {

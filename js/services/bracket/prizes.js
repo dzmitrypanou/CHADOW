@@ -9,20 +9,11 @@
         return p;
     }
 
-    /**
-     * @param {number} groupCount
-     * @returns {string[]}
-     */
     function getGroupWinnerTiers(groupCount) {
         const n = Math.max(2, Math.min(32, parseInt(groupCount, 10) || 2));
         return Array.from({ length: n }, (_, i) => `g${i}`);
     }
 
-    /**
-     * @param {number} participantCount
-     * @param {{ bracketSize?: boolean }} [options] — when true, count is already a bracket slot size (power of 2)
-     * @returns {string[]}
-     */
     function getPrizeTiers(participantCount, options = {}) {
         const cap = 1024;
         const raw = parseInt(participantCount, 10) || 2;
@@ -54,12 +45,6 @@
         return f === 'group_se' || f === 'group_de';
     }
 
-    /**
-     * @param {string} format
-     * @param {number} participantCount
-     * @param {{ bracketSize?: boolean, groupCount?: number }} [options]
-     * @returns {string[]}
-     */
     function resolvePrizeTiers(format, participantCount, options = {}) {
         if (isPureGroupFormat(format)) {
             return getGroupWinnerTiers(options.groupCount || 2);
@@ -79,12 +64,6 @@
         { unit: 'usd', suffixes: ['$'] },
     ];
 
-    /**
-     * @param {string} text
-     * @param {string} unit
-     * @param {string} [lang]
-     * @returns {string}
-     */
     function formatPrizeEntry(text, unit, lang = 'ru') {
         const value = String(text || '').trim();
         if (!value) return '';
@@ -94,10 +73,6 @@
         return `${value} ${suffix}`;
     }
 
-    /**
-     * @param {string} stored
-     * @returns {{ text: string, unit: string }}
-     */
     function parsePrizeEntry(stored) {
         const raw = String(stored || '').trim();
         if (!raw) return { text: '', unit: '' };

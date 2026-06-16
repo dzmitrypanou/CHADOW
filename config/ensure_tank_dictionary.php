@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Справочник техники для ABS и админки.
- *
- * @param Database $db
- */
+
 function ensure_tank_dictionary_table($db) {
     static $ensured = false;
     if ($ensured) {

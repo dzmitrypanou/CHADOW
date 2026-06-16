@@ -10,12 +10,12 @@ const FileHandler = {
             oldWrapper.parentNode.insertBefore(filesListElement, oldWrapper);
             oldWrapper.remove();
         }
-        
+
         const newFiles = [];
         const duplicateFiles = [];
         const invalidFiles = [];
         const oversizedFiles = [];
-        
+
         files.forEach(file => {
             if (!file.name.match(/\.(mtreplay|wotreplay)$/i)) {
                 invalidFiles.push(file.name);
@@ -25,7 +25,7 @@ const FileHandler = {
                 oversizedFiles.push(file.name);
                 return;
             }
-            
+
             const fileHash = Utils.generateFileHash(file);
             if (AppState.processedFileHashes.has(fileHash)) {
                 duplicateFiles.push(file.name);
@@ -34,14 +34,14 @@ const FileHandler = {
                 newFiles.push(file);
             }
         });
-        
+
         const replayStorageEnabled = window.ABS_REPLAY_STORAGE_ENABLED !== false;
         const consentCheckbox = document.getElementById('saveReplayConsent');
         const saveToServer =
             replayStorageEnabled &&
             (AppState.userSettings.saveReplayConsent === true ||
                 (consentCheckbox && consentCheckbox.checked === true));
-        
+
         let batchLimitAborted = false;
         if (saveToServer && newFiles.length > MAX_REPLAY_BATCH_WITH_SERVER_SAVE) {
             batchLimitAborted = true;
@@ -50,7 +50,7 @@ const FileHandler = {
             });
             newFiles.length = 0;
         }
-        
+
         const errors = [];
         if (invalidFiles.length) errors.push({ type: 'invalid', files: invalidFiles });
         if (oversizedFiles.length) errors.push({ type: 'tooLarge', files: oversizedFiles });
@@ -64,22 +64,22 @@ const FileHandler = {
                         : 'При включённом сохранении на сервере за один раз допускается не более 50 реплеев. Выбрано больше — загрузка отменена, ни один файл не обработан.'
             });
         }
-        
+
         ErrorsUI.updateErrorList(errors);
-        
+
         if (newFiles.length === 0) {
             UI.hideLoading();
             FilesUI.updateFilesList(AppState.fileData, AppState.userSettings);
             return;
         }
-        
+
         UI.updateFileInfo(`${isEn ? 'Files' : 'Файлов'}: ${AppState.fileData.length + newFiles.length}`);
         UI.showLoading();
-        
+
         let processed = 0;
         let failedFiles = [];
         const total = newFiles.length;
-        
+
         const batchSize = 3;
         for (let i = 0; i < newFiles.length; i += batchSize) {
             const batch = newFiles.slice(i, i + batchSize);
@@ -96,17 +96,17 @@ const FileHandler = {
             const text = await this.readFileAsync(file);
             const jsonObjects = ReplayParser.extractAllJSON(text);
             const battleInfo = await ReplayParser.findPlayerStats(jsonObjects);
-            
+
             if (!battleInfo || !battleInfo.battleData || !battleInfo.playerStats) {
                 throw new Error(AppConstants.LANG === 'en'
                     ? 'Unable to find player statistics'
                     : 'Не удалось найти статистику игрока');
             }
-            
+
             if (battleInfo.battleData.regionCode) {
                 AppState.serverRegion = battleInfo.battleData.regionCode.toLowerCase();
             }
-            
+
             const replayStorageEnabled = window.ABS_REPLAY_STORAGE_ENABLED !== false;
             const consentCheckbox = document.getElementById('saveReplayConsent');
             const hasConsent = replayStorageEnabled &&
@@ -116,11 +116,11 @@ const FileHandler = {
             const savedFile = await API.saveReplayFile(file, battleInfo, hasConsent);
 
             await API.ensureMapFromReplay(battleInfo.mapName, battleInfo.mapDisplayName);
-            
+
             if (battleInfo.mapName) {
                 AppState.availableMaps.add(battleInfo.mapName);
             }
-            
+
             AppState.fileData.push({
                 name: file.name,
                 content: text,
@@ -128,7 +128,7 @@ const FileHandler = {
                 fileHash: Utils.generateFileHash(file),
                 savedPath: savedFile?.file_path
             });
-            
+
         } catch (error) {
             AppState.processedFileHashes.delete(Utils.generateFileHash(file));
             failedFiles.push(file.name);
@@ -147,9 +147,9 @@ const FileHandler = {
     finalizeProcessing(errors, failedFiles) {
         const parseErrors = failedFiles.length ? [{ type: 'parse', files: failedFiles }] : [];
         const allErrors = [...errors, ...parseErrors];
-        
+
         ErrorsUI.updateErrorList(allErrors);
-        
+
         if (AppState.fileData.length > 0) {
             AppState.currentMap = 'all';
             StatsCalculator.recalcStats(true);
@@ -161,7 +161,7 @@ const FileHandler = {
             UI.hideLoading();
             FilesUI.updateFilesList([], AppState.userSettings);
         }
-        
+
         const isEn = AppConstants.LANG === 'en';
         UI.updateFileInfo(AppState.fileData.length ? `${isEn ? 'Files' : 'Файлов'}: ${AppState.fileData.length}` : '');
         UI.checkAndHideContent();
@@ -170,24 +170,24 @@ const FileHandler = {
     deleteFile(index) {
         const isEn = AppConstants.LANG === 'en';
         if (!confirm(isEn ? 'Delete this file from the analysis?' : 'Удалить этот файл из анализа?')) return;
-        
+
         const deletedFile = AppState.fileData[index];
         if (deletedFile?.fileHash) {
             AppState.processedFileHashes.delete(deletedFile.fileHash);
         }
-        
+
         AppState.fileData.splice(index, 1);
         AppState.availableMaps.clear();
         AppState.fileData.forEach(file => AppState.availableMaps.add(file.battleInfo.mapName));
-        
+
         StatsCalculator.recalcStats(false);
         FiltersUI.renderFilters();
         Renderer.updateDisplay();
         FilesUI.updateFilesList(AppState.fileData, AppState.userSettings);
-        
+
         UI.updateFileInfo(AppState.fileData.length ? `${isEn ? 'Files' : 'Файлов'}: ${AppState.fileData.length}` : '');
         UI.checkAndHideContent();
-        
+
         if (AppState.fileData.length === 0) {
             ErrorsUI.clearErrors();
         }
@@ -203,7 +203,7 @@ const FileHandler = {
         AppState.expandedPlayer = null;
         AppState.currentMap = 'all';
         AppState.isNewFilesLoaded = false;
-        
+
         StatsCalculator.recalcStats(false);
         FiltersUI.renderFilters();
         Renderer.updateDisplay();

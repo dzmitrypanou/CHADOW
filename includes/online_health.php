@@ -43,9 +43,6 @@ class OnlineHealth
         return self::GOOD;
     }
 
-    /**
-     * @param array<int, int> $values
-     */
     public static function medianBaseline(array $values): ?int
     {
         $values = array_values(array_filter($values, static fn($value) => $value > 0));
@@ -133,12 +130,6 @@ class OnlineHealth
         }
     }
 
-    /**
-     * @param array<string, mixed> $uptime
-     * @param array<string, mixed> $mergedData
-     * @param array<string, bool> $freshRealms
-     * @return array<string, mixed>
-     */
     public static function appendSample(array $uptime, array $mergedData, array $freshRealms): array
     {
         $timestamp = (int) round(microtime(true) * 1000);
@@ -201,11 +192,6 @@ class OnlineHealth
         return self::pruneUptime($uptime, $cutoff);
     }
 
-    /**
-     * @param array<string, mixed> $cluster
-     * @param array<string, bool> $freshRealms
-     * @return array<string, bool>
-     */
     private static function freshServerCodes(array $cluster, array $freshRealms, string $realm): array
     {
         if (empty($freshRealms[$realm])) {
@@ -226,10 +212,6 @@ class OnlineHealth
         return $codes;
     }
 
-    /**
-     * @param array<string, mixed> $entity
-     * @return array<int, int>
-     */
     private static function extractRecentOnline(array $entity): array
     {
         $recent = [];
@@ -243,10 +225,6 @@ class OnlineHealth
         return $recent;
     }
 
-    /**
-     * @param array<string, mixed> $entity
-     * @return array<string, mixed>
-     */
     private static function appendEntitySample(
         array $entity,
         int $bucketTs,
@@ -294,10 +272,6 @@ class OnlineHealth
         return (int) (floor($timestampMs / $bucketMs) * $bucketMs);
     }
 
-    /**
-     * @param array<string, mixed> $uptime
-     * @return array<string, mixed>
-     */
     public static function pruneUptime(array $uptime, int $cutoff): array
     {
         $pruned = [];
@@ -339,10 +313,6 @@ class OnlineHealth
         return $pruned;
     }
 
-    /**
-     * @param array<int, array{0:int,1:string}> $buckets
-     * @return array<int, array{0:int,1:string}>
-     */
     public static function fillTimelineBuckets(array $buckets, ?string $currentState = null): array
     {
         $timestamp = (int) round(microtime(true) * 1000);
@@ -399,10 +369,6 @@ class OnlineHealth
         return $filled;
     }
 
-    /**
-     * @param array<string, mixed> $uptime
-     * @return array<string, mixed>
-     */
     public static function exportTimeline(array $uptime): array
     {
         $export = [];
@@ -423,9 +389,6 @@ class OnlineHealth
         return $export;
     }
 
-    /**
-     * @param array<string, mixed> $uptime
-     */
     public static function currentState(array $uptime, string $realm, string $serverCode): string
     {
         $entity = $uptime[$realm][$serverCode] ?? null;
@@ -443,11 +406,6 @@ class OnlineHealth
         return self::normalizeState((string) ($last[1] ?? self::GOOD));
     }
 
-    /**
-     * @param array<string, mixed> $data
-     * @param array<string, mixed> $uptime
-     * @return array<string, mixed>
-     */
     public static function enrichData(array $data, array $uptime): array
     {
         if (!is_array($data['clusters'] ?? null)) {

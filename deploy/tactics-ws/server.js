@@ -43,7 +43,6 @@ function verifyToken(token) {
     }
 }
 
-/** @type {Map<string, Map<string, { ws: import('ws'), nickname: string }>>} */
 const rooms = new Map();
 
 function getRoomParticipants(publicId) {

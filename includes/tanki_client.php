@@ -15,7 +15,6 @@ class TankiClient
     private string $communityLocale;
     private string $clanBaseUrl;
 
-    /** @var array<string, ?string> */
     private static array $clanTagPortalUrlCache = [];
 
     public static function normalizeRealm(?string $realm): string
@@ -26,9 +25,6 @@ class TankiClient
             : self::REALM_RU;
     }
 
-    /**
-     * @return array<int, string>
-     */
     public static function supportedRealms(): array
     {
         return [self::REALM_RU, self::REALM_EU, self::REALM_NA, self::REALM_ASIA];
@@ -69,15 +65,11 @@ class TankiClient
         return $this->realm;
     }
 
-    /** Парсинг портала и MTUP — только для Мир танков (RU). WG-регионы — только Public API. */
     public function usesPortalParser(): bool
     {
         return $this->realm === self::REALM_RU;
     }
 
-    /**
-     * @return array{base_url:string,mtup_base:string,community_locale:string,clan_base_url:string}
-     */
     private static function realmConfig(string $realm): array
     {
         switch ($realm) {
@@ -140,9 +132,6 @@ class TankiClient
         return rtrim($this->clanBaseUrl, '/') . '/' . $clanId . '/';
     }
 
-    /**
-     * @return array{ok:bool,servers:array<int,array{server:string,players_online:int}>,error:?string}
-     */
     public function fetchWgnServersInfo(string $applicationId, string $game = 'wot'): array
     {
         $applicationId = trim($applicationId);
@@ -304,9 +293,6 @@ class TankiClient
         return (int) ($bootstrap['clan_info']['id'] ?? 0);
     }
 
-    /**
-     * @return array<int, string>
-     */
     private function defaultHttpHeaders(array $extra = []): array
     {
         return array_merge([
@@ -329,10 +315,6 @@ class TankiClient
         return $id > 0 ? $id : 0;
     }
 
-    /**
-     * @param list<mixed> $items
-     * @return array<int, array{spa_id:int,nickname:string,nickname_slug:string,clan_tag:string}>
-     */
     private static function mapPortalSearchItems(array $items): array
     {
         $results = [];
@@ -359,9 +341,6 @@ class TankiClient
         return array_values($results);
     }
 
-    /**
-     * @return array{ok:bool,status:int,body:string,json:?array,error:?string}
-     */
     public function httpGet(string $url, array $headers = []): array
     {
         $ch = curl_init($url);
@@ -393,9 +372,6 @@ class TankiClient
         ];
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function mtupGet(string $endpoint, array $params = [], ?int $spaId = null): array
     {
         if (!$this->usesPortalParser()) {
@@ -420,9 +396,6 @@ class TankiClient
         return ['ok' => true, 'data' => $res['json']['data'] ?? null, 'error' => null];
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function fetchSummary(int $spaId, string $battleType = 'random'): array
     {
         return $this->mtupGet('summary/', [
@@ -431,9 +404,6 @@ class TankiClient
         ], $spaId);
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function fetchStatistics(int $spaId, string $battleType = 'random'): array
     {
         return $this->mtupGet('statistics/', [
@@ -442,9 +412,6 @@ class TankiClient
         ], $spaId);
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function fetchAchievementsShort(int $spaId, string $battleType = 'random'): array
     {
         return $this->mtupGet('achievements/short/', [
@@ -453,9 +420,6 @@ class TankiClient
         ], $spaId);
     }
 
-    /**
-     * @return ?array<string, mixed>
-     */
     public static function extractJsonAssignment(string $html, string $varName): ?array
     {
         $marker = $varName . ' = {';
@@ -512,9 +476,6 @@ class TankiClient
         return null;
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function fetchProfileBootstrap(int $spaId, string $nicknameSlug = ''): array
     {
         if (!$this->usesPortalParser()) {
@@ -548,9 +509,6 @@ class TankiClient
         return ['ok' => false, 'data' => null, 'error' => $lastError];
     }
 
-    /**
-     * @return array<int, array{spa_id:int,nickname:string,nickname_slug:string,clan_tag:string}>
-     */
     public function searchByNickname(string $query, string $applicationId = ''): array
     {
         $query = trim($query);
@@ -575,9 +533,6 @@ class TankiClient
         return $this->searchByNicknameViaPortal($query);
     }
 
-    /**
-     * @return array<int, array{spa_id:int,nickname:string,nickname_slug:string,clan_tag:string}>
-     */
     private function searchByNicknameViaPortal(string $query): array
     {
         $accountsPath = '/' . $this->communityLocale . '/community/accounts/';
@@ -597,9 +552,6 @@ class TankiClient
         return $this->resolveExactNickname($query);
     }
 
-    /**
-     * @return array<int, array{spa_id:int,nickname:string,nickname_slug:string,clan_tag:string}>
-     */
     public function searchByNicknameViaWgApi(
         string $query,
         string $applicationId,
@@ -657,9 +609,6 @@ class TankiClient
         return array_values($results);
     }
 
-    /**
-     * @return array<int, array{spa_id:int,nickname:string,nickname_slug:string,clan_tag:string}>
-     */
     private function resolveExactNickname(string $query): array
     {
         $accountsPath = '/' . $this->communityLocale . '/community/accounts/';
@@ -727,9 +676,6 @@ class TankiClient
         }
     }
 
-    /**
-     * % попаданий из Public API: statistics.random.hits_percents или hits/shots.
-     */
     public static function computeHitsRatioFromRandom(array $random): ?float
     {
         foreach (['hits_percents', 'hits_percent'] as $key) {
@@ -756,9 +702,6 @@ class TankiClient
         return round((float) $total / $battles, $decimals);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public static function mapRandomStatsToSummary(array $random): array
     {
         $battles = (int) ($random['battles'] ?? 0);
@@ -861,9 +804,6 @@ class TankiClient
         return self::computeHitsRatioFromRandom($random);
     }
 
-    /**
-     * @return array{ok:bool,data:?array,error:?string}
-     */
     public function fetchAccountInfo(int $spaId, string $applicationId, string $fields): array
     {
         $applicationId = trim($applicationId);
@@ -901,9 +841,6 @@ class TankiClient
         return ['ok' => true, 'data' => $account, 'error' => null];
     }
 
-    /**
-     * @return ?array{clan_id:int,tag:string,name:string}
-     */
     public function fetchClanInfoById(int $clanId, string $applicationId): ?array
     {
         $clanId = (int) $clanId;
@@ -948,9 +885,6 @@ class TankiClient
         ];
     }
 
-    /**
-     * @return array{clan_id:int,tag:string,name:string}
-     */
     public function resolveClanFromAccount(array $account, string $applicationId): array
     {
         $clanId = 0;
@@ -982,9 +916,6 @@ class TankiClient
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public static function mapPublicApiAccountToSummary(array $account): array
     {
         $random = is_array($account['statistics']['random'] ?? null) ? $account['statistics']['random'] : [];
@@ -1004,9 +935,6 @@ class TankiClient
         return $summary;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public static function mapPublicApiAccountToStatistics(array $account): array
     {
         $random = is_array($account['statistics']['random'] ?? null) ? $account['statistics']['random'] : [];
@@ -1029,14 +957,6 @@ class TankiClient
         return $statistics;
     }
 
-    /**
-     * Профиль игрока через Public API (без парсинга портала и MTUP).
-     *
-     * @return array{ok:bool,data:?array{nickname:string,clan_tag:string,clan_name:string,summary:array,statistics:array,bootstrap:array},error:?string}
-     */
-    /**
-     * @return array<int, string>
-     */
     private function buildAccountProfileFieldSets(): array
     {
         $randomStatsFields = implode(',', [
@@ -1073,7 +993,6 @@ class TankiClient
             ];
         }
 
-        // WG (EU/NA/ASIA): marks_on_gun — поле Lesta, в fields ломает запрос.
         return [
             'nickname,clan_id,global_rating,statistics.random',
             'nickname,clan_id,global_rating,' . $randomStatsFields,

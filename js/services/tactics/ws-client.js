@@ -90,7 +90,7 @@
                 try {
                     prev.close();
                 } catch (e) {
-                    // ignore
+
                 }
             }
         }

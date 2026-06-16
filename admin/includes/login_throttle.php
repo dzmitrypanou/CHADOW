@@ -1,12 +1,9 @@
 <?php
 
-/** Окно подсчёта неудачных попыток (секунды). */
 const ADMIN_LOGIN_THROTTLE_WINDOW_SEC = 900;
 
-/** После стольких неудач в окне — блокировка. */
 const ADMIN_LOGIN_THROTTLE_MAX_FAILS = 5;
 
-/** Длительность блокировки (секунды). */
 const ADMIN_LOGIN_THROTTLE_LOCK_SEC = 1800;
 
 function admin_login_throttle_ip_key(): string {
@@ -17,9 +14,6 @@ function admin_login_throttle_ip_key(): string {
     return hash('sha256', $ip, false);
 }
 
-/**
- * @return int|null секунд до разрешения следующей попытки, или null если не заблокировано
- */
 function admin_login_throttle_retry_after_seconds($db): ?int {
     $key = admin_login_throttle_ip_key();
     $row = $db->fetchOne(
@@ -40,9 +34,6 @@ function admin_login_throttle_retry_after_seconds($db): ?int {
     return null;
 }
 
-/**
- * Сколько попыток ввода пароля осталось до блокировки в текущем окне (0 — уже заблокировано).
- */
 function admin_login_throttle_attempts_remaining($db): int {
     $max = ADMIN_LOGIN_THROTTLE_MAX_FAILS;
     $window = ADMIN_LOGIN_THROTTLE_WINDOW_SEC;

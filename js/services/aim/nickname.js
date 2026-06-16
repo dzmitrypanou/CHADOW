@@ -23,7 +23,7 @@
                 return normalize(stored);
             }
         } catch (e) {
-            // ignore
+
         }
         const fallback = normalize(window.ABS_AIM_DEFAULT_NICKNAME || '');
         return isValid(fallback) ? fallback : '';
@@ -37,7 +37,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, name);
         } catch (e) {
-            // ignore
+
         }
         return true;
     }

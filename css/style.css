@@ -4,7 +4,6 @@
     padding: 0;
 }
 
-/* Единая вертикальная сетка: блоки, подвал, типографика CMS */
 :root {
     --layout-gap: 24px;
     --layout-gap-sm: 16px;
@@ -1097,7 +1096,6 @@ h1::before {
     white-space: nowrap;
 }
 
-/* Число по центру поля, стрелки по центру колонки (flex вместо overlay) */
 .min-battles-control .number-wrapper {
     display: inline-flex;
     flex-direction: row;
@@ -1789,7 +1787,6 @@ h1::before {
     line-height: 1.1;
 }
 
-/* CMS-страница: шапка отделена от контента */
 .cms-public-page .header {
     margin-bottom: 0;
 }
@@ -1799,7 +1796,6 @@ h1::before {
     padding-bottom: 0;
 }
 
-/* Типографика CMS: плотный текст, ровные списки (Quill) */
 .cms-public-page .cms-page-article-inner.ql-editor {
     padding: 0;
     white-space: normal;
@@ -1807,7 +1803,6 @@ h1::before {
     line-height: 1.42;
 }
 
-/* Quill по умолчанию даёт большие margin у p — переопределяем */
 .cms-public-page .cms-page-article-inner.ql-editor p {
     margin-top: 0;
     margin-bottom: 0.35em;
@@ -1873,10 +1868,6 @@ h1::before {
     margin-bottom: 0;
 }
 
-/*
- * Списки Quill (quill.snow.css): у ol/ul padding-left 1.5em, у li padding-left 1.5em,
- * маркер в ::before с width 1.2em. Сохраняем это и для подсписков — тот же шаг 1.5em.
- */
 .cms-public-page .cms-page-article-inner.ql-editor ol,
 .cms-public-page .cms-page-article-inner.ql-editor ul {
     margin-top: 0;
@@ -1900,7 +1891,6 @@ h1::before {
     margin-bottom: 0;
 }
 
-/* Было 0.3em в Quill — делаем ~один пробел после номера/маркера */
 .cms-public-page .cms-page-article-inner.ql-editor li:not(.ql-direction-rtl)::before {
     margin-right: 1ch;
 }
@@ -1909,7 +1899,6 @@ h1::before {
     margin-left: 1ch;
 }
 
-/* Заголовок статьи CMS — без иконки из глобального h1::before */
 .cms-public-page h1.cms-page-title {
     display: block;
     margin: 0 0 var(--layout-gap);
@@ -1984,7 +1973,6 @@ footer {
     height: 8px;
     background: rgba(114, 185, 255, 0.56);
 }
-
 
 .page-404 .error-page {
     padding: var(--layout-gap) 0 calc(var(--layout-gap) * 2);
@@ -2362,7 +2350,7 @@ footer {
     .sort-group {
         min-width: 300px;
     }
-    
+
     .map-group {
         min-width: 250px;
     }
@@ -2372,222 +2360,222 @@ footer {
     .container {
         padding: var(--layout-gap-sm);
     }
-    
+
     h1 {
         font-size: 1.8rem;
         gap: 12px;
     }
-    
+
     h1::before {
         display: none;
     }
-    
+
     .files-error-wrapper {
         flex-direction: column;
         gap: 16px;
         margin-bottom: 16px;
     }
-    
+
     #errorContainer {
         min-width: auto;
         width: 100%;
     }
-    
+
     .files-header,
     #errorContainer .error-header {
         padding: 12px 16px;
         font-size: 0.9rem;
     }
-    
+
     .files-header {
         color: #4caf50;
     }
-    
+
     .files-content,
     #errorContainer .error-content {
         padding: 8px;
     }
-    
+
     .files-list-container,
     .error-files-list {
         height: calc(5 * 36px);
     }
-    
+
     .file-item,
     .error-file-item {
         min-height: 36px;
         padding: 6px 10px;
         font-size: 0.7rem;
     }
-    
+
     .file-name {
         font-size: 0.7rem;
         color: #4caf50;
     }
-    
+
     .file-map {
         font-size: 0.65rem;
         padding: 1px 6px;
         color: #4caf50;
     }
-    
+
     .delete-file {
         font-size: 14px;
         padding: 3px 6px;
     }
-    
+
     .error-copy-btn {
         padding: 3px 6px;
         font-size: 10px;
     }
-    
+
     .filter-header {
         padding: 12px 16px;
         font-size: 0.9rem;
     }
-    
+
     .filter-content {
         padding: 16px;
     }
-    
+
     .filter-row {
         flex-direction: column;
         gap: 20px;
     }
-    
+
     .filter-group {
         min-width: auto;
         width: 100%;
     }
-    
+
     .sort-group {
         min-width: 100%;
     }
-    
+
     .map-group {
         min-width: 100%;
     }
-    
+
     .players-filter-group {
         min-width: 100%;
     }
-    
+
     .dropdown-content {
         max-height: 250px;
     }
-    
+
     .players-list-container {
         max-height: 300px;
     }
-    
+
     .players-list {
         max-height: 200px;
     }
-    
+
     .players-list-header {
         padding: 8px 10px;
     }
-    
+
     .players-list-title {
         font-size: 0.8rem;
     }
-    
+
     .players-action-btn {
         padding: 3px 6px;
         font-size: 0.7rem;
     }
-    
+
     .players-search-input {
         padding: 8px 10px;
         font-size: 0.8rem;
     }
-    
+
     .player-checkbox-label {
         flex-wrap: wrap;
         gap: 4px;
     }
-    
+
     .player-checkbox-name {
         width: 100%;
         font-size: 0.8rem;
     }
-    
+
     .player-checkbox-clan {
         font-size: 0.7rem;
         padding: 1px 4px;
     }
-    
+
     .battles-badge {
         font-size: 0.65rem;
         padding: 1px 6px;
     }
-    
+
     .battles-badge::before {
         content: "Б: ";
     }
-    
+
     .map-tags {
         gap: 6px;
         margin: 12px 0 16px 0;
     }
-    
+
     .map-tag {
         padding: 4px 10px;
         font-size: 0.75rem;
     }
-    
+
     .checkbox-label {
         padding: 8px;
     }
-    
+
     .columns-grid {
         max-height: 250px;
     }
-    
+
     .columns-actions {
         flex-direction: column;
         gap: 6px;
     }
-    
+
     .columns-action-btn {
         width: 100%;
     }
-    
+
     .team-tabs {
         flex-direction: column;
     }
-    
+
     .team-tab {
         border-right: none;
         border-bottom: 1px solid #2a3138;
     }
-    
+
     .team-tab:last-child {
         border-bottom: none;
     }
-    
+
     .players-table {
         font-size: 0.65rem;
         min-width: 900px;
     }
-    
+
     .players-table th,
     .players-table td {
         padding: 6px 4px;
         font-size: 0.65rem;
     }
-    
+
     .action-buttons {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
     }
-    
+
     .download-btn, .reset-btn {
         width: 100%;
         justify-content: center;
     }
-    
+
     .footer-links {
         display: flex;
         flex-wrap: nowrap;
@@ -2599,11 +2587,11 @@ footer {
         margin-left: auto;
         margin-right: auto;
     }
-    
+
     .separator {
         display: none;
     }
-    
+
     .social-link {
         width: auto;
         justify-content: center;
@@ -2621,7 +2609,7 @@ footer {
         margin-right: 0;
         font-size: 16px;
     }
-    
+
     .vehicles-header,
     .vehicles-row {
         grid-template-columns: 1.5fr 0.8fr 0.6fr 0.8fr 1.2fr 1.2fr 0.6fr 1.2fr;
@@ -2630,27 +2618,27 @@ footer {
         padding: 8px;
         min-width: 600px;
     }
-    
+
     .player-name-text {
         max-width: 150px;
         font-size: 0.65rem;
     }
-    
+
     .player-clan-tag {
         font-size: 0.6rem;
         padding: 1px 4px;
     }
-    
+
     .battle-name-indicator {
         width: 18px;
         height: 18px;
         font-size: 12px;
     }
-    
+
     .player-name-container {
         gap: 4px;
     }
-    
+
     .player-right-elements {
         gap: 4px;
     }
@@ -2660,100 +2648,100 @@ footer {
     .container {
         padding: var(--layout-gap-xs);
     }
-    
+
     h1 {
         font-size: 1.5rem;
         gap: 10px;
     }
-    
+
     h1::before {
         display: none;
     }
-    
+
     .upload-area {
         padding: 32px 20px;
     }
-    
+
     .upload-icon {
         font-size: 48px;
     }
-    
+
     .upload-text {
         font-size: 16px;
     }
-    
+
     .files-header,
     #errorContainer .error-header {
         padding: 10px 14px;
         font-size: 0.85rem;
     }
-    
+
     .files-header {
         color: #4caf50;
     }
-    
+
     .files-list-container,
     .error-files-list {
         height: calc(5 * 32px);
     }
-    
+
     .file-item,
     .error-file-item {
         min-height: 32px;
         padding: 4px 8px;
     }
-    
+
     .file-name {
         color: #4caf50;
     }
-    
+
     .file-map {
         color: #4caf50;
     }
-    
+
     .filter-header {
         padding: 10px 14px;
         font-size: 0.85rem;
     }
-    
+
     .filter-content {
         padding: 12px;
     }
-    
+
     .map-tag {
         padding: 3px 8px;
         font-size: 0.7rem;
     }
-    
+
     .dropdown-search-input {
         padding: 6px 10px;
         font-size: 0.8rem;
     }
-    
+
     .players-search-input {
         padding: 6px 10px;
         font-size: 0.8rem;
     }
-    
+
     .players-list-container {
         max-height: 250px;
     }
-    
+
     .players-list {
         max-height: 180px;
     }
-    
+
     .players-table {
         min-width: 800px;
         font-size: 0.6rem;
     }
-    
+
     .players-table th,
     .players-table td {
         font-size: 0.6rem;
         padding: 4px 2px;
     }
-    
+
     .vehicles-header,
     .vehicles-row {
         grid-template-columns: 1.5fr 0.8fr 0.6fr 0.8fr 1.2fr 1.2fr 0.6fr 1.2fr 1.2fr;
@@ -2762,33 +2750,33 @@ footer {
         padding: 8px;
         min-width: 800px;
     }
-    
+
     .footer-text {
         font-size: 0.8rem;
         padding: 0 8px;
     }
-    
+
     .player-name-text {
         max-width: 120px;
         font-size: 0.6rem;
     }
-    
+
     .player-clan-tag {
         font-size: 0.55rem;
         padding: 1px 3px;
     }
-    
+
     .battle-name-indicator {
         width: 16px;
         height: 16px;
         font-size: 10px;
     }
-    
+
     .badge {
         padding: 1px 6px;
         font-size: 0.7rem;
     }
-    
+
     .columns-grid {
         max-height: 200px;
     }
@@ -3599,21 +3587,17 @@ footer {
         gap: 8px;
         padding: 8px 12px;
     }
-    
+
     .wgsrt-legend-item {
         font-size: 0.65rem;
     }
-    
+
     .wgsrt-legend-color {
         width: 12px;
         height: 12px;
     }
 }
 
-/* ==========================================================
-   Unified Public Theme Overrides (v3.4+)
-   Applies consistent styling to all core UI controls/blocks.
-   ========================================================== */
 :root {
     --ui-bg-1: rgba(20, 30, 57, 0.84);
     --ui-bg-2: rgba(14, 21, 40, 0.8);
@@ -3628,7 +3612,6 @@ footer {
     --ui-shadow: 0 14px 32px rgba(4, 10, 22, 0.32), inset 0 1px 0 rgba(188, 220, 255, 0.08);
 }
 
-/* Base cards / containers */
 .upload-area,
 .save-replay-consent,
 .filters-panel,
@@ -3646,7 +3629,6 @@ footer {
     color: var(--ui-text-main);
 }
 
-/* Generic headers in cards */
 .files-header,
 #errorContainer .error-header,
 .filter-header,
@@ -3657,7 +3639,6 @@ footer {
     border-color: rgba(113, 163, 230, 0.28);
 }
 
-/* Common interactive controls */
 .download-btn,
 .reset-btn,
 .players-action-btn,
@@ -3694,7 +3675,6 @@ footer {
     border-color: rgba(255, 155, 155, 0.72);
 }
 
-/* Inputs / selects / search */
 .filter-select,
 .dropdown-search-input,
 .players-search-input,
@@ -3726,7 +3706,6 @@ footer {
     color: var(--ui-text-dim);
 }
 
-/* Table unification */
 .players-table-wrapper {
     border-color: rgba(113, 163, 230, 0.34);
 }
@@ -3754,7 +3733,6 @@ footer {
     border-right: 1px solid rgba(113, 163, 230, 0.4);
 }
 
-/* Chips / badges / tags */
 .badge,
 .filter-badge,
 .file-map,
@@ -3772,7 +3750,6 @@ footer {
     border-color: rgba(255, 217, 102, 0.6);
 }
 
-/* Language/menu links */
 .site-header-nav a,
 .site-footer-nav-link,
 .site-lang-link {
@@ -3789,12 +3766,10 @@ footer {
     color: var(--ui-accent);
 }
 
-/* Footer polish */
 footer {
     color: #92a8bf;
 }
 
-/* Mobile tuning for unified theme */
 @media (max-width: 768px) {
     .upload-area,
     .players-table-container,
@@ -3805,14 +3780,12 @@ footer {
     }
 }
 
-/* Final accent switch: yellow -> blue */
 :root {
     --ui-accent: #64b5f6;
     --ui-accent-strong: #4a90e2;
     --ui-accent-soft: rgba(100, 181, 246, 0.2);
 }
 
-/* Explicitly updated blocks user mentioned */
 .files-list-container {
     background: linear-gradient(180deg, rgba(16, 27, 50, 0.82) 0%, rgba(12, 20, 38, 0.8) 100%);
     border: 1px solid rgba(97, 140, 197, 0.34);
@@ -3845,7 +3818,6 @@ footer {
     color: #07121f;
 }
 
-/* Buttons and clickable controls */
 .download-btn,
 .columns-action-btn:hover,
 .players-action-btn:hover,
@@ -3881,7 +3853,6 @@ footer {
     background: rgba(30, 51, 89, 0.9);
 }
 
-/* Remove remaining yellow accents on common elements */
 .upload-text span,
 .filter-badge,
 .badge,
@@ -3903,7 +3874,6 @@ footer {
     background: rgba(100, 181, 246, 0.14);
 }
 
-/* Final monochrome blue theme */
 :root {
     --ui-accent: #64b5f6;
     --ui-accent-2: #64b5f6;
@@ -4015,14 +3985,12 @@ footer {
     background-color: transparent !important;
 }
 
-/* Softer active map tag with readable text */
 .map-tag.active {
     background: rgba(44, 79, 128, 0.92) !important;
     color: #e6f2ff !important;
     border-color: rgba(126, 196, 255, 0.72) !important;
 }
 
-/* Blue arrows and controls in "Min. battles" */
 .min-battles-control .number-wrapper .number-input,
 .min-battles-control .number-controls button {
     color: #8ecbff;
@@ -4038,7 +4006,6 @@ footer {
     color: #b8deff;
 }
 
-/* Blue checkboxes in filters */
 .checkbox-label input[type="checkbox"],
 .player-checkbox-label input[type="checkbox"],
 .save-replay-switch input[type="checkbox"] + .save-replay-slider {
@@ -4054,14 +4021,12 @@ footer {
     background: #64b5f6;
 }
 
-/* Active language should be clearly blue, not dark */
 .site-lang-link.is-active {
     color: #8ecbff !important;
     text-shadow: 0 0 8px rgba(100, 181, 246, 0.35);
     border-bottom: none !important;
 }
 
-/* Social links aligned with current blue theme */
 .social-link,
 .header-social-link {
     color: #a9bfd6;
@@ -4080,7 +4045,6 @@ footer {
     box-shadow: 0 4px 12px rgba(100, 181, 246, 0.2);
 }
 
-/* ABS replay tool — uniform vertical rhythm */
 .page-abs .container {
     gap: var(--layout-gap);
 }
@@ -4104,7 +4068,6 @@ footer {
     margin-bottom: 0;
 }
 
-/* Подвал внизу — только пока нет блока с ошибками/статистикой */
 .page-abs .page-bottom-spacer {
     display: none;
     flex: 1 1 auto;
@@ -4123,7 +4086,6 @@ footer {
     margin-top: var(--layout-gap);
 }
 
-/* Внутри #content отступы даёт gap #content — без дублирования margin */
 .page-abs .files-error-wrapper,
 .page-abs #errorContainer,
 .page-abs .files-list,
@@ -4138,7 +4100,6 @@ footer {
     margin-top: 0;
 }
 
-/* Landing — sticky footer via growing main block */
 .page-landing .header {
     margin-bottom: 0;
 }
@@ -4155,7 +4116,6 @@ footer {
     margin-top: auto;
 }
 
-/* Landing page — project cards */
 .page-landing .projects-landing {
     flex: 1 1 auto;
     display: flex;
@@ -4354,6 +4314,48 @@ footer {
     border-color: rgba(194, 60, 42, 0.55);
 }
 
+.page-landing .project-card-badge--minecraft {
+    color: #9bd2ff;
+    background: rgba(12, 28, 48, 0.92);
+    border-color: rgba(54, 224, 255, 0.45);
+}
+
+.page-landing .project-card-badge--survival {
+    color: #b8f5c8;
+    background: rgba(18, 48, 32, 0.92);
+    border-color: rgba(76, 175, 80, 0.5);
+}
+
+.page-landing .project-card-badge--pvp {
+    color: #ffc9a8;
+    background: rgba(56, 24, 12, 0.92);
+    border-color: rgba(255, 120, 72, 0.55);
+}
+
+.page-landing .project-card-badge--vip {
+    color: #ffe08a;
+    background: rgba(48, 36, 8, 0.92);
+    border-color: rgba(255, 193, 7, 0.55);
+}
+
+.page-landing .project-card-badge--classic {
+    color: #d0d8e2;
+    background: rgba(34, 40, 48, 0.92);
+    border-color: rgba(120, 132, 148, 0.45);
+}
+
+.page-landing .project-card-badge--beta {
+    color: #d8c4ff;
+    background: rgba(36, 20, 56, 0.92);
+    border-color: rgba(156, 120, 255, 0.5);
+}
+
+.page-landing .project-card-badge--new {
+    color: #9ef0d2;
+    background: rgba(12, 44, 40, 0.92);
+    border-color: rgba(54, 224, 180, 0.5);
+}
+
 .page-landing .project-card--disabled .project-card-icon {
     color: rgba(140, 148, 162, 0.85);
 }
@@ -4443,7 +4445,7 @@ footer {
         max-height: 248px;
     }
 }
-/* --- Online service (WoT server status) --- */
+
 .page-online .online-service {
     flex: 0 0 auto;
     display: flex;
@@ -5031,7 +5033,6 @@ footer {
     }
 }
 
-/* Recruiting service */
 .page-recruiting .recruiting-service {
     flex: 0 0 auto;
     display: flex;
@@ -5912,7 +5913,6 @@ footer {
     line-height: 1.4;
 }
 
-/* Контакты: тип + значение */
 .recruiting-contacts-list {
     display: flex;
     flex-direction: column;
@@ -6119,7 +6119,6 @@ footer {
     }
 }
 
-/* --- Публичная авторизация --- */
 .page-auth .header {
     margin-bottom: 0;
 }
@@ -7098,7 +7097,6 @@ footer {
     }
 }
 
-/* --- Tournament bracket service --- */
 .bracket-service {
     display: flex;
     flex-direction: column;
@@ -9562,7 +9560,6 @@ button.bracket-delete-btn {
     }
 }
 
-/* --- Tactical board service --- */
 .tactics-service {
     display: flex;
     flex-direction: column;
@@ -12012,7 +12009,6 @@ button.tactics-back-link {
     margin-top: auto;
 }
 
-/* StratSketch-style room editor — site palette */
 .page-tactics-room {
     --tactics-editor-bg: #0a1022;
     --tactics-panel-bg: linear-gradient(180deg, rgba(22, 33, 61, 0.96) 0%, rgba(16, 24, 46, 0.94) 100%);
@@ -14810,7 +14806,6 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
     box-shadow: none;
 }
 
-/* Единый размер текста во всём редакторе комнаты */
 .page-tactics-room .tactics-editor :is(
     .tactics-chat-message,
     .tactics-chat-message__time,
@@ -15732,7 +15727,6 @@ body.tactics-confirm-open {
     color: var(--tactics-text-bright);
 }
 
-/* Aim trainers */
 .page-aim,
 .page-aim-play {
     scrollbar-width: thin;
@@ -17426,7 +17420,6 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     }
 }
 
-/* Landing — online games */
 .page-landing .project-card--online-games {
     height: auto;
     min-height: 260px;
@@ -17681,7 +17674,6 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     }
 }
 
-/* Checkers service */
 .page-checkers {
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 181, 246, 0.55) rgba(10, 18, 36, 0.55);

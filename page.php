@@ -1,7 +1,5 @@
 <?php
-/**
- * Публичная CMS-страница: /about или page.php?slug=about
- */
+
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ensure_cms_pages.php';
 require_once __DIR__ . '/config/ensure_cms_seo_pages.php';

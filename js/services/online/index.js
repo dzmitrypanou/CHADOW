@@ -45,7 +45,7 @@
             });
         }
     } catch (e) {
-        // ignore
+
     }
 
     function getTranslations(langCode) {
@@ -318,7 +318,7 @@
         try {
             sessionStorage.setItem(clusterStateStorageKey, JSON.stringify(clusterUserState));
         } catch (e) {
-            // ignore
+
         }
     }
 
@@ -610,7 +610,7 @@
     function normalizeChartTimestamp(ts) {
         const n = Number(ts);
         if (!Number.isFinite(n) || n <= 0) return null;
-        // Guard against legacy second-based timestamps in cached chart history.
+
         return n < 100000000000 ? n * 1000 : n;
     }
 
@@ -649,7 +649,7 @@
         try {
             localStorage.setItem(chartLegendStorageKey, JSON.stringify(chartLegendState));
         } catch (e) {
-            // ignore
+
         }
     }
 
@@ -906,7 +906,7 @@
         try {
             localStorage.setItem(chartRangeStorageKey, String(days));
         } catch (e) {
-            // ignore
+
         }
         if (lastPayload && lastPayload.charts) {
             renderCharts(lastPayload.charts, { forceFullSync: true });

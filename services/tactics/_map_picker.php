@@ -1,7 +1,5 @@
 <?php
-/** @var string $lang */
-/** @var string $mapPickerId */
-/** @var string $mapSelectId */
+
 $mapPickerId = $mapPickerId ?? 'tacticsMapPicker';
 $mapSelectId = $mapSelectId ?? 'tacticsMapSelect';
 ?>

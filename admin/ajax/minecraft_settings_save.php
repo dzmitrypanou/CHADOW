@@ -20,20 +20,40 @@ if (!admin_is_admin()) {
 }
 
 $enabled = isset($_POST['mc_enabled']) && filter_var($_POST['mc_enabled'], FILTER_VALIDATE_BOOLEAN);
-$serverHost = isset($_POST['mc_server_host']) ? trim((string) $_POST['mc_server_host']) : '';
-$serverPort = isset($_POST['mc_server_port']) ? trim((string) $_POST['mc_server_port']) : '25565';
-$serverName = isset($_POST['mc_server_name']) ? trim((string) $_POST['mc_server_name']) : '';
+$landingActive = isset($_POST['mc_landing_active']) && filter_var($_POST['mc_landing_active'], FILTER_VALIDATE_BOOLEAN);
+$landingDescRu = isset($_POST['mc_landing_desc_ru']) ? trim((string) $_POST['mc_landing_desc_ru']) : '';
+$landingDescEn = isset($_POST['mc_landing_desc_en']) ? trim((string) $_POST['mc_landing_desc_en']) : '';
+$landingTileSpan = isset($_POST['mc_landing_tile_span']) ? trim((string) $_POST['mc_landing_tile_span']) : '2';
+$landingBadgesRaw = $_POST['mc_landing_badges_json'] ?? '[]';
+$serversRaw = $_POST['mc_servers_json'] ?? '[]';
 $minecraftVersion = isset($_POST['mc_minecraft_version']) ? trim((string) $_POST['mc_minecraft_version']) : '';
 $javaMajor = isset($_POST['mc_java_major']) ? trim((string) $_POST['mc_java_major']) : '21';
 $launcherVersion = isset($_POST['mc_launcher_version']) ? trim((string) $_POST['mc_launcher_version']) : '1';
+$existingExarotonToken = minecraft_exaroton_api_token($db);
+if (array_key_exists('mc_exaroton_api_token', $_POST)) {
+    $submittedExarotonToken = trim((string) $_POST['mc_exaroton_api_token']);
+    $exarotonApiToken = $submittedExarotonToken !== '' ? $submittedExarotonToken : $existingExarotonToken;
+} else {
+    $exarotonApiToken = $existingExarotonToken;
+}
 
-if ($enabled && !minecraft_is_valid_host($serverHost)) {
-    echo json_encode(['success' => false, 'error' => 'Укажите корректный IP или домен сервера'], JSON_UNESCAPED_UNICODE);
+$parsedServers = minecraft_parse_servers_input($serversRaw);
+if (!$parsedServers['ok']) {
+    echo json_encode(['success' => false, 'error' => $parsedServers['error'] ?? 'Некорректный список серверов'], JSON_UNESCAPED_UNICODE);
     exit();
 }
 
-if ($serverName === '') {
-    echo json_encode(['success' => false, 'error' => 'Укажите название сервера'], JSON_UNESCAPED_UNICODE);
+$parsedBadges = minecraft_parse_landing_badges_input($landingBadgesRaw);
+if (!$parsedBadges['ok']) {
+    echo json_encode(['success' => false, 'error' => $parsedBadges['error'] ?? 'Некорректный список бейджей'], JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
+$servers = $parsedServers['servers'] ?? [];
+$landingBadges = $parsedBadges['badges'] ?? [];
+
+if ($enabled && $servers === []) {
+    echo json_encode(['success' => false, 'error' => 'Добавьте хотя бы один сервер'], JSON_UNESCAPED_UNICODE);
     exit();
 }
 
@@ -42,23 +62,30 @@ if (!minecraft_is_valid_version($minecraftVersion)) {
     exit();
 }
 
-$serverPort = minecraft_normalize_port($serverPort);
 $javaMajor = minecraft_normalize_java_major($javaMajor);
 $launcherVersion = max(1, (int) $launcherVersion);
+$landingTileSpan = minecraft_normalize_landing_tile_span($landingTileSpan);
+$landingDefaults = minecraft_landing_defaults();
 
-if (mb_strlen($serverName, 'UTF-8') > 80) {
-    echo json_encode(['success' => false, 'error' => 'Название сервера не должно превышать 80 символов'], JSON_UNESCAPED_UNICODE);
-    exit();
+if ($landingDescRu === '') {
+    $landingDescRu = $landingDefaults['desc_ru'];
+}
+if ($landingDescEn === '') {
+    $landingDescEn = $landingDefaults['desc_en'];
 }
 
 try {
     set_site_setting($db, 'mc_enabled', $enabled ? '1' : '0');
-    set_site_setting($db, 'mc_server_host', $serverHost);
-    set_site_setting($db, 'mc_server_port', (string) $serverPort);
-    set_site_setting($db, 'mc_server_name', $serverName);
+    minecraft_save_servers($db, $servers);
     set_site_setting($db, 'mc_minecraft_version', $minecraftVersion);
     set_site_setting($db, 'mc_java_major', (string) $javaMajor);
     set_site_setting($db, 'mc_launcher_version', (string) $launcherVersion);
+    set_site_setting($db, MINECRAFT_EXAROTON_TOKEN_SETTING_KEY, $exarotonApiToken);
+    set_site_setting($db, 'mc_landing_active', $landingActive ? '1' : '0');
+    set_site_setting($db, 'mc_landing_desc_ru', $landingDescRu);
+    set_site_setting($db, 'mc_landing_desc_en', $landingDescEn);
+    set_site_setting($db, 'mc_landing_tile_span', (string) $landingTileSpan);
+    minecraft_save_landing_badges($db, $landingBadges);
 
     echo json_encode([
         'success' => true,

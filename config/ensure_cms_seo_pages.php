@@ -1,9 +1,5 @@
 <?php
-/**
- * Seed SEO-oriented CMS pages when missing (does not overwrite existing slugs).
- *
- * @param Database $db
- */
+
 function ensure_cms_seo_pages($db): void
 {
     ensure_cms_pages_table($db);

@@ -31,6 +31,7 @@ $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/minecraft_helpers.php';
 require_once __DIR__ . '/config/ensure_map_dictionary.php';
 require_once __DIR__ . '/config/ensure_tactics.php';
 require_once __DIR__ . '/config/tactics_map_catalog.php';
@@ -51,6 +52,29 @@ try {
 } catch (Throwable $e) {
     $tacticsBadgesHtml = '';
 }
+$launcherLanding = minecraft_landing_defaults();
+$launcherLanding['active'] = false;
+$launcherLanding['launcher_file'] = null;
+try {
+    $launcherDb = Database::getInstance();
+    ensure_site_settings_table($launcherDb);
+    $launcherLanding = minecraft_get_landing_settings($launcherDb);
+} catch (Throwable $e) {
+
+}
+$launcherCardFile = $launcherLanding['launcher_file'] ?? null;
+$launcherCardActive = !empty($launcherLanding['active']) && is_array($launcherCardFile);
+$launcherCardDownloadUrl = $launcherCardActive
+    ? minecraft_launcher_public_path((string) $launcherCardFile['filename'])
+    : '';
+$launcherCardTileClass = minecraft_landing_tile_class((int) ($launcherLanding['tile_span'] ?? 2));
+$launcherCardDescRu = (string) ($launcherLanding['desc_ru'] ?? '');
+$launcherCardDescEn = (string) ($launcherLanding['desc_en'] ?? '');
+$launcherCardDesc = $lang === 'en'
+    ? ($launcherCardDescEn !== '' ? $launcherCardDescEn : $launcherCardDescRu)
+    : ($launcherCardDescRu !== '' ? $launcherCardDescRu : $launcherCardDescEn);
+$launcherCardBadgesHtml = minecraft_landing_card_badges_html($launcherLanding, $lang, $launcherCardActive);
+$launcherDownloadLabel = $lang === 'en' ? 'Download' : 'Скачать';
 $lestaApiConfigured = game_api_is_configured_for_realm('ru');
 $realmBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
@@ -321,11 +345,29 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </a>
 
-                <div class="project-card project-card--disabled project-card--span-2 project-card--launcher" aria-disabled="true" data-landing-id="games-launcher">
+                <?php if ($launcherCardActive): ?>
+                <a
+                    class="project-card project-card--active project-card--launcher <?php echo htmlspecialchars($launcherCardTileClass, ENT_QUOTES, 'UTF-8'); ?>"
+                    href="<?php echo htmlspecialchars($launcherCardDownloadUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                    download
+                    data-landing-id="games-launcher"
+                    data-desc-ru="<?php echo htmlspecialchars($launcherCardDescRu, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-desc-en="<?php echo htmlspecialchars($launcherCardDescEn, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-download-href="<?php echo htmlspecialchars($launcherCardDownloadUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                >
+                <?php else: ?>
+                <div
+                    class="project-card project-card--disabled project-card--launcher <?php echo htmlspecialchars($launcherCardTileClass, ENT_QUOTES, 'UTF-8'); ?>"
+                    aria-disabled="true"
+                    data-landing-id="games-launcher"
+                    data-desc-ru="<?php echo htmlspecialchars($launcherCardDescRu, ENT_QUOTES, 'UTF-8'); ?>"
+                    data-desc-en="<?php echo htmlspecialchars($launcherCardDescEn, ENT_QUOTES, 'UTF-8'); ?>"
+                >
+                <?php endif; ?>
                     <i class="fas fa-rocket project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
-                            <?php echo $inDevBadgeHtml; ?>
+                            <?php echo $launcherCardBadgesHtml; ?>
                             <h2 class="project-card-title">
                                 <i class="fas fa-rocket project-card-icon" aria-hidden="true"></i>
                                 <span class="project-card-title-text">
@@ -334,18 +376,23 @@ require __DIR__ . '/includes/site_header.php';
                             </h2>
                         </div>
                         <p class="project-card-desc">
-                            <?php echo $lang === 'en'
-                                ? 'With the launcher you can play on the &ldquo;Chadow Land&rdquo; Minecraft server.'
-                                : 'С помощью лаунчера можно играть на сервере &laquo;Chadow Land&raquo; Minecraft.'; ?>
+                            <?php echo htmlspecialchars($launcherCardDesc, ENT_QUOTES, 'UTF-8'); ?>
                         </p>
                     </div>
                     <div class="project-card-footer">
+                        <?php if ($launcherCardActive): ?>
+                        <span class="project-card-action">
+                            <?php echo htmlspecialchars($launcherDownloadLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                        <?php else: ?>
                         <span class="project-card-action project-card-action--placeholder" aria-hidden="true">
                             <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
                             <i class="fas fa-arrow-right" aria-hidden="true"></i>
                         </span>
+                        <?php endif; ?>
                     </div>
-                </div>
+                <?php echo $launcherCardActive ? '</a>' : '</div>'; ?>
             </div>
         </main>
 

@@ -33,7 +33,7 @@ const Utils = {
             spots: coefs.spots?.value || 0.05,
             winRate: coefs.winRate?.value || 0.05
         };
-        const weightedSum = 
+        const weightedSum =
             normDamage * weights.damage +
             normKills * weights.kills +
             normAssisted * weights.assisted +
@@ -107,7 +107,7 @@ const Utils = {
     },
     formatValue(value, columnKey) {
         if (typeof value === 'number') {
-            if (columnKey.includes('Damage') || columnKey.includes('Received') || 
+            if (columnKey.includes('Damage') || columnKey.includes('Received') ||
                 columnKey === 'xp' || columnKey === 'avgXp' || columnKey === 'damage') {
                 return this.formatNumber(value);
             }
@@ -176,8 +176,8 @@ const Utils = {
     },
     downloadAsJPEG() {
         const isEn = AppConstants.LANG === 'en';
-        const players = AppState.showEnemyTeam ? 
-            Array.from(AppState.enemyStats.values()) : 
+        const players = AppState.showEnemyTeam ?
+            Array.from(AppState.enemyStats.values()) :
             Array.from(AppState.playersStats.values());
         const selectedPlayers = AppState.userSettings.selectedPlayers || { friendly: [], enemy: [] };
         const currentTeam = AppState.showEnemyTeam ? 'enemy' : 'friendly';

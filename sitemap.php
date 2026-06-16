@@ -37,9 +37,6 @@ function abs_sitemap_lastmod_from_version(): string
     return abs_sitemap_lastmod_from_file('/config/version.json');
 }
 
-/**
- * @return array{alternates:array{ru:string,en:string},lastmod?:string}
- */
 function abs_sitemap_page(string $ruPath, string $enPath, ?string $lastmod = null): array
 {
     $page = [
@@ -109,7 +106,7 @@ try {
         $pages[] = abs_sitemap_page('/' . $slug, '/en/' . $slug, $lastmod);
     }
 } catch (Throwable $e) {
-    // Keep sitemap available even if DB is temporarily unavailable.
+
 }
 
 ob_end_clean();

@@ -74,9 +74,6 @@ function checkers_b64url_decode(string $data): string {
     return (string) base64_decode(strtr($data, '-_', '+/'), true);
 }
 
-/**
- * @return array<string, mixed>|null
- */
 function checkers_verify_signed_token($db, string $token, ?string $expectedPublicId = null): ?array {
     $parts = explode('.', $token, 2);
     if (count($parts) !== 2) {
@@ -251,9 +248,6 @@ function checkers_ws_register_room($db, string $publicId, string $whiteClientId,
     return ['ok' => true];
 }
 
-/**
- * @return array{ok: bool, error?: string, status?: string}
- */
 function checkers_ws_join_room($db, string $publicId, string $clientId, string $nickname): array {
     $url = checkers_ws_internal_base_url()
         . '/rooms/'
@@ -293,9 +287,6 @@ function checkers_ws_join_room($db, string $publicId, string $clientId, string $
     ];
 }
 
-/**
- * @return array{ok: bool, error?: string, lobbies?: list<array<string, mixed>>}
- */
 function checkers_ws_list_lobbies(int $limit = 50): array {
     $url = checkers_ws_internal_base_url()
         . '/lobbies?limit='

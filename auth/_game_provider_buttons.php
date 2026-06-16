@@ -1,16 +1,5 @@
 <?php
-/**
- * Кнопки Wargaming / Lesta (OAuth).
- *
- * @var bool $wgAppConfigured
- * @var string $wgOAuthAction 'login' | 'link'
- * @var string $providersWrapperClass
- * @var string|null $wgOAuthReturn
- * @var string|null $wgProviderButtonsContext 'profile-nickname' | null
- * @var array{wg?:bool, lesta?:bool}|null $wgProviderLinkState
- * @var array{wg?:bool, lesta?:bool}|null $wgProviderConfigured
- * @var array<string, mixed>|null $wgProviderProfile
- */
+
 $wgOAuthAction = ($wgOAuthAction ?? 'link') === 'login' ? 'login' : 'link';
 $providersWrapperClass = trim((string) ($providersWrapperClass ?? 'auth-providers auth-providers--row'));
 $wgOAuthReturn = isset($wgOAuthReturn) ? (string) $wgOAuthReturn : '';

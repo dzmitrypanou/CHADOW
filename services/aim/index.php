@@ -24,7 +24,7 @@ try {
         3
     );
 } catch (Throwable $e) {
-    // lobby still renders without DB
+
 }
 
 $defaultNickname = '';

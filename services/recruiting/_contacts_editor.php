@@ -1,9 +1,5 @@
 <?php
-/**
- * Редактор контактов (тип + значение, несколько строк).
- *
- * Expects: $lang, $contacts (list), optional $contactsInputName, $contactsEditorId, $showContactsHint
- */
+
 $contacts = isset($contacts) && is_array($contacts) ? $contacts : [];
 $contactsInputName = isset($contactsInputName) ? (string) $contactsInputName : 'contacts_json';
 $contactsEditorId = isset($contactsEditorId) ? (string) $contactsEditorId : 'recruitingContactsEditor';

@@ -1,15 +1,5 @@
 #!/bin/bash
-# Импорт дампа со старого хостинга в БД chadow на VPS.
-#
-# Рекомендуется готовый файл:
-#   bash deploy/replace-db.sh
-#
-# Или из исходного дампа:
-#   python3 deploy/prepare_db_import.py /tmp/u2668592_abs.sql deploy/chadow_import.sql
-#   bash deploy/replace-db.sh
-#
-# Старый вариант (на лету через perl):
-#   bash deploy/import-legacy-db.sh /tmp/u2668592_abs.sql
+
 set -euo pipefail
 
 DUMP_PATH="${1:-}"
@@ -22,7 +12,7 @@ if [ -z "$DUMP_PATH" ] || [ ! -f "$DUMP_PATH" ]; then
 fi
 
 shift || true
-while [ $# -gt 0 ]; do
+while [ $
     case "$1" in
         --user) DB_USER="$2"; shift 2 ;;
         --database) DB_NAME="$2"; shift 2 ;;

@@ -1,8 +1,5 @@
 <?php
-/**
- * Shared form fields for post.php and edit.php.
- * Expects: $lang, $formPost (array with keys or empty), $isEdit (bool)
- */
+
 $formPost = isset($formPost) && is_array($formPost) ? $formPost : [];
 $isEdit = !empty($isEdit);
 $val = static function (string $key) use ($formPost): string {

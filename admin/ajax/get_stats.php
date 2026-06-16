@@ -4,7 +4,7 @@ header('Content-Type: application/json');
 admin_require_ajax();
 
 $stats = $db->fetchOne("
-    SELECT 
+    SELECT
         COUNT(*) as total,
         SUM(is_premium) as premium,
         SUM(is_collectible) as collectible,

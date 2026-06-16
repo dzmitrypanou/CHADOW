@@ -74,7 +74,6 @@ const API = {
         return code;
     },
 
-    /** Код нации из vehicleType (nation:Id или nation-Id) — для ensure_nations */
     extractNationFromVehicleCode(vehicleCode) {
         if (!vehicleCode || typeof vehicleCode !== 'string') return '';
         const c = vehicleCode.trim();
@@ -116,11 +115,11 @@ const API = {
             if (data.success && data[nationKey] && typeof data[nationKey] === 'object') {
                 this.cache.nationLabels = data[nationKey];
             } else if (data.success && data.nation_labels && typeof data.nation_labels === 'object') {
-                // fallback для старых клиентов
+
                 this.cache.nationLabels = data.nation_labels;
             }
         } catch (e) {
-            /* сетевой сбой — реплей всё равно обработаем */
+
         }
     },
 
@@ -160,7 +159,7 @@ const API = {
                 if (data.nation_labels_ru && typeof data.nation_labels_ru === 'object') {
                     this.cache.nationLabelsRu = data.nation_labels_ru;
                 } else if (data.nation_labels && typeof data.nation_labels === 'object') {
-                    // fallback for older API versions
+
                     this.cache.nationLabelsRu = data.nation_labels;
                 }
                 if (data.nation_labels_en && typeof data.nation_labels_en === 'object') {
@@ -170,7 +169,7 @@ const API = {
                 if (data.tank_type_labels_ru && typeof data.tank_type_labels_ru === 'object') {
                     this.cache.tankTypeLabelsRu = data.tank_type_labels_ru;
                 } else if (data.tank_type_labels && typeof data.tank_type_labels === 'object') {
-                    // fallback for older API versions
+
                     this.cache.tankTypeLabelsRu = data.tank_type_labels;
                 }
                 if (data.tank_type_labels_en && typeof data.tank_type_labels_en === 'object') {
@@ -320,9 +319,9 @@ const API = {
 
         const pendingKey = `${normalized || vehicleCode}_${displayName}`;
         if (this.cache.pendingAdds.has(pendingKey)) return false;
-        
+
         this.cache.pendingAdds.add(pendingKey);
-        
+
         try {
             const response = await fetch(`${this.baseUrl}/add_tank.php`, {
                 method: 'POST',
@@ -337,10 +336,10 @@ const API = {
                     source_file: window.location.pathname
                 })
             });
-            
+
             const data = await response.json();
             this.cache.pendingAdds.delete(pendingKey);
-            
+
             if (data.success && this.cache.tanks) {
                 this.cache.tanks[normalized || vehicleCode] = displayName;
                 if (vehicleCode && vehicleCode !== normalized) {
@@ -361,24 +360,24 @@ const API = {
 
         try {
             const fileContent = await this.readFileAsBase64(file);
-            
+
             let playerName = battleInfo?.battleData?.playerName || 'unknown';
             playerName = playerName.replace(/[^a-zA-Z0-9_\-]/g, '_');
             if (playerName.length < 1) {
                 playerName = 'unknown';
             }
-            
+
             let mapName = battleInfo?.mapName || 'unknown';
             mapName = mapName.replace(/[^a-zA-Z0-9_\-]/g, '_');
             if (mapName.length < 1) {
                 mapName = 'unknown';
             }
-            
+
             let dateTime = battleInfo?.dateTime;
             if (!dateTime) {
                 dateTime = new Date().toISOString();
             }
-            
+
             const response = await fetch(`${this.baseUrl}/save_wgsrt_grades.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -391,10 +390,10 @@ const API = {
                     consent_to_store: true
                 })
             });
-            
+
             const data = await response.json();
             return data.success ? data : null;
-            
+
         } catch (error) {
             return null;
         }

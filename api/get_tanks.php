@@ -30,7 +30,7 @@ try {
     $tankTypeLabelsEn = tank_type_label_map_en($db);
 
     $tanks = $db->fetchAll("
-        SELECT 
+        SELECT
             vehicle_code,
             display_name_ru,
             display_name_en,
@@ -40,7 +40,7 @@ try {
             is_premium,
             is_collectible,
             is_moderated
-        FROM tank_dictionary 
+        FROM tank_dictionary
         ORDER BY display_name_ru
     ");
 
@@ -49,10 +49,10 @@ try {
         'timestamp' => time(),
         'count' => count($tanks),
         'data' => $tanks,
-        // Старые клиенты/рендер: RU-колонка.
+
         'nation_labels' => $nationLabelsRu,
         'tank_type_labels' => $tankTypeLabelsRu,
-        // Новые клиенты: оба языка.
+
         'nation_labels_ru' => $nationLabelsRu,
         'nation_labels_en' => $nationLabelsEn,
         'tank_type_labels_ru' => $tankTypeLabelsRu,
@@ -70,7 +70,7 @@ try {
     }
     echo $payload;
     chadow_perf_finish('api_get_tanks', ['rows' => count($tanks)]);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([

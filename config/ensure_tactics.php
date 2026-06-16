@@ -2,11 +2,6 @@
 require_once __DIR__ . '/ensure_site_users.php';
 require_once __DIR__ . '/runtime_flags.php';
 
-/**
- * Тактический планшет — комнаты для совместного рисования.
- *
- * @param Database $db
- */
 function ensure_tactics_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -40,11 +35,6 @@ function ensure_tactics_table($db) {
     );
 }
 
-/**
- * Привязка карт тактики к игре и режиму боя (админка).
- *
- * @param Database $db
- */
 function ensure_tactics_map_assignments_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -65,11 +55,6 @@ function ensure_tactics_map_assignments_table($db) {
     );
 }
 
-/**
- * Realtime tables for tactics presence/events (always safe to run).
- *
- * @param Database $db
- */
 function ensure_tactics_realtime_tables($db) {
     static $ensured = false;
     if ($ensured) {

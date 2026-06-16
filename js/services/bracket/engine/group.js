@@ -24,10 +24,6 @@
         return pairs;
     }
 
-    /**
-     * @param {string[]} participants
-     * @param {{ groupCount?: number, advancePerGroup?: number }} settings
-     */
     function generateGroup(participants, settings = {}) {
         let groups;
         let groupCount;

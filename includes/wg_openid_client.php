@@ -50,9 +50,6 @@ class WgOpenIdClient
         return user_absolute_url('/auth/wg/callback');
     }
 
-    /**
-     * @return array{ok:bool, location?:string, error?:string}
-     */
     public function fetchLoginLocation(string $realm, int $expiresAt = 300): array
     {
         $realm = self::normalizeRealm($realm);
@@ -91,11 +88,6 @@ class WgOpenIdClient
         return ['ok' => true, 'location' => $location];
     }
 
-    /**
-     * Подтверждает access_token через auth/prolongate.
-     *
-     * @return array{ok:bool, account_id?:int, access_token?:string, expires_at?:int, error?:string}
-     */
     public function prolongateToken(string $accessToken, string $realm, int $expiresAt = 1209600): array
     {
         $realm = self::normalizeRealm($realm);
@@ -147,9 +139,6 @@ class WgOpenIdClient
         ];
     }
 
-    /**
-     * @return array{ok:bool, nickname?:string, error?:string}
-     */
     public function fetchAccountNicknameByToken(string $accessToken, string $realm): array
     {
         $realm = self::normalizeRealm($realm);
@@ -169,9 +158,6 @@ class WgOpenIdClient
         return $this->fetchAccountNicknameFromUrl($url);
     }
 
-    /**
-     * @return array{ok:bool, nickname?:string, error?:string}
-     */
     public function fetchAccountNickname(int $accountId, string $realm): array
     {
         $realm = self::normalizeRealm($realm);
@@ -191,9 +177,6 @@ class WgOpenIdClient
         return $this->fetchAccountNicknameFromUrl($url, $accountId);
     }
 
-    /**
-     * @return array{ok:bool, nickname?:string, error?:string}
-     */
     private function fetchAccountNicknameFromUrl(string $url, int $accountId = 0): array
     {
         $response = $this->httpGet($url);
@@ -238,9 +221,6 @@ class WgOpenIdClient
         return null;
     }
 
-    /**
-     * @return array{ok:bool, data?:array, error?:string}
-     */
     private function httpGet(string $url): array
     {
         if (!function_exists('curl_init')) {
@@ -277,9 +257,6 @@ class WgOpenIdClient
         return ['ok' => true, 'data' => $decoded];
     }
 
-    /**
-     * @return array{ok:bool, data?:array, error?:string}
-     */
     private function httpPost(string $url, string $body): array
     {
         if (!function_exists('curl_init')) {

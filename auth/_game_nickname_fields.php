@@ -1,10 +1,5 @@
 <?php
-/**
- * Поля игровых ников по регионам.
- *
- * @var array<string, array{value:string, locked:bool}> $gameNicknames
- * @var string $lang
- */
+
 $gameNicknames = is_array($gameNicknames ?? null) ? $gameNicknames : [];
 $isEn = ($lang ?? 'ru') === 'en';
 $realmLabels = [

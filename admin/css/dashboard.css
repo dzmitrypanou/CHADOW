@@ -1,6 +1,5 @@
-/* Страница дашборда (dashboard.php) */
 
-/* Заголовки секций: не дублируем громкий жёлтый h2 из admin.css */
+
 .dashboard-page h2.profile-section-title {
     font-size: 1.2rem;
     font-weight: 600;
@@ -27,7 +26,6 @@
     font-size: 1.05em;
 }
 
-/* Две колонки пополам: учётные данные | сводка */
 .dashboard-page .profile-layout {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -65,7 +63,6 @@
     line-height: 1.45;
 }
 
-/* Панель-сводка */
 .dashboard-page .profile-panel {
     background: linear-gradient(165deg, #12161a 0%, #0e1114 100%);
     border: 1px solid #2a3138;
@@ -121,7 +118,6 @@
     margin-bottom: 0 !important;
 }
 
-/* Мини-сетки справа */
 .dashboard-page .profile-stat-grid--mini-main {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
@@ -148,7 +144,6 @@
     margin-top: 4px;
 }
 
-/* Ссылки на разделы админки (как в меню «Разделы») */
 .dashboard-page .profile-module-links {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -241,7 +236,6 @@
     margin-bottom: 0;
 }
 
-/* Сетки метрик */
 .dashboard-page .profile-stat-grid {
     display: grid;
     gap: 12px;
@@ -389,7 +383,6 @@
     font-weight: 500;
 }
 
-/* Форма пароля */
 .dashboard-page .profile-password-form .form-group {
     margin-bottom: 16px;
 }

@@ -1,22 +1,5 @@
 #!/bin/bash
-# Ежедневный дамп MySQL (chadow). Запуск вручную или из cron.
-#
-# Один раз на сервере:
-#   sudo mkdir -p /var/backups/chadow
-#   sudo chown "$USER:$USER" /var/backups/chadow
-#   chmod 600 ~/.my.cnf   # см. пример ниже
-#
-# Вручную:
-#   bash /var/www/chadow.ru/deploy/backup-db.sh
-#
-# Cron (каждый день в 03:15):
-#   15 3 * * * /var/www/chadow.ru/deploy/backup-db.sh >> /var/log/chadow-db-backup.log 2>&1
-#
-# ~/.my.cnf (chmod 600):
-#   [client]
-#   user=chadow
-#   password=ВАШ_ПАРОЛЬ
-#   host=localhost
+
 set -euo pipefail
 
 DB_NAME="${DB_NAME:-chadow}"

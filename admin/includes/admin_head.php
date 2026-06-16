@@ -1,8 +1,5 @@
 <?php
-/**
- * Общий фрагмент <head> и открытие <body> для страниц админки.
- * Задайте: $pageTitle, опционально $appVersion, $bodyClass, $extraHead (HTML после admin.css).
- */
+
 if (!isset($appVersion)) {
     $_avRaw = @file_get_contents(__DIR__ . '/../../config/version.json');
     $_avData = $_avRaw ? json_decode($_avRaw, true) : null;

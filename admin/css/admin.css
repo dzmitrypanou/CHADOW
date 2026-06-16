@@ -39,11 +39,6 @@ body {
     flex: 0 1 auto;
 }
 
-/*
- * Вертикальная сетка админки: 24px от верха страницы, 24px между прямыми блоками (gap),
- * у верхнего блока нет лишнего margin-top, у нижнего — нет лишнего margin-bottom.
- * Подвал: отступ сверху 24px + внутренние отступы у footer.
- */
 body > .container:not(.admin-footer-wrap) {
     display: flex;
     flex-direction: column;
@@ -56,7 +51,6 @@ body > .container:not(.admin-footer-wrap) > * {
     margin-bottom: 0;
 }
 
-/* Страница входа: шапка как на остальных страницах админки; форма по центру ниже */
 body.login-page > .container:not(.admin-footer-wrap) {
     flex: 1 1 auto;
     justify-content: flex-start;
@@ -1040,14 +1034,14 @@ code {
         opacity: 0;
     }
 }
-/* Спейсер ниже прижимает низ на коротких страницах */
+
 footer {
     text-align: center;
     margin: 0;
     color: #5f6c7a;
     font-size: 0.9rem;
     line-height: 1.75;
-    /* Внешний зазор до контента — margin-top у .admin-footer-wrap */
+
     padding: var(--layout-gap) 0;
     border-top: 1px solid #2a3138;
     width: 100%;
@@ -1224,7 +1218,6 @@ tr.unmoderated:hover td {
     max-height: 300px;
 }
 
-/* Редактор меню сайта: шапка и подвал рядом */
 .admin-site-menu .site-menu-panels-footer {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1404,7 +1397,6 @@ tr.unmoderated:hover td {
     line-height: 1.5;
 }
 
-/* Меню-редактор: каждый параметр в своей строке */
 .admin-site-menu .site-menu-table thead {
     display: none;
 }

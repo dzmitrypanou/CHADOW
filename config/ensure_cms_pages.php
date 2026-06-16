@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * @param Database $db
- */
+
 function ensure_cms_pages_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -34,15 +32,15 @@ function ensure_cms_pages_table($db) {
 
 function ensure_cms_pages_lang_columns($pdo): void
 {
-    // Если таблица уже была создана старой версией — добавляем недостающие колонки.
+
     try {
         $pdo->exec('ALTER TABLE cms_pages ADD COLUMN title_en VARCHAR(255) NULL AFTER title');
     } catch (Throwable $e) {
-        // ignore
+
     }
     try {
         $pdo->exec('ALTER TABLE cms_pages ADD COLUMN body_html_en MEDIUMTEXT NULL AFTER body_html');
     } catch (Throwable $e) {
-        // ignore
+
     }
 }

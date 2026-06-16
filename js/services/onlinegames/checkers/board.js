@@ -173,7 +173,7 @@
                 try {
                     boardEl.releasePointerCapture(e.pointerId);
                 } catch (err) {
-                    // ignore
+
                 }
             }
 

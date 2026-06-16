@@ -1,11 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Таблица учётных записей админки. Пароли только в виде password_hash (bcrypt).
- * При пустой таблице создаётся пользователь admin / admin — смените пароль после первого входа.
- *
- * @param Database $db
- */
+
 function ensure_admin_users_table($db) {
     static $ensured = false;
     if ($ensured) {

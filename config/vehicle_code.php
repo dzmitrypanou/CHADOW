@@ -1,12 +1,5 @@
 <?php
-/**
- * Канонический формат кода техники: nation:vehicle_id (как в клиенте WoT).
- * Вариант nation-vehicle_id считается тем же танком.
- */
 
-/**
- * @return string[]
- */
 function vehicle_code_known_nations() {
     return [
         'ussr', 'germany', 'usa', 'france', 'uk', 'china', 'japan', 'czech',
@@ -14,9 +7,6 @@ function vehicle_code_known_nations() {
     ];
 }
 
-/**
- * @param string|null $vehicleCode
- */
 function normalize_vehicle_code($vehicleCode) {
     if ($vehicleCode === null || $vehicleCode === '') {
         return '';
@@ -45,11 +35,6 @@ function normalize_vehicle_code($vehicleCode) {
     return $code;
 }
 
-/**
- * Объединяет строки с одним normalize(vehicle_code), оставляет канонический код, снимает проверку модерации.
- *
- * @param Database $db
- */
 function merge_duplicate_vehicle_codes($db) {
     $rows = $db->fetchAll(
         'SELECT id, vehicle_code, display_name_ru, display_name_en, nation, tank_type, tier, is_premium, is_collectible, is_moderated
@@ -107,11 +92,6 @@ function merge_duplicate_vehicle_codes($db) {
     }
 }
 
-/**
- * @param array<int, array<string, mixed>> $group
- * @param string $norm
- * @return array<string, mixed>
- */
 function pick_vehicle_row_keeper(array $group, $norm) {
     foreach ($group as $r) {
         if (!empty($r['is_moderated'])) {

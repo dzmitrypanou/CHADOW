@@ -14,14 +14,14 @@ chadow_perf_start('api_get_wgsrt_coefficients');
 try {
     $db = Database::getInstance();
     $coefficients = $db->fetchAll("
-        SELECT 
+        SELECT
             parameter_name,
             coefficient_value,
             min_value,
             max_value,
             normalization_factor,
             version
-        FROM wgsrt_coefficients 
+        FROM wgsrt_coefficients
         WHERE is_active = 1
         ORDER BY parameter_name
     ");

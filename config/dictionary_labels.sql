@@ -1,4 +1,4 @@
--- Опционально: создание справочников вручную (обычно создаётся автоматически при открытии админки).
+
 CREATE TABLE IF NOT EXISTS nation_labels (
     nation_code VARCHAR(40) NOT NULL PRIMARY KEY,
     display_name_ru VARCHAR(128) NOT NULL,

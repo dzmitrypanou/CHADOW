@@ -1,8 +1,5 @@
 <?php
-/**
- * Общий подвал админки (как на странице редактора танков).
- * Обычно страница уже задаёт $appVersion; иначе читается из config/version.json.
- */
+
 if (!isset($appVersion)) {
     $_fvRaw = @file_get_contents(__DIR__ . '/../../config/version.json');
     $_fvData = $_fvRaw ? json_decode($_fvRaw, true) : null;

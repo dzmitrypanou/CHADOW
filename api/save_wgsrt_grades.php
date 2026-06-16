@@ -114,7 +114,7 @@ try {
     }
 
     $uploadDir = __DIR__ . '/../uploads/' . $playerName . '/';
-    // Очистка до mkdir: пустая только что созданная папка игрока удалялась как «пустая» и запись файла ломалась.
+
     cleanupOldReplayFiles(__DIR__ . '/../uploads/', RETENTION_DAYS);
     if (!file_exists($uploadDir)) {
         mkdir($uploadDir, 0755, true);

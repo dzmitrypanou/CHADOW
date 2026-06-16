@@ -25,7 +25,7 @@ const AppConstants = {
         received: false,
         avgReceived: false
     },
-    
+
     COLUMN_HEADERS_RU: [
         { key: 'name', title: 'Игрок', always: true },
         { key: 'battles', title: 'Боёв' },
@@ -79,7 +79,7 @@ const AppConstants = {
     ],
 
     COLUMN_HEADERS: [],
-    
+
     SERVER_REGIONS: {
         ru: 'https://tanki.su/ru/community/accounts/',
         eu: 'https://worldoftanks.eu/en/community/accounts/',

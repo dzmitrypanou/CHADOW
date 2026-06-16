@@ -1,7 +1,4 @@
 #!/bin/bash
-# Запасной одноразовый запуск (если нет systemd --loop).
-# Предпочтительно: deploy/systemd/install-online-cache-service.sh
-# Cron: */1 * * * * (раз в минуту) или чаще — см. BACKGROUND_REFRESH_INTERVAL_SECONDS.
 
 set -euo pipefail
 

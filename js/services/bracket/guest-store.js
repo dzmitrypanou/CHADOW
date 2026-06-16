@@ -18,7 +18,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
-            // ignore quota errors
+
         }
     }
 
@@ -46,9 +46,6 @@
         return readAll();
     }
 
-    /**
-     * Одноразовый токен из hash (#bk=...) после создания сетки.
-     */
     function consumeHashToken(publicId) {
         if (!publicId || !window.location.hash) {
             return null;
@@ -62,7 +59,7 @@
         try {
             history.replaceState(null, '', window.location.pathname + window.location.search);
         } catch (e) {
-            // ignore
+
         }
         return token;
     }

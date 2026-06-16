@@ -33,7 +33,7 @@ $db_error = null;
 
 try {
     $tankStats = $db->fetchOne("
-        SELECT 
+        SELECT
             COUNT(*) as total,
             SUM(is_moderated) as moderated,
             SUM(CASE WHEN is_moderated = 0 THEN 1 ELSE 0 END) as unmoderated

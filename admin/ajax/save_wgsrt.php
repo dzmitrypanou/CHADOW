@@ -33,8 +33,8 @@ function saveCoefficients($db) {
         $min = isset($_POST["min_$param"]) ? floatval($_POST["min_$param"]) : 0;
         $max = isset($_POST["max_$param"]) ? floatval($_POST["max_$param"]) : 10000;
         $db->update(
-            "UPDATE wgsrt_coefficients 
-             SET coefficient_value = ?, normalization_factor = ?, min_value = ?, max_value = ?, updated_at = NOW() 
+            "UPDATE wgsrt_coefficients
+             SET coefficient_value = ?, normalization_factor = ?, min_value = ?, max_value = ?, updated_at = NOW()
              WHERE parameter_name = ?",
             [$coef, $norm, $min, $max, $param]
         );
@@ -67,15 +67,15 @@ function saveGrades($db) {
             $color = $grade['color'];
             if ($id) {
                 $db->update(
-                    "UPDATE wgsrt_grades 
-                     SET grade_name = ?, grade_name_en = ?, grade_code = ?, min_value = ?, max_value = ?, color = ?, description = ?, description_en = ?, sort_order = ? 
+                    "UPDATE wgsrt_grades
+                     SET grade_name = ?, grade_name_en = ?, grade_code = ?, min_value = ?, max_value = ?, color = ?, description = ?, description_en = ?, sort_order = ?
                      WHERE id = ?",
                     [$name, $nameEn !== '' ? $nameEn : $name, $code, $min, $max, $color, $desc, $descEn !== '' ? $descEn : $desc, $order, $id]
                 );
                 $processedIds[] = $id;
             } else {
                 $db->insert(
-                    "INSERT INTO wgsrt_grades (grade_name, grade_name_en, grade_code, min_value, max_value, color, description, description_en, sort_order) 
+                    "INSERT INTO wgsrt_grades (grade_name, grade_name_en, grade_code, min_value, max_value, color, description, description_en, sort_order)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [$name, $nameEn !== '' ? $nameEn : $name, $code, $min, $max, $color, $desc, $descEn !== '' ? $descEn : $desc, $order]
                 );
@@ -113,7 +113,7 @@ function resetGrades($db) {
     ];
     foreach ($defaultGrades as $grade) {
         $db->insert(
-            "INSERT INTO wgsrt_grades (grade_name, grade_name_en, grade_code, min_value, max_value, color, description, description_en, sort_order) 
+            "INSERT INTO wgsrt_grades (grade_name, grade_name_en, grade_code, min_value, max_value, color, description, description_en, sort_order)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             $grade
         );

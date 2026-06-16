@@ -29,7 +29,7 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="/admin/css/admin.css?v=<?php echo htmlspecialchars($appVersion); ?>">
     <style>
-        .dict-page .dict-table code { color: #9aa7b2; }
+        .dict-page .dict-table code { color:
         .dict-page .dict-table {
             table-layout: fixed;
         }
@@ -50,9 +50,9 @@ try {
         .dict-page .dict-table input[type="text"] {
             width: 100%;
             padding: 8px 12px;
-            background: #14181c;
-            border: 1px solid #2a3138;
-            color: #e8eef2;
+            background:
+            border: 1px solid
+            color:
             font-family: inherit;
         }
         .dict-page h2 { margin-top: 28px; margin-bottom: 12px; font-size: 1.15rem; }

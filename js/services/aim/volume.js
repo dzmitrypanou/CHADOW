@@ -21,7 +21,7 @@
                 return clamp(parsed);
             }
         } catch (e) {
-            // ignore
+
         }
         return DEFAULT_VOLUME;
     }
@@ -31,7 +31,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, String(currentVolume));
         } catch (e) {
-            // ignore
+
         }
         syncControls(currentVolume);
         if (typeof window !== 'undefined') {

@@ -110,7 +110,7 @@
                 audio.currentTime = 0;
                 audio.play().catch(() => {});
             } catch (e) {
-                // ignore
+
             }
         }
 
@@ -177,7 +177,6 @@
             return baseHitRadius() * duckScale(duck);
         }
 
-        /** Меньше утка (дальше, меньше z) — больше очков. */
         function duckPoints(duck) {
             const scale = duckScale(duck);
             const minScale = 0.55 + 0.28 * 0.55;

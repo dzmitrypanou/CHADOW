@@ -1,15 +1,11 @@
 <?php
 
-/** Временно отключить блокировку по IP (включить обратно перед продакшеном). */
 const USER_LOGIN_THROTTLE_ENABLED = false;
 
-/** Окно подсчёта неудачных попыток (секунды). */
 const USER_LOGIN_THROTTLE_WINDOW_SEC = 900;
 
-/** После стольких неудач в окне — блокировка. */
 const USER_LOGIN_THROTTLE_MAX_FAILS = 5;
 
-/** Длительность блокировки (секунды). */
 const USER_LOGIN_THROTTLE_LOCK_SEC = 1800;
 
 function user_login_throttle_ip_key(): string {
@@ -20,9 +16,6 @@ function user_login_throttle_ip_key(): string {
     return hash('sha256', $ip, false);
 }
 
-/**
- * @return int|null секунд до разрешения следующей попытки, или null если не заблокировано
- */
 function user_login_throttle_retry_after_seconds($db): ?int {
     if (!USER_LOGIN_THROTTLE_ENABLED) {
         return null;
@@ -46,9 +39,6 @@ function user_login_throttle_retry_after_seconds($db): ?int {
     return null;
 }
 
-/**
- * Сколько попыток ввода пароля осталось до блокировки в текущем окне (0 — уже заблокировано).
- */
 function user_login_throttle_attempts_remaining($db): int {
     if (!USER_LOGIN_THROTTLE_ENABLED) {
         return USER_LOGIN_THROTTLE_MAX_FAILS;

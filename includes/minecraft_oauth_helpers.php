@@ -45,9 +45,6 @@ function minecraft_oauth_session_path(string $sessionId): string
     return minecraft_oauth_sessions_root() . '/' . $sessionId . '.json';
 }
 
-/**
- * @return array<string, mixed>|null
- */
 function minecraft_oauth_read_session(string $sessionId): ?array
 {
     if (!minecraft_oauth_is_valid_session_id($sessionId)) {
@@ -75,9 +72,6 @@ function minecraft_oauth_read_session(string $sessionId): ?array
     return $data;
 }
 
-/**
- * @param array<string, mixed> $data
- */
 function minecraft_oauth_write_session(string $sessionId, array $data): bool
 {
     if (!minecraft_oauth_is_valid_session_id($sessionId)) {
@@ -98,9 +92,6 @@ function minecraft_oauth_write_session(string $sessionId, array $data): bool
     return file_put_contents($path, $json, LOCK_EX) !== false;
 }
 
-/**
- * @return array{ok:bool,error?:string,session?:string,loginUrl?:string}
- */
 function minecraft_oauth_create_session($db, string $provider): array
 {
     $provider = minecraft_oauth_normalize_provider($provider);
@@ -164,9 +155,6 @@ function minecraft_oauth_set_browser_cookie(string $sessionId): void
     ]);
 }
 
-/**
- * @return array{ok:bool,error?:string,nickname?:string}
- */
 function minecraft_oauth_finalize_session($db, string $sessionId, int $accountId, string $nickname, string $realm): array
 {
     $session = minecraft_oauth_read_session($sessionId);
@@ -198,9 +186,6 @@ function minecraft_oauth_finalize_session($db, string $sessionId, int $accountId
     return ['ok' => true, 'nickname' => $wgNick];
 }
 
-/**
- * @return array{ok:bool,error?:string,location?:string}
- */
 function minecraft_oauth_fetch_login_location($db, string $sessionId): array
 {
     require_once __DIR__ . '/wg_openid_client.php';
@@ -291,9 +276,6 @@ function minecraft_sanitize_launcher_nickname(string $nickname, int $accountId =
     return strlen($nick) >= 3 ? $nick : 'Player';
 }
 
-/**
- * @return array{ok:bool,error?:string,nickname?:string}
- */
 function minecraft_oauth_complete_session($db, string $sessionId, string $accessToken, int $accountId, string $nickname, string $realm): array
 {
     require_once __DIR__ . '/wg_openid_client.php';
@@ -321,9 +303,6 @@ function minecraft_oauth_complete_session($db, string $sessionId, string $access
     return minecraft_oauth_finalize_session($db, $sessionId, $accountId, $nickname, $realm);
 }
 
-/**
- * @return array{ok:bool,status?:string,nickname?:string,error?:string}
- */
 function minecraft_oauth_poll_session(string $sessionId): array
 {
     $session = minecraft_oauth_read_session($sessionId);

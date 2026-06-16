@@ -1,7 +1,5 @@
 <?php
-/**
- * Подвал публичного сайта. Закрывает .container.
- */
+
 if (!isset($siteVersion)) {
     if (!isset($GLOBALS['__chadow_site_version'])) {
         $_svRaw = @file_get_contents(__DIR__ . '/../config/version.json');

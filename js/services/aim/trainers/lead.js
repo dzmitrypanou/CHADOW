@@ -171,7 +171,7 @@
                     misses += 1;
                     sfx.miss();
                     if (hitBody) {
-                        // clicked body not lead zone — counts as miss
+
                     }
                 }
             },

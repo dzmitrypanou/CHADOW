@@ -1,6 +1,5 @@
 <?php
 
-/** Срок жизни cookie сессии при «Запомнить меня» (30 дней), в секундах. */
 const ADMIN_SESSION_REMEMBER_LIFETIME_SEC = 60 * 60 * 24 * 30;
 
 function admin_request_is_https(): bool {
@@ -8,9 +7,6 @@ function admin_request_is_https(): bool {
         || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
 }
 
-/**
- * Отправить Set-Cookie для текущего id сессии (после session_regenerate_id).
- */
 function admin_session_send_cookie(int $expiresUnix): void {
     $secure = admin_request_is_https();
     $name = session_name();

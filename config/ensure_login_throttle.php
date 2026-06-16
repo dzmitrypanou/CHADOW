@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Ограничение частоты попыток входа в админку по IP (защита от перебора паролей).
- *
- * @param Database $db
- */
+
 function ensure_admin_login_throttle_table($db) {
     static $ensured = false;
     if ($ensured) {

@@ -39,7 +39,7 @@ try {
     <style>
         .aim-stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         @media (max-width: 768px) { .aim-stats-grid { grid-template-columns: 1fr; } }
-        #aim-scores-table td { vertical-align: middle; }
+
         .aim-grade-badge {
             display: inline-block;
             min-width: 2rem;
@@ -50,7 +50,7 @@ try {
             text-align: center;
             background: rgba(255, 217, 102, 0.12);
             border: 1px solid rgba(255, 217, 102, 0.28);
-            color: #ffd966;
+            color:
         }
         .aim-scores-pagination {
             display: flex;
@@ -60,7 +60,7 @@ try {
             margin-top: 12px;
         }
         .aim-scores-page-info {
-            color: #9aa5b1;
+            color:
             font-size: 0.85rem;
             margin-right: 8px;
         }
@@ -68,11 +68,10 @@ try {
             min-width: 36px;
             padding: 6px 10px;
         }
-        #aim-scores-table th:last-child,
-        #aim-scores-table td:last-child {
+
             min-width: 148px;
         }
-        #aim-scores-table .action-buttons {
+
             flex-wrap: wrap;
             justify-content: flex-end;
         }
@@ -146,7 +145,7 @@ try {
                 <table id="aim-scores-table">
                     <thead>
                         <tr>
-                            <th id="aimScoresRankHead" hidden>#</th>
+                            <th id="aimScoresRankHead" hidden>
                             <th>Тренажёр</th>
                             <th>Устройство</th>
                             <th>Игрок</th>

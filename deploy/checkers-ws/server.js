@@ -42,7 +42,6 @@ function verifyToken(token) {
     }
 }
 
-/** @type {Map<string, { state: ReturnType<game.createInitialState>, sockets: Map<string, import('ws')>, touchedAt: number }>} */
 const rooms = new Map();
 
 function getRoom(roomId) {
@@ -374,7 +373,7 @@ setInterval(() => {
                 try {
                     ws.close(1000, 'Room expired');
                 } catch (e) {
-                    // ignore
+
                 }
             });
             rooms.delete(roomId);

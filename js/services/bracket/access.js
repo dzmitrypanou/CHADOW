@@ -7,10 +7,6 @@
         return window.ABS_BRACKET_CSRF || window.ABS_SITE_CSRF || '';
     }
 
-    /**
-     * @param {string} publicId
-     * @returns {Promise<{can_edit:boolean,is_logged_owner:boolean,claimed:boolean}>}
-     */
     async function verifyEditAccess(publicId) {
         const api = window.ABS_BRACKET_CHECK_ACCESS_API;
         if (!api || !publicId) {

@@ -367,7 +367,7 @@
                     playPromise.catch(() => {});
                 }
             } catch (e) {
-                // ignore playback errors
+
             }
         }
 

@@ -50,7 +50,7 @@
             return;
         }
         claimAllStoredBrackets().catch(() => {
-            // токены могли устареть — не мешаем работе сайта
+
         });
     });
 

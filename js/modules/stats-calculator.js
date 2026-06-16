@@ -6,9 +6,9 @@ const StatsCalculator = {
 
     updatePlayerStats(statsMap, player) {
         if (!player || !player.name) return;
-        
+
         const key = player.name;
-        
+
         if (!statsMap.has(key)) {
             statsMap.set(key, {
                 name: player.name,
@@ -33,7 +33,7 @@ const StatsCalculator = {
                 playerId: player.playerId || ''
             });
         }
-        
+
         const stats = statsMap.get(key);
         stats.battles++;
         stats.totalDamage += player.damage || 0;
@@ -48,7 +48,7 @@ const StatsCalculator = {
         stats.totalSpots += player.spots || 0;
         stats.totalDefense += player.defense || 0;
         stats.totalCapture += player.capture || 0;
-        
+
         if (player.isWin === true) {
             stats.wins++;
         } else if (player.isDraw === true) {
@@ -61,24 +61,24 @@ const StatsCalculator = {
     updateAllPlayersStats() {
         this.allPlayersStats.friendly.clear();
         this.allPlayersStats.enemy.clear();
-        
+
         AppState.fileData.forEach(file => {
             const battleInfo = file.battleInfo;
             if (!battleInfo) return;
-            
+
             if (battleInfo.teamStats && Array.isArray(battleInfo.teamStats)) {
                 battleInfo.teamStats.forEach(player => {
                     this.updatePlayerStats(this.allPlayersStats.friendly, player);
                 });
             }
-            
+
             if (battleInfo.enemyTeamStats && Array.isArray(battleInfo.enemyTeamStats)) {
                 battleInfo.enemyTeamStats.forEach(player => {
                     this.updatePlayerStats(this.allPlayersStats.enemy, player);
                 });
             }
         });
-        
+
         AppState.availableMaps.clear();
         AppState.fileData.forEach(file => {
             if (file.battleInfo && file.battleInfo.mapName) {
@@ -90,31 +90,31 @@ const StatsCalculator = {
     filterStatsByMap() {
         AppState.playersStats.clear();
         AppState.enemyStats.clear();
-        
+
         const filteredFriendly = new Map();
         const filteredEnemy = new Map();
-        
+
         AppState.fileData.forEach(file => {
             const battleInfo = file.battleInfo;
             if (!battleInfo) return;
-            
+
             if (AppState.currentMap !== 'all' && battleInfo.mapName !== AppState.currentMap) {
                 return;
             }
-            
+
             if (battleInfo.teamStats && Array.isArray(battleInfo.teamStats)) {
                 battleInfo.teamStats.forEach(player => {
                     this.updatePlayerStats(filteredFriendly, player);
                 });
             }
-            
+
             if (battleInfo.enemyTeamStats && Array.isArray(battleInfo.enemyTeamStats)) {
                 battleInfo.enemyTeamStats.forEach(player => {
                     this.updatePlayerStats(filteredEnemy, player);
                 });
             }
         });
-        
+
         AppState.playersStats = filteredFriendly;
         AppState.enemyStats = filteredEnemy;
     },
@@ -122,7 +122,7 @@ const StatsCalculator = {
     recalcStats(isNewFiles = false) {
         this.updateAllPlayersStats();
         this.filterStatsByMap();
-        
+
         if (isNewFiles) {
             this.selectAllPlayers();
             AppState.isNewFilesLoaded = true;
@@ -134,26 +134,26 @@ const StatsCalculator = {
     selectAllPlayers() {
         const allFriendlyPlayers = Array.from(this.allPlayersStats.friendly.values()).map(p => p.name);
         const allEnemyPlayers = Array.from(this.allPlayersStats.enemy.values()).map(p => p.name);
-        
+
         if (!AppState.userSettings.selectedPlayers) {
             AppState.userSettings.selectedPlayers = { friendly: [], enemy: [] };
         }
-        
+
         AppState.userSettings.selectedPlayers.friendly = [...allFriendlyPlayers];
         AppState.userSettings.selectedPlayers.enemy = [...allEnemyPlayers];
-        
+
         AppState.saveSettings();
     },
 
     filterSelectedPlayers() {
         const allFriendlyPlayers = Array.from(this.allPlayersStats.friendly.values()).map(p => p.name);
         const allEnemyPlayers = Array.from(this.allPlayersStats.enemy.values()).map(p => p.name);
-        
+
         if (!AppState.userSettings.selectedPlayers) {
             AppState.userSettings.selectedPlayers = { friendly: [], enemy: [] };
             return;
         }
-        
+
         if (AppState.userSettings.selectedPlayers.friendly) {
             AppState.userSettings.selectedPlayers.friendly = AppState.userSettings.selectedPlayers.friendly.filter(
                 name => allFriendlyPlayers.includes(name)
@@ -161,7 +161,7 @@ const StatsCalculator = {
         } else {
             AppState.userSettings.selectedPlayers.friendly = [];
         }
-        
+
         if (AppState.userSettings.selectedPlayers.enemy) {
             AppState.userSettings.selectedPlayers.enemy = AppState.userSettings.selectedPlayers.enemy.filter(
                 name => allEnemyPlayers.includes(name)
@@ -169,7 +169,7 @@ const StatsCalculator = {
         } else {
             AppState.userSettings.selectedPlayers.enemy = [];
         }
-        
+
         AppState.saveSettings();
     },
 
@@ -182,7 +182,7 @@ const StatsCalculator = {
 
     getNumericValue(player, columnKey) {
         if (!player) return 0;
-        
+
         switch(columnKey) {
             case 'name':
                 return player.name || '';
@@ -239,23 +239,23 @@ const StatsCalculator = {
         const selectedPlayers = AppState.userSettings.selectedPlayers || { friendly: [], enemy: [] };
         const currentTeam = AppState.showEnemyTeam ? 'enemy' : 'friendly';
         const selectedForCurrentTeam = selectedPlayers[currentTeam] || [];
-        
+
         let filteredPlayers = players;
         if (selectedForCurrentTeam && selectedForCurrentTeam.length > 0) {
             filteredPlayers = players.filter(p => selectedForCurrentTeam.includes(p.name));
         } else {
             filteredPlayers = [];
         }
-        
+
         return [...filteredPlayers].sort((a, b) => {
             let aVal = this.getNumericValue(a, AppState.currentSort.column);
             let bVal = this.getNumericValue(b, AppState.currentSort.column);
-            
+
             if (AppState.currentSort.column === 'name') {
                 aVal = aVal.toLowerCase();
                 bVal = bVal.toLowerCase();
             }
-            
+
             if (AppState.currentSort.direction === 'asc') {
                 return aVal > bVal ? 1 : -1;
             } else {

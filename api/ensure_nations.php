@@ -1,7 +1,5 @@
 <?php
-/**
- * Регистрация наций из реплея: INSERT IGNORE в nation_labels для новых кодов.
- */
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -47,9 +45,9 @@ try {
     $labelsEn = nation_label_map_en($db);
     echo json_encode([
         'success' => true,
-        // старые клиенты
+
         'nation_labels' => $labelsRu,
-        // новые клиенты
+
         'nation_labels_ru' => $labelsRu,
         'nation_labels_en' => $labelsEn,
     ]);

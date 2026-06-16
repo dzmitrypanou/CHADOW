@@ -1,9 +1,5 @@
 #!/usr/bin/env php
 <?php
-/**
- * Удаление гостевых тактических комнат без активности N дней.
- * Cron (ежедневно): php /path/to/scripts/tactics_purge_guest_rooms.php
- */
 
 require_once __DIR__ . '/../includes/user_bootstrap.php';
 require_once __DIR__ . '/../config/ensure_tactics.php';

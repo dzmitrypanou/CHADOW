@@ -1,10 +1,5 @@
 <?php
-/**
- * Поле пароля с кнопкой показа/скрытия.
- *
- * Expects: $passwordInputId, $passwordInputName, $passwordInputExtra (HTML attrs string), $isEn
- * Optional: $passwordShowToggle (bool, default true)
- */
+
 $passwordShowToggle = !isset($passwordShowToggle) || $passwordShowToggle;
 $passwordToggleLabel = $isEn ? 'Show password' : 'Показать пароль';
 ?>

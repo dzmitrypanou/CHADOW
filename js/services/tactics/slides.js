@@ -77,7 +77,7 @@
             try {
                 sessionStorage.setItem(this.getViewSlideStorageKey(), this.viewSlideId);
             } catch (err) {
-                // ignore
+
             }
         }
 
@@ -106,7 +106,7 @@
             try {
                 sessionStorage.setItem(this.getViewModeStorageKey(), this.viewMode);
             } catch (err) {
-                // ignore
+
             }
         }
 

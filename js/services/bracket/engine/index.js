@@ -52,11 +52,6 @@
         ));
     }
 
-    /**
-     * @param {'single'|'double'|'group'|'group_se'|'group_de'} format
-     * @param {string[]} participants
-     * @param {object} [settings]
-     */
     function generate(format, participants, settings = {}) {
         const list = (participants || [])
             .map((p) => String(p).trim())

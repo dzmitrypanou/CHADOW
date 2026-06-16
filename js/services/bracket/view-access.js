@@ -19,7 +19,7 @@
                 link.hidden = false;
             }
         } catch (e) {
-            // no edit link for strangers
+
         }
     });
 })();

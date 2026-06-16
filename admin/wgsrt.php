@@ -12,13 +12,13 @@ $db_error = null;
 
 try {
     $coefficients = $db->fetchAll("
-        SELECT * FROM wgsrt_coefficients 
+        SELECT * FROM wgsrt_coefficients
         WHERE is_active = 1
         ORDER BY parameter_name
     ");
 
     $grades = $db->fetchAll("
-        SELECT * FROM wgsrt_grades 
+        SELECT * FROM wgsrt_grades
         ORDER BY sort_order
     ");
 } catch (Exception $e) {
@@ -63,11 +63,11 @@ $paramNames = [
 
         <?php if ($db_error !== null): ?>
             <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> 
+                <i class="fas fa-exclamation-triangle"></i>
                 Ошибка подключения к базе данных: <?php echo htmlspecialchars($db_error); ?>
             </div>
         <?php else: ?>
-        
+
         <div class="tabs">
             <button class="tab active" data-tab="coefficients">
                 <i class="fas fa-calculator"></i> Коэффициенты WGSRT
@@ -76,8 +76,7 @@ $paramNames = [
                 <i class="fas fa-palette"></i> Градация рейтинга
             </button>
         </div>
-        
-        <!-- Вкладка Коэффициенты -->
+
         <div id="tab-coefficients" class="tab-content active">
             <div class="section-header">
                 <h2><i class="fas fa-calculator"></i> Коэффициенты WGSRT</h2>
@@ -85,7 +84,7 @@ $paramNames = [
                     <i class="fas fa-undo-alt"></i> Сбросить
                 </button>
             </div>
-            
+
             <form id="coefficientsForm">
                 <table class="coefficients-table">
                     <thead>
@@ -98,16 +97,16 @@ $paramNames = [
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($coefficients as $coef): 
+                        <?php foreach ($coefficients as $coef):
                             $paramName = $paramNames[$coef['parameter_name']] ?? $coef['parameter_name'];
                         ?>
                         <tr data-param="<?php echo $coef['parameter_name']; ?>">
                             <td class="coefficient-name"><?php echo $paramName; ?></td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="coef_<?php echo $coef['parameter_name']; ?>" 
-                                           value="<?php echo $coef['coefficient_value']; ?>" 
+                                    <input type="number" step="any"
+                                           name="coef_<?php echo $coef['parameter_name']; ?>"
+                                           value="<?php echo $coef['coefficient_value']; ?>"
                                            class="number-input coef-value" id="coef_<?php echo $coef['parameter_name']; ?>">
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('coef_<?php echo $coef['parameter_name']; ?>', 0.01)">▲</button>
@@ -117,9 +116,9 @@ $paramNames = [
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="norm_<?php echo $coef['parameter_name']; ?>" 
-                                           value="<?php echo $coef['normalization_factor']; ?>" 
+                                    <input type="number" step="any"
+                                           name="norm_<?php echo $coef['parameter_name']; ?>"
+                                           value="<?php echo $coef['normalization_factor']; ?>"
                                            class="number-input" id="norm_<?php echo $coef['parameter_name']; ?>">
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('norm_<?php echo $coef['parameter_name']; ?>', 100)">▲</button>
@@ -129,9 +128,9 @@ $paramNames = [
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="min_<?php echo $coef['parameter_name']; ?>" 
-                                           value="<?php echo $coef['min_value']; ?>" 
+                                    <input type="number" step="any"
+                                           name="min_<?php echo $coef['parameter_name']; ?>"
+                                           value="<?php echo $coef['min_value']; ?>"
                                            class="number-input" id="min_<?php echo $coef['parameter_name']; ?>">
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('min_<?php echo $coef['parameter_name']; ?>', 1)">▲</button>
@@ -141,9 +140,9 @@ $paramNames = [
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="max_<?php echo $coef['parameter_name']; ?>" 
-                                           value="<?php echo $coef['max_value']; ?>" 
+                                    <input type="number" step="any"
+                                           name="max_<?php echo $coef['parameter_name']; ?>"
+                                           value="<?php echo $coef['max_value']; ?>"
                                            class="number-input" id="max_<?php echo $coef['parameter_name']; ?>">
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('max_<?php echo $coef['parameter_name']; ?>', 1)">▲</button>
@@ -155,7 +154,7 @@ $paramNames = [
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                
+
                 <div class="action-bar">
                     <div class="action-bar-left"></div>
                     <button type="button" class="btn" id="cancelCoefficientsBtn">
@@ -167,13 +166,12 @@ $paramNames = [
                 </div>
             </form>
         </div>
-        
-        <!-- Вкладка Градация -->
+
         <div id="tab-grades" class="tab-content">
             <div class="section-header">
                 <h2><i class="fas fa-palette"></i> Градация рейтинга</h2>
             </div>
-            
+
             <form id="gradesForm">
                 <table class="grades-table" id="gradesTable">
                     <thead>
@@ -198,21 +196,21 @@ $paramNames = [
                                 <input type="hidden" name="color_<?php echo $grade['id']; ?>" value="<?php echo $grade['color']; ?>" class="grade-color-input">
                             </td>
                             <td>
-                                <input type="text" name="name_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['grade_name']); ?>" 
+                                <input type="text" name="name_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['grade_name']); ?>"
                                        class="grade-input" placeholder="Название (RU)" required>
                             </td>
                             <td>
-                                <input type="text" name="name_en_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['grade_name_en'] ?? ''); ?>" 
+                                <input type="text" name="name_en_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['grade_name_en'] ?? ''); ?>"
                                        class="grade-input" placeholder="Name (EN)">
                             </td>
                             <td>
-                                <input type="text" name="code_<?php echo $grade['id']; ?>" value="<?php echo $grade['grade_code']; ?>" 
+                                <input type="text" name="code_<?php echo $grade['id']; ?>" value="<?php echo $grade['grade_code']; ?>"
                                        class="grade-input" placeholder="Код CSS" required pattern="[a-z-]+">
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="min_<?php echo $grade['id']; ?>" value="<?php echo $grade['min_value']; ?>" 
+                                    <input type="number" step="any"
+                                           name="min_<?php echo $grade['id']; ?>" value="<?php echo $grade['min_value']; ?>"
                                            class="number-input number-input-small" id="min_<?php echo $grade['id']; ?>" required>
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('min_<?php echo $grade['id']; ?>', 1)">▲</button>
@@ -222,8 +220,8 @@ $paramNames = [
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="max_<?php echo $grade['id']; ?>" value="<?php echo $grade['max_value']; ?>" 
+                                    <input type="number" step="any"
+                                           name="max_<?php echo $grade['id']; ?>" value="<?php echo $grade['max_value']; ?>"
                                            class="number-input number-input-small" id="max_<?php echo $grade['id']; ?>" required>
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('max_<?php echo $grade['id']; ?>', 1)">▲</button>
@@ -232,17 +230,17 @@ $paramNames = [
                                 </div>
                             </td>
                             <td>
-                                <input type="text" name="desc_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['description'] ?? ''); ?>" 
+                                <input type="text" name="desc_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['description'] ?? ''); ?>"
                                        class="grade-input" placeholder="Описание (RU)">
                             </td>
                             <td>
-                                <input type="text" name="desc_en_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['description_en'] ?? ''); ?>" 
+                                <input type="text" name="desc_en_<?php echo $grade['id']; ?>" value="<?php echo htmlspecialchars($grade['description_en'] ?? ''); ?>"
                                        class="grade-input" placeholder="Description (EN)">
                             </td>
                             <td>
                                 <div class="number-wrapper">
-                                    <input type="number" step="any" 
-                                           name="order_<?php echo $grade['id']; ?>" value="<?php echo $grade['sort_order']; ?>" 
+                                    <input type="number" step="any"
+                                           name="order_<?php echo $grade['id']; ?>" value="<?php echo $grade['sort_order']; ?>"
                                            class="number-input number-input-small" id="order_<?php echo $grade['id']; ?>">
                                     <div class="number-controls">
                                         <button type="button" class="number-up" onclick="incrementNumber('order_<?php echo $grade['id']; ?>', 1)">▲</button>
@@ -259,7 +257,7 @@ $paramNames = [
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                
+
                 <div class="action-bar">
                     <div class="action-bar-left">
                         <button type="button" class="btn" id="addGradeBtn">
@@ -277,7 +275,7 @@ $paramNames = [
         </div>
         <?php endif; ?>
     </div>
-    
+
     <?php include __DIR__ . '/includes/footer.php'; ?>
     <?php if ($db_error === null): ?>
     <script src="/admin/js/wgsrt.js?v=<?php echo htmlspecialchars($appVersion); ?>"></script>

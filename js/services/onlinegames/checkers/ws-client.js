@@ -110,7 +110,7 @@
                 try {
                     this.ws.close();
                 } catch (e) {
-                    // ignore
+
                 }
                 this.ws = null;
             }

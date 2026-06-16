@@ -19,10 +19,8 @@ if (!admin_is_admin()) {
     exit();
 }
 
-$version = isset($_POST['mc_pack_version']) ? trim((string) $_POST['mc_pack_version']) : '';
-
 $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
-if (!isset($_FILES['mc_pack_archive'])) {
+if (!isset($_FILES['mc_launcher_file'])) {
     if ($contentLength > 0) {
         echo json_encode(['success' => false, 'error' => minecraft_pack_upload_body_rejected_error()], JSON_UNESCAPED_UNICODE);
         exit();
@@ -34,7 +32,7 @@ if (!isset($_FILES['mc_pack_archive'])) {
 
 try {
     ensure_site_settings_table($db);
-    $result = minecraft_admin_upload_client_pack($db, $version, $_FILES['mc_pack_archive']);
+    $result = minecraft_admin_upload_launcher_file($db, $_FILES['mc_launcher_file']);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([
@@ -46,15 +44,12 @@ try {
 
 if (!$result['ok']) {
     $errors = [
-        'invalid_version' => 'Версия: формат X.Y или X.Y.Z (например 1.21.11 или 26.1.2)',
-        'no_file' => 'Выберите ZIP-архив',
+        'no_file' => 'Выберите файл установщика',
         'upload_failed' => 'Ошибка загрузки файла',
-        'file_too_large' => 'Файл слишком большой (макс. 2 ГБ; сейчас лимит PHP ~' . minecraft_pack_php_upload_limit_mb() . ' МБ)',
-        'invalid_type' => 'Допустим только формат .zip',
-        'invalid_zip' => 'Некорректный ZIP-архив',
-        'missing_version_json' => 'В архиве должен быть файл versions/{версия}/{версия}.json в корне',
-        'mkdir_failed' => 'Нет прав на запись в uploads/minecraft/packs',
-        'save_failed' => 'Не удалось сохранить архив',
+        'file_too_large' => 'Файл слишком большой (макс. 512 МБ)',
+        'invalid_type' => 'Допустимы только .exe и .msi',
+        'mkdir_failed' => 'Нет прав на запись в uploads/minecraft/launcher',
+        'save_failed' => 'Не удалось сохранить файл',
     ];
     $key = (string) ($result['error'] ?? 'save_failed');
     echo json_encode([
@@ -64,15 +59,16 @@ if (!$result['ok']) {
     exit();
 }
 
-$pack = $result['pack'] ?? [];
+$file = $result['file'] ?? [];
 echo json_encode([
     'success' => true,
-    'pack' => [
-        'version' => $pack['version'] ?? $version,
-        'size' => (int) ($pack['size'] ?? 0),
-        'sha256' => $pack['sha256'] ?? '',
-        'uploaded_at' => $pack['uploaded_at'] ?? '',
-        'url' => user_absolute_url(minecraft_pack_public_path($pack['version'] ?? $version)),
+    'file' => [
+        'filename' => $file['filename'] ?? '',
+        'original_name' => $file['original_name'] ?? '',
+        'size' => (int) ($file['size'] ?? 0),
+        'sha256' => $file['sha256'] ?? '',
+        'uploaded_at' => $file['uploaded_at'] ?? '',
+        'url' => user_absolute_url(minecraft_launcher_public_path((string) ($file['filename'] ?? ''))),
     ],
-    'packs' => minecraft_get_client_packs($db),
+    'landing' => minecraft_get_landing_settings($db),
 ], JSON_UNESCAPED_UNICODE);

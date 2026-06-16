@@ -28,7 +28,7 @@
                 }
             }
         } catch (e) {
-            // ignore
+
         }
 
         try {
@@ -38,7 +38,7 @@
                 return { __default: legacy };
             }
         } catch (e) {
-            // ignore
+
         }
 
         return {};
@@ -48,7 +48,7 @@
         try {
             sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(map));
         } catch (e) {
-            // ignore
+
         }
     }
 

@@ -1,10 +1,5 @@
 <?php
-/**
- * Отдельные поля тега клана и названия команды в профиле.
- *
- * Expects: $lang, $clanTagValue, $teamNameValue
- * Optional: $clanTagFieldClass
- */
+
 $clanTagValue = isset($clanTagValue) ? (string) $clanTagValue : '';
 $teamNameValue = isset($teamNameValue) ? (string) $teamNameValue : '';
 $clanTagFieldClass = isset($clanTagFieldClass) ? trim((string) $clanTagFieldClass) : 'auth-form__group';

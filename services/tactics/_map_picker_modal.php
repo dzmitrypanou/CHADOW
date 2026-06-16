@@ -1,7 +1,5 @@
 <?php
-/** @var string $lang */
-/** @var string $mapSelectId */
-/** @var string $mapPickerModalId */
+
 $mapSelectId = $mapSelectId ?? 'tacticsAddSlideMap';
 $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
 ?>

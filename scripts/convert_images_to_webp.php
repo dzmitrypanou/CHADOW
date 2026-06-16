@@ -1,23 +1,5 @@
 #!/usr/bin/env php
 <?php
-/**
- * Пакетная конвертация уже загруженных изображений в WebP.
- *
- * Карты тактики (PNG/JPEG на диске):
- *   php scripts/convert_images_to_webp.php --maps
- *
- * Вставленные картинки в данных комнат (base64 в room_data):
- *   php scripts/convert_images_to_webp.php --rooms
- *
- * Всё сразу:
- *   php scripts/convert_images_to_webp.php --all
- *
- * Пробный прогон без записи:
- *   php scripts/convert_images_to_webp.php --all --dry-run
- *
- * Свой каталог:
- *   php scripts/convert_images_to_webp.php --path=/var/www/assets/tactics/maps
- */
 
 if (php_sapi_name() !== 'cli') {
     fwrite(STDERR, "CLI only\n");
@@ -105,7 +87,6 @@ function convert_maps_tree(string $root, array $options, array &$totals): void {
         new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
     );
 
-    /** @var SplFileInfo $file */
     foreach ($iterator as $file) {
         if (!$file->isFile()) {
             continue;

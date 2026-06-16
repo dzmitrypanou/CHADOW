@@ -9,7 +9,7 @@ $stats = null;
 $db_error = null;
 try {
     $stats = $db->fetchOne("
-        SELECT 
+        SELECT
             COUNT(*) as total,
             SUM(is_premium) as premium,
             SUM(is_collectible) as collectible,
@@ -67,7 +67,7 @@ try {
         </div>
         <?php if ($stats === null): ?>
             <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> 
+                <i class="fas fa-exclamation-triangle"></i>
                 Ошибка подключения к базе данных: <?php echo isset($db_error) ? htmlspecialchars($db_error) : 'Неизвестная ошибка'; ?>
             </div>
         <?php else: ?>

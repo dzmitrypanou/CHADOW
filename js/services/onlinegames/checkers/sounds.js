@@ -28,7 +28,7 @@
         try {
             source.start(0);
         } catch (e) {
-            // ignore
+
         }
         unlocked = true;
     }

@@ -17,9 +17,8 @@ if (!is_array($data)) {
     exit;
 }
 
-/** @var array<int, array{label:string,label_en?:string,href:string,is_enabled:bool}> $headerItems */
 $headerItems = [];
-/** @var array<int, array{label:string,label_en?:string,href:string,is_enabled:bool}> $footerItems */
+
 $footerItems = [];
 if (isset($data['header']) && is_array($data['header'])) {
     $headerItems = $data['header'];
@@ -61,7 +60,7 @@ try {
     try {
         $db->rollback();
     } catch (Throwable $t) {
-        // ignore
+
     }
     echo json_encode(['success' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
 }

@@ -51,16 +51,7 @@ try {
                 grid-template-columns: 1fr;
             }
         }
-        #brackets-table td { vertical-align: top; }
-        #brackets-table th:nth-child(1) { width: 12%; }
-        #brackets-table th:nth-child(2) { width: 18%; }
-        #brackets-table th:nth-child(3) { width: 11%; }
-        #brackets-table th:nth-child(4) { width: 10%; }
-        #brackets-table th:nth-child(5) { width: 9%; }
-        #brackets-table th:nth-child(6) { width: 12%; }
-        #brackets-table th:nth-child(7) { width: 13%; }
-        #brackets-table th:nth-child(8),
-        #brackets-table td:nth-child(8) {
+
             width: 15%;
             min-width: 132px;
             overflow: visible;
@@ -68,7 +59,7 @@ try {
             white-space: nowrap;
             padding-right: 12px;
         }
-        #brackets-table td:nth-child(8) .action-buttons {
+
             display: flex;
             flex-wrap: nowrap;
             justify-content: flex-start;
@@ -79,10 +70,7 @@ try {
             padding: 5px 7px;
             flex-shrink: 0;
         }
-        #brackets-table th:nth-child(4),
-        #brackets-table th:nth-child(5),
-        #brackets-table td:nth-child(4),
-        #brackets-table td:nth-child(5) {
+
             overflow: visible;
             text-overflow: clip;
         }
@@ -99,13 +87,13 @@ try {
         .bracket-status-badge.active {
             background: rgba(76, 175, 80, 0.18);
             border: 1px solid rgba(129, 199, 132, 0.5);
-            color: #a5d6a7;
+            color:
             font-weight: 600;
         }
         .bracket-status-badge.hidden {
             background: rgba(158, 158, 158, 0.15);
             border: 1px solid rgba(158, 158, 158, 0.3);
-            color: #bdbdbd;
+            color:
         }
         .bracket-vis-badge {
             display: inline-block;
@@ -114,7 +102,7 @@ try {
             font-size: 0.72rem;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color: #90caf9;
+            color:
         }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>

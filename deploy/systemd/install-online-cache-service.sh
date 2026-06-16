@@ -1,14 +1,4 @@
 #!/bin/bash
-# Устанавливает systemd-сервис фонового обновления кэша онлайна (цикл каждые 15 с).
-#
-# Использование (на сервере, от root):
-#   sudo CHADOW_ROOT=/var/www/chadow.ru ./deploy/systemd/install-online-cache-service.sh
-#
-# Переменные:
-#   CHADOW_ROOT  — корень сайта (по умолчанию: родитель deploy/systemd)
-#   PHP_BIN      — php CLI (по умолчанию: which php)
-#   RUN_USER     — пользователь веб-сервера (по умолчанию: www-data)
-#   RUN_GROUP    — группа (по умолчанию: как RUN_USER)
 
 set -euo pipefail
 

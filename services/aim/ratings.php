@@ -15,7 +15,7 @@ try {
     require_once __DIR__ . '/../../config/ensure_aim.php';
     ensure_aim_scores_table($userDb);
 } catch (Throwable $e) {
-    // ratings page still renders without DB
+
 }
 
 $trainers = aim_all_trainers_meta($lang);

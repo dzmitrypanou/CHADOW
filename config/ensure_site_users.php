@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Публичные учётные записи сайта (отдельно от admin_users).
- *
- * @param Database $db
- */
+
 function ensure_site_users_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -44,9 +40,6 @@ function ensure_site_users_table($db) {
     ensure_site_users_columns($pdo);
 }
 
-/**
- * @return array<string, true>
- */
 function site_users_existing_columns($pdo): array {
     $columns = [];
     try {
@@ -65,9 +58,6 @@ function site_users_existing_columns($pdo): array {
     return $columns;
 }
 
-/**
- * @return list<string>
- */
 function site_users_required_columns(): array {
     return ['username', 'email', 'password_hash', 'auth_provider', 'is_active'];
 }
@@ -82,9 +72,6 @@ function site_users_schema_ready($pdo): bool {
     return true;
 }
 
-/**
- * @param PDO $pdo
- */
 function ensure_site_users_columns($pdo): void {
     $columns = site_users_existing_columns($pdo);
 
@@ -99,7 +86,7 @@ function ensure_site_users_columns($pdo): void {
             $pdo->exec('ALTER TABLE site_users ADD COLUMN ' . $column . ' ' . $definition);
             $columns[$column] = true;
         } catch (Throwable $e) {
-            // колонка уже есть
+
         }
     };
 
@@ -130,13 +117,13 @@ function ensure_site_users_columns($pdo): void {
     try {
         $pdo->exec('ALTER TABLE site_users MODIFY COLUMN recruiting_contact TEXT NULL');
     } catch (Throwable $e) {
-        // уже TEXT
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users MODIFY COLUMN recruiting_clan_tag VARCHAR(64) NULL');
     } catch (Throwable $e) {
-        // уже расширено
+
     }
 
     try {
@@ -156,43 +143,43 @@ function ensure_site_users_columns($pdo): void {
                AND recruiting_team_name != ''"
         );
     } catch (Throwable $e) {
-        // миграция team_name best-effort
+
     }
 
     try {
         $pdo->exec("ALTER TABLE site_users MODIFY COLUMN wg_realm ENUM('ru', 'eu', 'na', 'asia') NULL");
     } catch (Throwable $e) {
-        // уже обновлено
+
     }
 
     try {
         $pdo->exec("ALTER TABLE site_users MODIFY COLUMN recruiting_realm ENUM('ru', 'eu', 'na', 'asia') NULL");
     } catch (Throwable $e) {
-        // уже обновлено
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users ADD UNIQUE KEY username_unique (username)');
     } catch (Throwable $e) {
-        // индекс уже есть
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users ADD UNIQUE KEY email_unique (email)');
     } catch (Throwable $e) {
-        // индекс уже есть
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users ADD UNIQUE KEY wg_account_realm_unique (wg_account_id, wg_realm)');
     } catch (Throwable $e) {
-        // индекс уже есть
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users ADD UNIQUE KEY lesta_account_unique (lesta_account_id)');
     } catch (Throwable $e) {
-        // индекс уже есть
+
     }
 
     try {
@@ -215,12 +202,12 @@ function ensure_site_users_columns($pdo): void {
                AND lesta_account_id IS NOT NULL'
         );
     } catch (Throwable $e) {
-        // миграция Lesta best-effort
+
     }
 
     try {
         $pdo->exec('ALTER TABLE site_users ADD INDEX idx_active (is_active)');
     } catch (Throwable $e) {
-        // индекс уже есть
+
     }
 }

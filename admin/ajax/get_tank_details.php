@@ -5,12 +5,12 @@ admin_require_ajax();
 
 if (isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-    
+
     $tank = $db->fetchOne(
         "SELECT * FROM tank_dictionary WHERE id = ?",
         [$id]
     );
-    
+
     if ($tank) {
         echo json_encode([
             'success' => true,

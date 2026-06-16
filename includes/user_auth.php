@@ -1,6 +1,5 @@
 <?php
 
-/** Срок жизни cookie сессии при «Запомнить меня» (30 дней), в секундах. */
 const USER_SESSION_REMEMBER_LIFETIME_SEC = 60 * 60 * 24 * 30;
 
 function user_request_is_https(): bool {
@@ -38,9 +37,6 @@ function user_validate_return_url(string $url, string $default = '/'): string {
     return $url;
 }
 
-/**
- * Отправить Set-Cookie для текущего id сессии (после session_regenerate_id).
- */
 function user_session_send_cookie(int $expiresUnix): void {
     $secure = user_request_is_https();
     $name = session_name();
@@ -216,9 +212,6 @@ function user_attempt_login($db, $login, $password, $rememberMe = false) {
     return true;
 }
 
-/**
- * @return array{ok:bool, error?:string, user_id?:int, hint?:string}
- */
 function user_register_local($db, string $username, string $email, string $password): array {
     $username = strtolower(trim($username));
     $email = trim(strtolower($email));
@@ -256,9 +249,6 @@ function user_register_local($db, string $username, string $email, string $passw
     }
 }
 
-/**
- * @return array{id:int,email?:string,password_hash?:string,auth_provider?:string,is_active?:int}|null
- */
 function user_fetch_by_username($db, string $username): ?array {
     try {
         $row = $db->fetchOne(
@@ -284,9 +274,6 @@ function user_fetch_by_username($db, string $username): ?array {
     }
 }
 
-/**
- * @return array{id:int,password_hash?:string,auth_provider?:string,is_active?:int}|null
- */
 function user_fetch_by_email($db, string $email): ?array {
     try {
         $row = $db->fetchOne(
@@ -312,9 +299,6 @@ function user_fetch_by_email($db, string $email): ?array {
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, user_id?:int, hint?:string}
- */
 function user_register_local_execute($db, string $username, string $email, string $password): array {
     $dup = user_fetch_by_username($db, $username);
     if ($dup) {
@@ -444,9 +428,6 @@ function user_wg_provider_label(string $realm, string $lang = 'ru'): string {
     return $realm === 'ru' ? 'Lesta' : 'Wargaming';
 }
 
-/**
- * @return list<string>
- */
 function user_game_nickname_realms(): array {
     return ['ru', 'eu', 'na', 'asia'];
 }
@@ -500,9 +481,6 @@ function user_lesta_api_locked_realm(array $profile): ?string {
     return user_lesta_is_linked($profile) ? 'ru' : null;
 }
 
-/**
- * @return array<string, array{value:string, locked:bool}>
- */
 function user_game_nicknames_state(array $profile): array {
     $wgLockedRealm = user_wg_api_locked_realm($profile);
     $lestaLocked = user_lesta_is_linked($profile);
@@ -564,10 +542,6 @@ function user_set_game_nickname_for_realm($db, int $userId, string $realm, ?stri
     );
 }
 
-/**
- * @param array<string, mixed> $input
- * @return array{ok:bool, error?:string, message?:string, profile?:array}
- */
 function user_update_game_nicknames($db, int $userId, array $input, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $profile = user_login_row($db, $userId);
@@ -622,9 +596,6 @@ function user_update_game_nicknames($db, int $userId, array $input, string $lang
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_link_wg_account($db, int $userId, int $accountId, string $realm, ?string $nickname, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $realm = user_normalize_wg_realm($realm);
@@ -693,9 +664,6 @@ function user_link_wg_account($db, int $userId, int $accountId, string $realm, ?
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_link_lesta_account($db, int $userId, int $accountId, ?string $nickname, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     if ($accountId <= 0) {
@@ -756,9 +724,6 @@ function user_link_lesta_account($db, int $userId, int $accountId, ?string $nick
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_unlink_wg_account($db, int $userId, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $profile = user_login_row($db, $userId);
@@ -802,9 +767,6 @@ function user_unlink_wg_account($db, int $userId, string $lang = 'ru'): array {
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_unlink_lesta_account($db, int $userId, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $profile = user_login_row($db, $userId);
@@ -858,9 +820,6 @@ function user_unlink_lesta_account($db, int $userId, string $lang = 'ru'): array
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_unlink_game_api_account($db, int $userId, string $provider, string $lang = 'ru'): array {
     $provider = strtolower(trim($provider));
     if ($provider === 'lesta') {
@@ -870,9 +829,6 @@ function user_unlink_game_api_account($db, int $userId, string $provider, string
     return user_unlink_wg_account($db, $userId, $lang);
 }
 
-/**
- * @return array{id:int,username:string,is_active:int}|null
- */
 function user_find_by_linked_game_account($db, int $accountId, string $realm): ?array {
     $realm = user_normalize_wg_realm($realm);
     if ($accountId <= 0) {
@@ -897,11 +853,6 @@ function user_find_by_linked_game_account($db, int $accountId, string $realm): ?
     return is_array($row) ? $row : null;
 }
 
-/**
- * Вход через WG / Lesta OAuth только для уже существующих привязанных аккаунтов.
- *
- * @return array{ok:bool, error?:string, user_id?:int}
- */
 function user_login_or_register_wg($db, int $accountId, string $realm, ?string $nickname, bool $rememberMe = false, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $realm = user_normalize_wg_realm($realm);
@@ -944,9 +895,6 @@ function user_login_or_register_wg($db, int $accountId, string $realm, ?string $
     return ['ok' => true, 'user_id' => (int) $existing['id']];
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string, profile?:array}
- */
 function user_update_local_profile($db, int $userId, string $username, string $email, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $profile = user_login_row($db, $userId);
@@ -1019,9 +967,6 @@ function user_update_local_profile($db, int $userId, string $username, string $e
     }
 }
 
-/**
- * @return array{ok:bool, error?:string, message?:string}
- */
 function user_change_local_password($db, int $userId, string $currentPassword, string $newPassword, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
 

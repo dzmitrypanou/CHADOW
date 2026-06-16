@@ -1,4 +1,4 @@
--- Учётные записи админ-панели (пароли хранятся как password_hash PHP, не в открытом виде)
+
 CREATE TABLE IF NOT EXISTS admin_users (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(64) NOT NULL,

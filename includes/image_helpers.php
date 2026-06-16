@@ -12,9 +12,6 @@ function abs_image_webp_supported(): bool {
     return extension_loaded('gd') && function_exists('imagewebp');
 }
 
-/**
- * @return array{ok:bool, error?:string, mime?:string, width?:int, height?:int}
- */
 function abs_image_inspect_file(string $path): array {
     $info = @getimagesize($path);
     if ($info === false) {
@@ -34,10 +31,6 @@ function abs_image_inspect_file(string $path): array {
     ];
 }
 
-/**
- * @param resource|GdImage|false $image
- * @return resource|GdImage|false
- */
 function abs_image_prepare_webp_resource($image) {
     if (!is_resource($image) && !($image instanceof GdImage)) {
         return false;
@@ -66,9 +59,6 @@ function abs_image_prepare_webp_resource($image) {
     return $image;
 }
 
-/**
- * @return resource|GdImage|false
- */
 function abs_image_load_resource(string $path, string $mime) {
     switch ($mime) {
         case 'image/jpeg':
@@ -88,9 +78,6 @@ function abs_image_load_resource(string $path, string $mime) {
     }
 }
 
-/**
- * @param resource|GdImage $image
- */
 function abs_image_save_webp($image, string $destPath, int $quality = ABS_IMAGE_UPLOAD_WEBP_QUALITY): bool {
     $image = abs_image_prepare_webp_resource($image);
     if ($image === false) {
@@ -131,10 +118,6 @@ function abs_image_cleanup_temp(string $tmpPath, bool $mustBeUploaded): void {
     }
 }
 
-/**
- * @param resource|GdImage $image
- * @return resource|GdImage
- */
 function abs_image_limit_dimensions($image, int $maxDimension) {
     if ($maxDimension <= 0 || (!is_resource($image) && !($image instanceof GdImage))) {
         return $image;
@@ -165,11 +148,6 @@ function abs_image_limit_dimensions($image, int $maxDimension) {
     return $resized;
 }
 
-/**
- * Save an uploaded JPEG/PNG/WebP as WebP (re-encode or copy when already WebP).
- *
- * @return array{ok:bool, error?:string, ext?:string, mime?:string, size?:int}
- */
 function abs_save_uploaded_image_as_webp(
     string $tmpPath,
     string $destPath,
@@ -263,11 +241,6 @@ function abs_save_uploaded_image_as_webp(
     ];
 }
 
-/**
- * Convert an existing image file on disk to WebP.
- *
- * @return array{ok:bool, error?:string, skipped?:bool, ext?:string, size?:int, saved_bytes?:int, src?:string, dest?:string}
- */
 function abs_convert_file_to_webp(
     string $srcPath,
     ?string $destPath = null,
@@ -408,10 +381,6 @@ function abs_convert_data_url_to_webp(string $dataUrl, int $quality = ABS_IMAGE_
     return 'data:image/webp;base64,' . base64_encode($webpBinary);
 }
 
-/**
- * @param mixed $data
- * @return mixed
- */
 function abs_convert_structure_image_data_urls($data, int $quality = ABS_IMAGE_UPLOAD_WEBP_QUALITY, bool &$changed = false) {
     if (is_string($data)) {
         if (strncmp($data, 'data:image/', 11) !== 0 || stripos($data, 'image/webp') !== false) {

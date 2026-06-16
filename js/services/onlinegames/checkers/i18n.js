@@ -173,7 +173,7 @@
 
     function buildLangHref(slug, lang) {
         const normalized = normalizeLang(lang);
-        const clean = String(slug || '').replace(/^\/+/, '').replace(/^en\//, '');
+        const clean = String(slug || '').replace(/^\/+/, '').replace(/^en\
         if (normalized === 'en') {
             return clean ? `/en/${clean}` : '/en';
         }

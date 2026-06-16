@@ -144,9 +144,6 @@ function recruiting_render_clan_tag_meta(array $post, string $lang = 'ru'): stri
         . '</a></span>';
 }
 
-/**
- * @return array{ok: bool, error?: string, data: array<string, mixed>}
- */
 function recruiting_apply_clan_tag_post_type_rules(array $data, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $postType = (string) ($data['post_type'] ?? '');
@@ -192,9 +189,6 @@ function recruiting_apply_clan_tag_post_type_rules(array $data, string $lang = '
     return ['ok' => true, 'data' => $data];
 }
 
-/**
- * @return array{ok:bool, error?:string, clan_tag:?string, clan_tag_type:?string}
- */
 function recruiting_parse_clan_tag_fields(array $input, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $clanTag = trim((string) ($input['clan_tag'] ?? $input['recruiting_clan_tag'] ?? ''));
@@ -265,9 +259,6 @@ function recruiting_contact_type_icon(string $type): string {
     return $icons[$type] ?? 'fas fa-link';
 }
 
-/**
- * @return list<array{id:string, label:string, icon:string, placeholderRu:string, placeholderEn:string}>
- */
 function recruiting_contact_types_meta(string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $items = [];
@@ -290,10 +281,6 @@ function recruiting_contact_types_meta(string $lang = 'ru'): array {
     return $items;
 }
 
-/**
- * @param mixed $raw
- * @return list<array{type:string, value:string}>
- */
 function recruiting_contacts_sanitize($raw): array {
     if (!is_array($raw)) {
         return [];
@@ -322,9 +309,6 @@ function recruiting_contacts_sanitize($raw): array {
     return $out;
 }
 
-/**
- * @return list<array{type:string, value:string}>
- */
 function recruiting_contacts_parse(?string $raw): array {
     if ($raw === null) {
         return [];
@@ -342,9 +326,6 @@ function recruiting_contacts_parse(?string $raw): array {
     return [['type' => 'telegram', 'value' => mb_substr($raw, 0, RECRUITING_CONTACT_VALUE_MAX, 'UTF-8')]];
 }
 
-/**
- * @param list<array{type:string, value:string}> $contacts
- */
 function recruiting_contacts_encode(array $contacts): ?string {
     $contacts = recruiting_contacts_sanitize($contacts);
     if ($contacts === []) {
@@ -353,9 +334,6 @@ function recruiting_contacts_encode(array $contacts): ?string {
     return json_encode($contacts, JSON_UNESCAPED_UNICODE);
 }
 
-/**
- * @return list<array{type:string, value:string}>
- */
 function recruiting_contacts_from_input(array $input): array {
     if (isset($input['contacts']) && is_array($input['contacts'])) {
         return recruiting_contacts_sanitize($input['contacts']);
@@ -398,9 +376,6 @@ function recruiting_normalize_form_game_nickname(?string $nickname): string {
     return trim($nickname);
 }
 
-/**
- * @return array{id:int,username:string}|null
- */
 function recruiting_find_user_by_game_nickname($db, string $nickname, string $realm): ?array {
     $nickname = recruiting_normalize_form_game_nickname($nickname);
     $realm = user_normalize_wg_realm($realm);
@@ -433,9 +408,6 @@ function recruiting_find_user_by_game_nickname($db, string $nickname, string $re
     return is_array($row) ? $row : null;
 }
 
-/**
- * @return array{ok:bool, error?:string}
- */
 function recruiting_assert_game_nickname_allowed(
     $db,
     string $nickname,
@@ -486,9 +458,6 @@ function recruiting_assert_game_nickname_allowed(
     return ['ok' => true];
 }
 
-/**
- * @return array{ok: bool, error?: string, data?: array<string, mixed>}
- */
 function recruiting_validate_post_input(array $input, bool $requireAll = true, string $lang = 'ru'): array {
     $fields = ['post_type', 'realm', 'title', 'body', 'contact', 'clan_tag'];
     $data = [];
@@ -610,10 +579,6 @@ function recruiting_auto_title(array $data, string $lang = 'ru'): string {
     return $title;
 }
 
-/**
- * @param array{post_type?:string, clan_tag?:string, team_name?:string, clan_tag_type?:string} $prefs
- * @return array{clan_tag:string, clan_tag_type:string}
- */
 function user_recruiting_post_form_clan(array $prefs): array {
     $postType = (string) ($prefs['post_type'] ?? '');
     if ($postType === 'team_seeks_players') {
@@ -629,9 +594,6 @@ function user_recruiting_post_form_clan(array $prefs): array {
     ];
 }
 
-/**
- * @return array{ok:bool, error?:string, clan_tag:string, team_name:string}
- */
 function user_recruiting_parse_profile_clan_team(array $input, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $clanTag = trim((string) ($input['recruiting_clan_tag'] ?? ''));
@@ -663,9 +625,6 @@ function user_recruiting_parse_profile_clan_team(array $input, string $lang = 'r
     return ['ok' => true, 'clan_tag' => $clanTag, 'team_name' => $teamName];
 }
 
-/**
- * @return array{contacts:list<array{type:string,value:string}>, clan_tag:string, team_name:string, clan_tag_type:string, post_type:string, realm:string, contact:?string}
- */
 function user_recruiting_prefs($db, int $userId): array {
     if (!function_exists('ensure_site_users_table')) {
         require_once __DIR__ . '/../config/ensure_site_users.php';
@@ -718,7 +677,7 @@ function user_recruiting_prefs($db, int $userId): array {
             }
         }
     } catch (Throwable $e) {
-        // колонки ещё не добавлены
+
     }
 
     if ($useFallbackContact || $useFallbackClan || $useFallbackTeam || $useFallbackClanType || $useFallbackPostType || $useFallbackRealm) {
@@ -753,7 +712,7 @@ function user_recruiting_prefs($db, int $userId): array {
                 }
             }
         } catch (Throwable $e) {
-            // таблица объявлений недоступна
+
         }
     }
 
@@ -783,9 +742,6 @@ function user_recruiting_prefs($db, int $userId): array {
     ];
 }
 
-/**
- * @param array{contact?:array|string|null, clan_tag?:?string, team_name?:?string, clan_tag_type?:?string, post_type?:?string, realm?:?string} $prefs
- */
 function user_recruiting_save_prefs($db, int $userId, array $prefs): bool {
     if (!function_exists('ensure_site_users_table')) {
         require_once __DIR__ . '/../config/ensure_site_users.php';
@@ -856,9 +812,6 @@ function user_recruiting_save_prefs($db, int $userId, array $prefs): bool {
     }
 }
 
-/**
- * @param array{contact?:?string, clan_tag?:?string, clan_tag_type?:?string, post_type?:string, realm?:string} $data
- */
 function user_recruiting_sync_prefs_from_post($db, int $userId, array $data): void {
     $existing = user_recruiting_prefs($db, $userId);
     $prefs = [
@@ -882,9 +835,6 @@ function user_recruiting_sync_prefs_from_post($db, int $userId, array $data): vo
     user_recruiting_save_prefs($db, $userId, $prefs);
 }
 
-/**
- * @return array{ok:bool, error?:string, prefs?:array{contacts:list,contact:?string,clan_tag:string,clan_tag_type:string,post_type:string,realm:string}}
- */
 function user_recruiting_save_from_request($db, int $userId, array $input, string $lang = 'ru'): array {
     $isEn = $lang === 'en';
     $contacts = recruiting_contacts_from_input($input);
@@ -1009,13 +959,6 @@ function recruiting_sql_user_author_columns(string $alias = 'u'): string {
         . $alias . '.game_nickname_asia';
 }
 
-/**
- * @param array<string, mixed> $row
- * @return array<string, mixed>
- */
-/**
- * @return array{id:int}|null
- */
 function recruiting_find_recent_duplicate_post($db, array $data, ?int $userId, int $windowSeconds = 120): ?array {
     $body = (string) ($data['body'] ?? '');
     $postType = (string) ($data['post_type'] ?? '');
@@ -1106,13 +1049,6 @@ function recruiting_format_post(array $row, bool $includeModeration = false): ar
     return $item;
 }
 
-/**
- * Список опубликованных объявлений для доски и API.
- *
- * @param Database $db
- * @param array{post_type?:string,realm?:string,q?:string,page?:int,limit?:int} $query
- * @return array{success:bool,data?:list<array<string,mixed>>,pagination?:array<string,int>,error?:string}
- */
 function recruiting_fetch_post_list($db, array $query): array {
     $postType = isset($query['post_type']) ? trim((string) $query['post_type']) : '';
     $realm = isset($query['realm']) ? strtolower(trim((string) $query['realm'])) : '';

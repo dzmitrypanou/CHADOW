@@ -164,12 +164,10 @@
             && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     }
 
-    /** Multiplier for target radii on touch screens. */
     function touchTargetScale() {
         return isTouchInput() ? 1.75 : 1;
     }
 
-    /** Extra hit padding (logical px) for tap detection. */
     function touchHitSlop() {
         return isTouchInput() ? 14 : 0;
     }

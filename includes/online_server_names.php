@@ -4,9 +4,7 @@ require_once __DIR__ . '/tanki_client.php';
 
 class OnlineServerNames
 {
-    /**
-     * @return array<string, array<string, string>>
-     */
+
     private static function canonicalIds(): array
     {
         return [
@@ -28,9 +26,6 @@ class OnlineServerNames
         ];
     }
 
-    /**
-     * @return array<string, array<string, array{ru:string,en:string}>>
-     */
     private static function locationLabels(): array
     {
         return [
@@ -104,9 +99,6 @@ class OnlineServerNames
         return $serverId;
     }
 
-    /**
-     * @return array<string, array<string, string>>
-     */
     public static function exportMap(string $lang = 'ru'): array
     {
         $lang = $lang === 'en' ? 'en' : 'ru';

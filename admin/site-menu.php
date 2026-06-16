@@ -51,7 +51,7 @@ require __DIR__ . '/includes/admin_head.php';
         <?php else: ?>
             <p class="site-menu-hint">
                 Ссылки для шапки и для подвала публичного сайта. Для страниц CMS укажите путь вида <code>/about</code> или коротко <code>about</code>.
-                Внешние ссылки — полный URL (<code>https://…</code>).
+                Внешние ссылки — полный URL (<code>https:
             </p>
 
             <div class="site-menu-panels-footer" role="region" aria-label="Редакторы меню шапки и подвала">

@@ -9,10 +9,6 @@
         return winnersRound * 2 - 2;
     }
 
-    /**
-     * @param {string[]} participants
-     * @returns {{ participants: string[], settings: object, matches: object[] }}
-     */
     function generateDouble(participants, options = {}) {
         const base = generateSingle(participants, options);
         const matches = [...base.matches];

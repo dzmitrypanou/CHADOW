@@ -77,7 +77,7 @@ const AppState = {
                 minBattles: Math.max(0, parseInt(this.userSettings.minBattles, 10) || 0),
                 version: this.version
             };
-            
+
             localStorage.setItem('absReplaysSettings', JSON.stringify(settings));
         } catch (e) {}
     },
@@ -102,15 +102,15 @@ const AppState = {
 
     getPlayerVehiclesStats(playerName) {
         const vehiclesStats = [];
-        
+
         this.fileData.forEach(file => {
             if (this.currentMap !== 'all' && file.battleInfo.mapName !== this.currentMap) {
                 return;
             }
-            
+
             const battleInfo = file.battleInfo;
             const teamToCheck = this.showEnemyTeam ? battleInfo.enemyTeamStats : battleInfo.teamStats;
-            
+
             teamToCheck.forEach(player => {
                 if (player.name === playerName) {
                     vehiclesStats.push({
@@ -131,7 +131,7 @@ const AppState = {
                 }
             });
         });
-        
+
         return vehiclesStats.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
     }
 };

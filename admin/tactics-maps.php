@@ -39,7 +39,7 @@ try {
         .tactics-upload-panel h2 {
             margin: 0 0 16px;
             font-size: 1.1rem;
-            color: #e8eef2;
+            color:
         }
         .tactics-upload-grid {
             display: grid;
@@ -67,7 +67,7 @@ try {
             display: block;
             margin-bottom: 6px;
             font-size: 0.82rem;
-            color: #9aa5b1;
+            color:
         }
         .tactics-upload-field-hint {
             display: block;
@@ -83,10 +83,10 @@ try {
             box-sizing: border-box;
             min-height: 42px;
             padding: 8px 12px;
-            background: #1a1f24;
-            border: 1px solid #2a3138;
+            background:
+            border: 1px solid
             border-radius: 0;
-            color: #e8eef2;
+            color:
             font-size: 0.88rem;
             -moz-appearance: textfield;
             appearance: textfield;
@@ -98,17 +98,17 @@ try {
         }
         .tactics-upload-field input[type="number"]:focus,
         .tactics-upload-field input[type="text"]:focus {
-            border-color: #ffd966;
+            border-color:
             outline: none;
         }
         .tactics-side-length-input {
             width: 72px;
             min-height: 32px;
             padding: 4px 8px;
-            background: #1a1f24;
-            border: 1px solid #2a3138;
+            background:
+            border: 1px solid
             border-radius: 0;
-            color: #e8eef2;
+            color:
             font-size: 0.82rem;
             -moz-appearance: textfield;
             appearance: textfield;
@@ -127,13 +127,13 @@ try {
             gap: 10px;
             min-height: 42px;
             padding: 6px 12px;
-            background: #1a1f24;
-            border: 1px solid #2a3138;
+            background:
+            border: 1px solid
             border-radius: 0;
             transition: border-color 0.2s;
         }
         .tactics-file-field:focus-within {
-            border-color: #ffd966;
+            border-color:
         }
         .tactics-file-field .tactics-file-btn {
             flex: none;
@@ -144,7 +144,7 @@ try {
             background: rgba(255, 217, 102, 0.12);
             border: 1px solid rgba(255, 217, 102, 0.35);
             border-radius: 0;
-            color: #ffd966;
+            color:
             font-size: 0.82rem;
             font-weight: 500;
             cursor: pointer;
@@ -153,7 +153,7 @@ try {
         }
         .tactics-file-field .tactics-file-btn:hover {
             background: rgba(255, 217, 102, 0.2);
-            border-color: #ffd966;
+            border-color:
         }
         .tactics-file-field .tactics-file-input {
             position: absolute;
@@ -167,7 +167,7 @@ try {
             flex: 1;
             min-width: 0;
             font-size: 0.82rem;
-            color: #9aa5b1;
+            color:
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -196,7 +196,7 @@ try {
         }
         .tactics-maps-page .tactics-filter-reset:hover {
             background: rgba(255, 138, 138, 0.1);
-            color: #ff8a8a;
+            color:
             transform: none;
             box-shadow: none;
         }
@@ -218,9 +218,9 @@ try {
             object-fit: cover;
             border-radius: 0;
             border: 1px solid rgba(255, 255, 255, 0.12);
-            background: #1a2332;
+            background:
         }
-        #tactics-maps-table td { vertical-align: middle; }
+
         .tactics-edit-preview {
             display: flex;
             gap: 16px;
@@ -232,17 +232,17 @@ try {
             height: 120px;
             object-fit: cover;
             border: 1px solid rgba(255, 255, 255, 0.12);
-            background: #1a2332;
+            background:
         }
         .tactics-edit-meta {
             flex: 1;
             min-width: 0;
             font-size: 0.84rem;
-            color: #9aa5b1;
+            color:
             line-height: 1.5;
         }
         .tactics-edit-meta code {
-            color: #ffd966;
+            color:
         }
         .tactics-edit-file-field {
             margin-top: 4px;

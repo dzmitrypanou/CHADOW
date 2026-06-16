@@ -117,9 +117,6 @@ function abs_seo_format_title(string $title, string $siteName): string
     return $title . ' | ' . $siteName;
 }
 
-/**
- * @return array{ru:string,en:string}
- */
 function abs_seo_lang_paths(string $slug): array
 {
     if (!function_exists('abs_build_lang_href')) {
@@ -134,9 +131,6 @@ function abs_seo_lang_paths(string $slug): array
     ];
 }
 
-/**
- * @return array{canonical:string,alternate_ru:string,alternate_en:string}
- */
 function abs_seo_page_urls(string $lang, string $slug): array
 {
     $paths = abs_seo_lang_paths($slug);
@@ -149,9 +143,6 @@ function abs_seo_page_urls(string $lang, string $slug): array
     ];
 }
 
-/**
- * @return array<string, mixed>
- */
 function abs_seo_default_json_ld(string $siteName, string $lang, string $canonicalUrl = ''): array
 {
     $base = abs_site_base_url();
@@ -169,9 +160,6 @@ function abs_seo_default_json_ld(string $siteName, string $lang, string $canonic
     return $data;
 }
 
-/**
- * @return array<string, mixed>
- */
 function abs_seo_web_page_json_ld(
     string $name,
     string $description,
@@ -197,10 +185,6 @@ function abs_seo_web_page_json_ld(
     ];
 }
 
-/**
- * @param array<int, array<string, mixed>> $items
- * @return array<string, mixed>
- */
 function abs_seo_json_ld_graph(array $items): array
 {
     return [
@@ -209,9 +193,6 @@ function abs_seo_json_ld_graph(array $items): array
     ];
 }
 
-/**
- * @return array<string, mixed>
- */
 function abs_seo_software_app_json_ld(
     string $name,
     string $description,
@@ -235,10 +216,6 @@ function abs_seo_software_app_json_ld(
     ];
 }
 
-/**
- * @param array<int, array{name:string,url:string}> $items
- * @return array<string, mixed>
- */
 function abs_seo_breadcrumb_json_ld(array $items): array
 {
     $list = [];
@@ -262,11 +239,6 @@ function abs_seo_breadcrumb_json_ld(array $items): array
     ];
 }
 
-/**
- * @param array<string, mixed> $webPage
- * @param array<int, array<string, mixed>> $extra
- * @return array<string, mixed>
- */
 function abs_seo_page_graph_json_ld(array $webPage, array $extra = []): array
 {
     $items = [$webPage];

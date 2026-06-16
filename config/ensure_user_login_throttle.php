@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Ограничение частоты попыток входа/регистрации публичных пользователей по IP.
- *
- * @param Database $db
- */
+
 function ensure_site_login_throttle_table($db) {
     static $ensured = false;
     if ($ensured) {

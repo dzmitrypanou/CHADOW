@@ -1,8 +1,5 @@
 <?php
-/**
- * Страница «404 — не найдено»: общая шапка/подвал с главного сайта.
- * Подключается из page.php и через ErrorDocument в .htaccess.
- */
+
 http_response_code(404);
 header('Content-Type: text/html; charset=UTF-8');
 

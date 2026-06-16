@@ -39,7 +39,7 @@
             try {
                 sessionStorage.setItem(this.storageKey, isCollapsed ? '1' : '0');
             } catch (e) {
-                // ignore
+
             }
         }
 
@@ -63,7 +63,7 @@
                 try {
                     sessionStorage.setItem(this.storageKey, isCollapsed ? '1' : '0');
                 } catch (e) {
-                    // ignore
+
                 }
                 if (!isCollapsed) {
                     this.clearError();
@@ -87,7 +87,7 @@
             try {
                 sessionStorage.removeItem(`abs_tactics_chat_pos_${this.publicId}`);
             } catch (e) {
-                // ignore
+
             }
         }
 
@@ -184,7 +184,7 @@
                     this.renderMessages(data.messages);
                 }
             } catch (e) {
-                // ignore
+
             }
         }
 

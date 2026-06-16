@@ -18,7 +18,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
-            // ignore quota errors
+
         }
     }
 
@@ -26,7 +26,7 @@
         try {
             localStorage.removeItem(STORAGE_KEY);
         } catch (e) {
-            // ignore
+
         }
     }
 

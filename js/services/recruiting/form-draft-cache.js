@@ -73,7 +73,7 @@
             }
             localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
         } catch (err) {
-            // storage unavailable
+
         }
     }
 
@@ -81,7 +81,7 @@
         try {
             localStorage.removeItem(STORAGE_KEY);
         } catch (err) {
-            // ignore
+
         }
     }
 
@@ -226,7 +226,7 @@
                 })()),
             });
         } catch (err) {
-            // prefs sync is best-effort
+
         }
     }
 
@@ -265,7 +265,7 @@
                 sessionStorage.removeItem(PENDING_SUBMIT_KEY);
             }
         } catch (err) {
-            // ignore
+
         }
     }
 

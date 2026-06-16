@@ -7,13 +7,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST
     admin_require_csrf_ajax();
     $id = (int)$_POST['id'];
     $moderated = (int)$_POST['moderated'];
-    
+
     try {
         $db->update(
             "UPDATE tank_dictionary SET is_moderated = ? WHERE id = ?",
             [$moderated, $id]
         );
-        
+
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);

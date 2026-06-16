@@ -1,8 +1,5 @@
 <?php
-/**
- * Компактное меню админки. Требует подключённый bootstrap и авторизацию.
- * Перед include задайте $navCurrent: index | pages | site-menu | dictionaries | maps | recruiting | brackets | wgsrt | users | dashboard
- */
+
 if (!isset($navCurrent)) {
     $navCurrent = 'index';
 }

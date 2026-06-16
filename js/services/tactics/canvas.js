@@ -224,7 +224,7 @@
         static ICON_LABEL_EDGE_MARGIN = 6;
         static DEFAULT_ICON_SIZE = 16;
         static DEFAULT_ICON_LABEL_SIZE = 14;
-        /** Доля смещения к курсору за один sample (меньше — плавнее, больше — отзывчивее). */
+
         static PEN_SMOOTHING = 0.3;
         static PEN_MIN_POINT_DIST = 1.25;
         static PEN_MIN_STROKE_LENGTH = 1.5;
@@ -310,7 +310,7 @@
             try {
                 localStorage.setItem(TacticsCanvas.TOOL_PREFS_KEY, JSON.stringify(prefs));
             } catch (e) {
-                // storage unavailable
+
             }
         }
 
@@ -2114,9 +2114,6 @@
             const measureEl = canvasPanel || this.canvasEl?.closest('.tactics-map-column');
             if (!measureEl) return 640;
 
-            // Measure the full canvas panel, not the map column: the column shrink-wraps
-            // to the current map size while the panel is flex-centered, which caps growth
-            // on wide viewports and leaves the panel background visible around the map.
             const measureWidth = measureEl.clientWidth;
             const measureHeight = measureEl.clientHeight;
             if (measureWidth <= 0 || measureHeight <= 0) return null;
@@ -2307,9 +2304,7 @@
             if (!this.fabric || !displaySize) return;
             const ref = TacticsCanvas.COORD_SPACE;
             const cssSize = this.getCanvasCssSize(displaySize);
-            // Below coord space: shrink via viewport zoom, clip in the wrap.
-            // Above coord space: CSS size carries the scale; viewport zoom stays 1
-            // (otherwise zoom and CSS stretch stack and the map is cropped).
+
             const zoom = displaySize < ref ? displaySize / ref : 1;
             this.fabric.setZoom(zoom);
             if (typeof this.fabric.setDimensions === 'function') {
@@ -2883,7 +2878,7 @@
                         this.applyStrokeColor(hex, { selectCustom: true });
                     }
                 } catch (e) {
-                    // AbortError — пользователь отменил выбор
+
                 } finally {
                     this.eyedropperPickInFlight = false;
                     this.setEyedropperActive(false);
@@ -3054,7 +3049,7 @@
         }
 
         ensureRemoteStrokesLayer() {
-            // Live stroke previews are rendered as Fabric objects on the canvas.
+
         }
 
         clearRemoteStrokeFabricPreview(entry) {
@@ -4316,7 +4311,6 @@
             return this.getArrowInnerJoinInset(strokeWidth, headLen);
         }
 
-        /** Сдвиг вершины стрелки вперёд по ходу штриха (карандаш), чтобы скрыть круглый конец path. */
         getPenArrowTipForward(strokeWidth = this.getStrokeWidth()) {
             return Math.max(strokeWidth * 0.15, 1);
         }
@@ -4789,7 +4783,6 @@
             );
         }
 
-        /** @deprecated Используйте setLineCapTip; для fabric.Line canvasPointToLine давал неверные координаты. */
         canvasPointToLine(line, cx, cy) {
             const inv = fabric.util.invertTransform(line.calcTransformMatrix());
             return fabric.util.transformPoint(new fabric.Point(cx, cy), inv);

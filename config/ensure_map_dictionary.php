@@ -1,10 +1,6 @@
 <?php
 require_once __DIR__ . '/runtime_flags.php';
-/**
- * Создаёт таблицу map_dictionary, если её ещё нет (не нужно вручную импортировать SQL).
- *
- * @param Database $db
- */
+
 function ensure_map_dictionary_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -39,7 +35,7 @@ function ensure_map_dictionary_table($db) {
     try {
         $pdo->exec('ALTER TABLE map_dictionary ADD COLUMN display_name_en VARCHAR(255) NOT NULL DEFAULT \'\' AFTER display_name_ru');
     } catch (Throwable $e) {
-        // column already exists
+
     }
 
     $rowSide = $db->fetchOne(
@@ -53,11 +49,6 @@ function ensure_map_dictionary_table($db) {
     }
 }
 
-/**
- * Лёгкие миграции словаря карт для админки (без CHADOW_RUNTIME_SCHEMA_CHECKS).
- *
- * @param Database $db
- */
 function ensure_map_dictionary_admin_columns($db) {
     static $ensured = false;
     if ($ensured) {
@@ -86,6 +77,6 @@ function ensure_map_dictionary_admin_columns($db) {
             $pdo->exec('ALTER TABLE map_dictionary ADD COLUMN side_length INT UNSIGNED NULL DEFAULT NULL');
         }
     } catch (Throwable $e) {
-        // ignore — caller may surface DB error
+
     }
 }

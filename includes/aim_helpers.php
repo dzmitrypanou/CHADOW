@@ -297,9 +297,6 @@ function aim_normalize_metrics($metrics): ?string {
     return $encoded;
 }
 
-/**
- * @return array{success:bool,error?:string,entry?:array}
- */
 function aim_save_score($db, array $payload, ?int $userId = null): array {
     ensure_aim_scores_table($db);
 
@@ -356,9 +353,6 @@ function aim_save_score($db, array $payload, ?int $userId = null): array {
     return ['success' => true, 'entry' => $entry];
 }
 
-/**
- * @return array{success:bool,error?:string,items?:array,trainer?:string}
- */
 function aim_fetch_leaderboard($db, string $trainer, int $limit = 50, string $device = 'desktop'): array {
     ensure_aim_scores_table($db);
 
@@ -426,10 +420,6 @@ function aim_fetch_leaderboard($db, string $trainer, int $limit = 50, string $de
     ];
 }
 
-/**
- * @param array<int, string> $trainerIds
- * @return array<string, array<int, array<string, mixed>>>
- */
 function aim_fetch_mini_leaderboards($db, array $trainerIds, int $limit = 3, string $device = 'desktop'): array {
     $device = aim_normalize_device($device);
     $out = [];
@@ -446,10 +436,6 @@ function aim_fetch_mini_leaderboards($db, array $trainerIds, int $limit = 3, str
     return $out;
 }
 
-/**
- * @param array<int, string> $trainerIds
- * @return array{desktop: array<string, array<int, array<string, mixed>>>, mobile: array<string, array<int, array<string, mixed>>>}
- */
 function aim_fetch_mini_leaderboards_by_device($db, array $trainerIds, int $limit = 3): array {
     return [
         'desktop' => aim_fetch_mini_leaderboards($db, $trainerIds, $limit, 'desktop'),
@@ -480,9 +466,6 @@ function aim_error_message(string $code, string $lang = 'ru'): string {
     return $dict[$code] ?? $code;
 }
 
-/**
- * @return array{total:int, leaderboard_slots:int, last24h:int}
- */
 function aim_admin_fetch_stats($db): array {
     ensure_aim_scores_table($db);
 
@@ -504,9 +487,6 @@ function aim_admin_fetch_stats($db): array {
     }
 }
 
-/**
- * @return array{success:bool,error?:string,data?:array,stats?:array,pagination?:array}
- */
 function aim_admin_fetch_scores($db, array $filters = []): array {
     ensure_aim_scores_table($db);
 
@@ -725,9 +705,6 @@ function aim_admin_allocate_renamed_user_name(PDO $pdo): string {
     return $prefix . ($max + 1);
 }
 
-/**
- * @return array{success:bool,error?:string,old_name?:string,new_name?:string,updated?:int}
- */
 function aim_admin_rename_player($db, string $oldName): array {
     ensure_aim_scores_table($db);
 

@@ -2,11 +2,6 @@
 require_once __DIR__ . '/ensure_site_users.php';
 require_once __DIR__ . '/runtime_flags.php';
 
-/**
- * Доска объявлений «Рекрутинг».
- *
- * @param Database $db
- */
 function ensure_recruiting_posts_table($db) {
     static $ensured = false;
     if ($ensured) {
@@ -55,9 +50,6 @@ function ensure_recruiting_posts_table($db) {
     ensure_recruiting_posts_columns($pdo);
 }
 
-/**
- * @return array<string, true>
- */
 function recruiting_posts_existing_columns($pdo): array {
     $columns = [];
     try {
@@ -77,9 +69,6 @@ function recruiting_posts_existing_columns($pdo): array {
     return $columns;
 }
 
-/**
- * @return array<string, true>
- */
 function recruiting_posts_existing_indexes($pdo): array {
     $indexes = [];
     try {
@@ -99,11 +88,6 @@ function recruiting_posts_existing_indexes($pdo): array {
     return $indexes;
 }
 
-/**
- * Миграции для старых или неполных схем recruiting_posts.
- *
- * @param PDO $pdo
- */
 function ensure_recruiting_posts_columns($pdo): void {
     $columns = recruiting_posts_existing_columns($pdo);
     if ($columns === []) {
@@ -121,7 +105,7 @@ function ensure_recruiting_posts_columns($pdo): void {
             $pdo->exec('ALTER TABLE recruiting_posts ADD COLUMN ' . $column . ' ' . $definition);
             $columns[$column] = true;
         } catch (Throwable $e) {
-            // колонка уже есть
+
         }
     };
 
@@ -156,7 +140,7 @@ function ensure_recruiting_posts_columns($pdo): void {
             $pdo->exec('ALTER TABLE recruiting_posts ADD INDEX ' . $name . ' ' . $definition);
             $indexes[$name] = true;
         } catch (Throwable $e) {
-            // индекс уже есть
+
         }
     };
 
@@ -169,7 +153,7 @@ function ensure_recruiting_posts_columns($pdo): void {
     try {
         $pdo->exec("ALTER TABLE recruiting_posts MODIFY COLUMN realm ENUM('ru', 'eu', 'na', 'asia') NOT NULL");
     } catch (Throwable $e) {
-        // уже обновлено
+
     }
 
     try {
@@ -180,13 +164,13 @@ function ensure_recruiting_posts_columns($pdo): void {
             $pdo->exec('ALTER TABLE recruiting_posts MODIFY COLUMN contact TEXT NULL');
         }
     } catch (Throwable $e) {
-        // уже TEXT
+
     }
 
     try {
         $pdo->exec('ALTER TABLE recruiting_posts MODIFY COLUMN user_id INT UNSIGNED NULL');
     } catch (Throwable $e) {
-        // уже NULL
+
     }
 
     try {
@@ -197,6 +181,6 @@ function ensure_recruiting_posts_columns($pdo): void {
             $pdo->exec('ALTER TABLE recruiting_posts MODIFY COLUMN clan_tag VARCHAR(64) NULL');
         }
     } catch (Throwable $e) {
-        // уже расширено
+
     }
 }

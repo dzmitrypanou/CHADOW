@@ -1,9 +1,5 @@
 #!/bin/bash
-# Полная замена БД chadow подготовленным дампом deploy/chadow_import.sql
-#
-# Запуск на VPS:
-#   bash /var/www/chadow.ru/deploy/replace-db.sh
-#   bash /var/www/chadow.ru/deploy/replace-db.sh --user chadow --database chadow
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,7 +7,7 @@ SQL_FILE="${SQL_FILE:-$ROOT/deploy/chadow_import.sql}"
 DB_USER="${DB_USER:-chadow}"
 DB_NAME="${DB_NAME:-chadow}"
 
-while [ $# -gt 0 ]; do
+while [ $
     case "$1" in
         --user) DB_USER="$2"; shift 2 ;;
         --database) DB_NAME="$2"; shift 2 ;;

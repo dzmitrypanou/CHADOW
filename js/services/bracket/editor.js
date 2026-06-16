@@ -1228,7 +1228,7 @@
                 await navigator.clipboard.writeText(window.location.href);
                 toast(I18n.t('linkCopied'), 'success');
             } catch (e) {
-                // ignore
+
             }
         });
     }
