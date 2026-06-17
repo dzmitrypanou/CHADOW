@@ -78,13 +78,181 @@ function wotmods_download_exists(string $filename): bool
     return is_file(wotmods_download_root() . '/' . $filename);
 }
 
+function wotmods_battle_limit_version(): string
+{
+    return '1.0.20';
+}
+
+function wotmods_normalize_game_client(string $client): string
+{
+    $client = strtolower(trim($client));
+    if (in_array($client, ['wg', 'wargaming', 'worldoftanks', 'wot'], true)) {
+        return 'wot';
+    }
+
+    return 'lesta';
+}
+
+function wotmods_package_extension(string $client): string
+{
+    return wotmods_normalize_game_client($client) === 'wot' ? 'wotmod' : 'mtmod';
+}
+
+/**
+ * @param array<string, mixed> $mod
+ * @return list<string>
+ */
+function wotmods_mod_clients(array $mod): array
+{
+    $raw = $mod['clients'] ?? ['lesta', 'wot'];
+    if (!is_array($raw)) {
+        return ['lesta', 'wot'];
+    }
+
+    $clients = [];
+    foreach ($raw as $client) {
+        $normalized = wotmods_normalize_game_client((string) $client);
+        if ($normalized === 'wot' || $normalized === 'lesta') {
+            $clients[] = $normalized;
+        }
+    }
+
+    return $clients !== [] ? array_values(array_unique($clients)) : ['lesta', 'wot'];
+}
+
+function wotmods_mod_supports_client(array $mod, string $client): bool
+{
+    return in_array(wotmods_normalize_game_client($client), wotmods_mod_clients($mod), true);
+}
+
+function wotmods_install_package_file(string $modId, string $client): ?string
+{
+    $definition = wotmods_install_mod_definition($modId);
+    if ($definition === null) {
+        return null;
+    }
+
+    $version = (string) ($definition['version'] ?? '');
+    if ($version === '') {
+        return null;
+    }
+
+    $ext = wotmods_package_extension($client);
+
+    return 'chadow.battle-limit_' . $version . '.' . $ext;
+}
+
+/**
+ * @param list<string> $clients
+ */
+function wotmods_mod_clients_ordered(array $clients): array
+{
+    $clients = array_values(array_unique(array_map('wotmods_normalize_game_client', $clients)));
+    $order = ['lesta', 'wot'];
+    $result = [];
+    foreach ($order as $client) {
+        if (in_array($client, $clients, true)) {
+            $result[] = $client;
+        }
+    }
+    foreach ($clients as $client) {
+        if (!in_array($client, $result, true)) {
+            $result[] = $client;
+        }
+    }
+
+    return $result;
+}
+
+function wotmods_mod_version_label(string $lang = 'ru'): string
+{
+    return $lang === 'en' ? 'Mod version' : 'Версия мода';
+}
+
+function wotmods_mod_client_rows_html(array $clients, string $version, string $lang = 'ru'): string
+{
+    $clients = wotmods_mod_clients_ordered($clients);
+    if ($clients === []) {
+        return '';
+    }
+
+    $versionEsc = htmlspecialchars($version, ENT_QUOTES, 'UTF-8');
+    $versionLabel = htmlspecialchars(wotmods_mod_version_label($lang), ENT_QUOTES, 'UTF-8');
+    $rows = [];
+    $labels = [];
+    foreach ($clients as $client) {
+        $label = wotmods_game_client_label($client, $lang);
+        $labels[] = $label;
+        $labelEsc = htmlspecialchars($label, ENT_QUOTES, 'UTF-8');
+        $icon = htmlspecialchars(wotmods_game_client_icon($client), ENT_QUOTES, 'UTF-8');
+        $clientEsc = htmlspecialchars($client, ENT_QUOTES, 'UTF-8');
+        $rows[] = '<span class="wotmods-mod-item__client-row" data-wotmods-client="' . $clientEsc . '" title="' . $labelEsc . '">'
+            . '<span class="wotmods-mod-item__game">'
+            . '<img src="' . $icon . '" width="18" height="18" alt="' . $labelEsc . '" loading="lazy" decoding="async">'
+            . '</span>'
+            . '<span class="wotmods-mod-item__version">'
+            . '<span class="wotmods-mod-item__version-label" data-wotmods-version-label>' . $versionLabel . '</span> '
+            . '<span class="wotmods-mod-item__version-value">v' . $versionEsc . '</span>'
+            . '</span>'
+            . '</span>';
+    }
+
+    $aria = htmlspecialchars(implode(', ', $labels), ENT_QUOTES, 'UTF-8');
+
+    return '<span class="wotmods-mod-item__clients" aria-label="' . $aria . '">' . implode('', $rows) . '</span>';
+}
+
+/**
+ * @param array<string, mixed> $mod
+ */
+function wotmods_mod_usage_html(array $mod, string $lang = 'ru'): string
+{
+    $lines = $mod['usage'] ?? [];
+    if (!is_array($lines) || $lines === []) {
+        return '';
+    }
+
+    $title = (string) ($mod['usageTitle'] ?? ($lang === 'en' ? 'How to use' : 'Как пользоваться'));
+    $titleEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $items = [];
+    foreach ($lines as $line) {
+        $text = trim((string) $line);
+        if ($text === '') {
+            continue;
+        }
+        $items[] = '<li>' . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</li>';
+    }
+    if ($items === []) {
+        return '';
+    }
+
+    return '<div class="wotmods-mod-usage">'
+        . '<p class="wotmods-mod-usage__title">' . $titleEsc . '</p>'
+        . '<ul class="wotmods-mod-usage__list">' . implode('', $items) . '</ul>'
+        . '</div>';
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function wotmods_get_mod_by_id(string $id, string $lang = 'ru'): ?array
+{
+    foreach (wotmods_catalog($lang) as $mod) {
+        if ((string) ($mod['id'] ?? '') === $id) {
+            return $mod;
+        }
+    }
+
+    return null;
+}
+
 /**
  * @return list<array<string, mixed>>
  */
 function wotmods_catalog(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.20';
+    $version = wotmods_battle_limit_version();
 
     return [
         [
@@ -92,7 +260,7 @@ function wotmods_catalog(string $lang = 'ru'): array
             'slug' => 'battle-limit',
             'icon' => 'fa-hand-paper',
             'version' => $version,
-            'clients' => ['lesta', 'wg'],
+            'clients' => ['lesta', 'wot'],
             'title' => $isEn ? 'Battle button limiter (session)' : 'Блокировка кнопки «В бой» (сессионная)',
             'author' => 'Immortal_Emperor',
             'authorLabel' => $isEn ? 'Author:' : 'Автор:',
@@ -100,6 +268,22 @@ function wotmods_catalog(string $lang = 'ru'): array
             'short' => $isEn
                 ? 'Blocks the fight button after the selected number of battles per session. Set 0 to block completely.'
                 : 'Блокирует кнопку «В бой» после выбранного числа боёв за сессию. Выставьте 0, чтобы заблокировать полностью',
+            'usageTitle' => $isEn ? 'How to use' : 'Как пользоваться',
+            'usage' => $isEn
+                ? [
+                    'Restart the client after installation.',
+                    'Settings: Alt+Shift+M.',
+                    'Type the battle limit, then click Accept. 0 = block all random battles.',
+                    'Only random battles count. When the limit is reached, Fight is disabled for random.',
+                    'Reset clears the session battle counter.',
+                ]
+                : [
+                    'После установки перезапустите клиент.',
+                    'Настройки: Alt+Shift+M.',
+                    'Введите лимит боёв и нажмите «Принять». 0 — полная блокировка случайных боёв.',
+                    'Считаются только случайные бои. После лимита «В бой» для random недоступна.',
+                    'Кнопка «Сбросить» — обнулить счётчик сыгранных боёв.',
+                ],
             'configMarker' => 'mods/configs/chadow.battle_limit.json',
         ],
     ];
@@ -125,7 +309,7 @@ function wotmods_get_mod(string $slug, string $lang = 'ru'): ?array
 function wotmods_battle_limit_page(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.20';
+    $version = wotmods_battle_limit_version();
     $configFile = 'chadow.battle_limit.json';
     $resArchive = 'chadow.battle-limit-res.zip';
 
@@ -289,9 +473,13 @@ function wotmods_uninstall_spec_for_mod(string $modId): array
         $files[] = $configPath;
     }
 
-    $packageFile = (string) ($definition['packageFile'] ?? '');
-    if ($packageFile !== '') {
+    $packageFile = wotmods_install_package_file($modId, 'lesta');
+    if ($packageFile !== null) {
         $files[] = 'mods/{clientVersion}/' . $packageFile;
+    }
+    $packageFileWot = wotmods_install_package_file($modId, 'wot');
+    if ($packageFileWot !== null && $packageFileWot !== $packageFile) {
+        $files[] = 'mods/{clientVersion}/' . $packageFileWot;
     }
 
     $dirs = [];
@@ -404,10 +592,9 @@ function wotmods_install_mod_definition(string $modId): ?array
     $definitions = [
         'battle-limit' => [
             'id' => 'battle-limit',
-            'version' => '1.0.20',
+            'version' => wotmods_battle_limit_version(),
             'configGamePath' => 'mods/configs/chadow.battle_limit.json',
             'configFile' => 'chadow.battle_limit.json',
-            'packageFile' => 'chadow.battle-limit_1.0.20.mtmod',
         ],
     ];
 
@@ -417,7 +604,7 @@ function wotmods_install_mod_definition(string $modId): ?array
 /**
  * @return list<array<string, mixed>>
  */
-function wotmods_install_manifest_mods(?string $modId = null): array
+function wotmods_install_manifest_mods(?string $modId = null, ?string $client = null): array
 {
     if ($modId !== null && $modId !== '') {
         $ids = [$modId];
@@ -430,6 +617,10 @@ function wotmods_install_manifest_mods(?string $modId = null): array
             }
         }
     }
+
+    $targetClient = $client !== null && $client !== ''
+        ? wotmods_normalize_game_client($client)
+        : 'lesta';
     $mods = [];
 
     foreach ($ids as $id) {
@@ -438,19 +629,27 @@ function wotmods_install_manifest_mods(?string $modId = null): array
             continue;
         }
 
+        $catalogMod = wotmods_get_mod_by_id($id);
+        $supportedClients = $catalogMod !== null ? wotmods_mod_clients($catalogMod) : ['lesta', 'wot'];
+        $supported = in_array($targetClient, $supportedClients, true);
+
         $configFile = (string) ($definition['configFile'] ?? '');
-        $packageFile = (string) ($definition['packageFile'] ?? '');
+        $packageFile = $supported ? wotmods_install_package_file($id, $targetClient) : null;
         $mods[] = [
             'id' => $definition['id'],
             'version' => $definition['version'],
+            'client' => $targetClient,
+            'supportedClients' => $supportedClients,
+            'supported' => $supported,
+            'packageExtension' => wotmods_package_extension($targetClient),
             'configGamePath' => $definition['configGamePath'],
             'configUrl' => wotmods_download_exists($configFile)
                 ? wotmods_download_public_path($configFile)
                 : null,
-            'packageGamePath' => $packageFile !== ''
+            'packageGamePath' => $packageFile !== null
                 ? 'mods/{clientVersion}/' . $packageFile
                 : null,
-            'packageUrl' => ($packageFile !== '' && wotmods_download_exists($packageFile))
+            'packageUrl' => ($packageFile !== null && wotmods_download_exists($packageFile))
                 ? wotmods_download_public_path($packageFile)
                 : null,
             'uninstall' => wotmods_uninstall_spec_for_mod($id),

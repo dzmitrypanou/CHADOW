@@ -13,6 +13,8 @@
             statusNoManifest: 'Не удалось загрузить манифест установки.',
             statusNoConfig: 'Файл конфигурации недоступен на сервере.',
             statusNoPackage: 'Пакет мода недоступен на сервере.',
+            statusWrongGame: 'Мод не поддерживается для выбранной игры.',
+            statusPackageMismatch: 'Установлен пакет для другой игры. Будет заменён.',
             statusPermission: 'Нужен доступ на запись. Выберите папку снова и подтвердите доступ.',
             statusNoModsSelected: 'Отметьте хотя бы один мод.',
             statusNothingToInstall: 'Выбранные моды уже установлены в этой папке.',
@@ -20,7 +22,9 @@
             statusUpdated: 'Обновлено: {count}',
             badgeUpdate: 'Доступно обновление',
             gameMeta: '{game} · версия {version}',
-            folderPath: '\\{folder}',
+            folderPath: '{folder}',
+            folderPathEditPrompt: 'Укажите полный путь к папке игры:',
+            folderPathEditHint: 'Нажмите, чтобы указать полный путь',
             pickFolder: 'Выбрать',
             changeFolder: 'Изменить',
             folderPlaceholder: 'Папка игры не выбрана',
@@ -45,6 +49,8 @@
             statusNoManifest: 'Could not load install manifest.',
             statusNoConfig: 'Config file is not available on the server.',
             statusNoPackage: 'Mod package is not available on the server.',
+            statusWrongGame: 'This mod is not supported for the selected game.',
+            statusPackageMismatch: 'A package for the other game is installed. It will be replaced.',
             statusPermission: 'Write access is required. Select the folder again.',
             statusNoModsSelected: 'Select at least one mod.',
             statusNothingToInstall: 'Selected mods are already installed in this folder.',
@@ -52,7 +58,9 @@
             statusUpdated: 'Updated: {count}',
             badgeUpdate: 'Update available',
             gameMeta: '{game} · version {version}',
-            folderPath: '\\{folder}',
+            folderPath: '{folder}',
+            folderPathEditPrompt: 'Enter the full path to the game folder:',
+            folderPathEditHint: 'Click to enter the full path',
             pickFolder: 'Browse',
             changeFolder: 'Change',
             folderPlaceholder: 'No game folder selected',
@@ -168,35 +176,105 @@
         return version;
     }
 
+    function parseVersionXml(xml) {
+        const branchMatch = String(xml || '').match(/<branch>\s*([0-9]+\.[0-9]+)\s*<\/branch>/i);
+        const versionMatch = String(xml || '').match(/<version>\s*v?\.?\s*([0-9]+(?:\.[0-9]+){1,3})/i);
+        return {
+            branch: branchMatch ? branchMatch[1].trim() : null,
+            version: versionMatch ? versionMatch[1].trim() : null,
+        };
+    }
+
+    function folderMatchesBranch(folderVersion, branch) {
+        const folder = String(folderVersion || '').trim();
+        const branchPrefix = String(branch || '').trim();
+        if (!folder || !branchPrefix) return false;
+        return folder === branchPrefix || folder.startsWith(branchPrefix + '.');
+    }
+
+    function filterFoldersForBranch(folderVersions, branch, maxVersion) {
+        return folderVersions.filter((folderVersion) => {
+            if (!folderMatchesBranch(folderVersion, branch)) return false;
+            if (maxVersion && compareVersionsAsc(folderVersion, maxVersion) > 0) return false;
+            return true;
+        });
+    }
+
+    function resolveClientVersionFromXml(parsed, folderVersions) {
+        const uniqueFolders = [...new Set(folderVersions)];
+        const branch = parsed.branch;
+        const xmlVersion = parsed.version;
+
+        if (branch) {
+            const targetVersion = xmlVersion
+                ? normalizeGameVersion(xmlVersion, filterFoldersForBranch(uniqueFolders, branch, xmlVersion))
+                : null;
+            const eligible = filterFoldersForBranch(uniqueFolders, branch, targetVersion || xmlVersion);
+
+            if (targetVersion) {
+                if (eligible.includes(targetVersion)) return targetVersion;
+                const withinTarget = eligible
+                    .filter((folderVersion) => compareVersionsAsc(folderVersion, targetVersion) <= 0)
+                    .sort(compareVersionsDesc);
+                if (withinTarget.length) return withinTarget[0];
+                if (folderMatchesBranch(targetVersion, branch)) return targetVersion;
+            }
+
+            if (eligible.length) {
+                return eligible.sort(compareVersionsDesc)[0];
+            }
+
+            if (xmlVersion) {
+                const normalized = normalizeGameVersion(xmlVersion, uniqueFolders);
+                if (folderMatchesBranch(normalized, branch)) return normalized;
+            }
+
+            return branch + '.0.0';
+        }
+
+        if (xmlVersion) {
+            const targetVersion = normalizeGameVersion(xmlVersion, uniqueFolders);
+            const eligible = uniqueFolders.filter(
+                (folderVersion) => compareVersionsAsc(folderVersion, targetVersion) <= 0,
+            );
+            if (eligible.length) {
+                const exact = eligible.find((folderVersion) => folderVersion === targetVersion);
+                if (exact) return exact;
+                const prefixMatch = eligible
+                    .filter((folderVersion) => (
+                        folderVersion.startsWith(targetVersion + '.')
+                        || targetVersion.startsWith(folderVersion + '.')
+                    ))
+                    .sort(compareVersionsDesc);
+                if (prefixMatch.length) return prefixMatch[0];
+                return eligible.sort(compareVersionsDesc)[0];
+            }
+            return targetVersion;
+        }
+
+        if (uniqueFolders.length) {
+            return uniqueFolders.sort(compareVersionsDesc)[0];
+        }
+
+        return null;
+    }
+
     async function detectClientVersion(dirHandle) {
         const fromMods = await listVersionFolders(dirHandle, 'mods');
         const fromRes = await listVersionFolders(dirHandle, 'res_mods');
         const folderVersions = [...fromMods, ...fromRes];
 
-        let xmlVersion = null;
         if (await fileExists(dirHandle, 'version.xml')) {
             try {
                 const xml = await readTextFile(dirHandle, 'version.xml');
-                const match = xml.match(/<version>\s*v?\s*([0-9]+(?:\.[0-9]+){2,3})/i);
-                if (match) xmlVersion = match[1];
+                return resolveClientVersionFromXml(parseVersionXml(xml), folderVersions);
             } catch (error) {
                 /* fall through */
             }
         }
 
-        if (folderVersions.length) {
-            const sorted = [...folderVersions].sort(compareVersionsDesc);
-            const highestFolder = sorted[0];
-            if (xmlVersion) {
-                const normalizedXml = normalizeGameVersion(xmlVersion, folderVersions);
-                return compareVersionsAsc(normalizedXml, highestFolder) >= 0
-                    ? normalizedXml
-                    : highestFolder;
-            }
-            return highestFolder;
-        }
-
-        return xmlVersion ? normalizeGameVersion(xmlVersion, []) : null;
+        if (!folderVersions.length) return null;
+        return [...new Set(folderVersions)].sort(compareVersionsDesc)[0];
     }
 
     async function listRootExeNames(dirHandle) {
@@ -243,6 +321,105 @@
         }
 
         return 'lesta';
+    }
+
+    const FOLDER_PATH_CACHE_KEY = 'wotmods_folder_display_paths';
+
+    function normalizeWindowsPath(path) {
+        return String(path || '').trim().replace(/\//g, '\\');
+    }
+
+    async function tryGetHandlePath(handle) {
+        if (!handle) return '';
+        try {
+            const fn = handle.getPath;
+            if (typeof fn !== 'function') return '';
+            const result = fn.call(handle);
+            if (typeof result === 'string' && result.trim()) {
+                return normalizeWindowsPath(result);
+            }
+            if (result && typeof result.then === 'function') {
+                const resolved = await result;
+                if (typeof resolved === 'string' && resolved.trim()) {
+                    return normalizeWindowsPath(resolved);
+                }
+            }
+        } catch (error) {
+            return '';
+        }
+        return '';
+    }
+
+    function dirnameFromPath(path) {
+        const normalized = normalizeWindowsPath(path);
+        const index = normalized.lastIndexOf('\\');
+        if (index <= 0) return normalized;
+        return normalized.slice(0, index);
+    }
+
+    async function tryGetPathFromGameExe(dirHandle) {
+        const exeNames = ['Tanki.exe', 'WorldOfTanks.exe', 'worldoftanks.exe'];
+        for (const exeName of exeNames) {
+            try {
+                const fileHandle = await dirHandle.getFileHandle(exeName);
+                const fromHandle = await tryGetHandlePath(fileHandle);
+                if (fromHandle) {
+                    return dirnameFromPath(fromHandle);
+                }
+                const file = await fileHandle.getFile();
+                if (file && typeof file.path === 'string' && file.path.trim()) {
+                    return dirnameFromPath(file.path);
+                }
+            } catch (error) {
+                /* exe missing or unreadable */
+            }
+        }
+        return '';
+    }
+
+    function readCachedFolderPath(folderName, clientVersion) {
+        try {
+            const raw = localStorage.getItem(FOLDER_PATH_CACHE_KEY);
+            if (!raw) return '';
+            const data = JSON.parse(raw);
+            const key = String(folderName || '') + '::' + String(clientVersion || '');
+            const cached = data[key];
+            return typeof cached === 'string' ? normalizeWindowsPath(cached) : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function writeCachedFolderPath(folderName, clientVersion, path) {
+        const normalized = normalizeWindowsPath(path);
+        if (!normalized || !folderName) return;
+        try {
+            const raw = localStorage.getItem(FOLDER_PATH_CACHE_KEY);
+            const data = raw ? JSON.parse(raw) : {};
+            data[String(folderName) + '::' + String(clientVersion || '')] = normalized;
+            localStorage.setItem(FOLDER_PATH_CACHE_KEY, JSON.stringify(data));
+        } catch (error) {
+            /* ignore storage errors */
+        }
+    }
+
+    async function resolveDirectoryDisplayPath(dirHandle, clientVersion) {
+        const folderName = String(dirHandle?.name || '').trim();
+        if (!dirHandle || !folderName) return '';
+
+        let path = await tryGetHandlePath(dirHandle);
+        if (!path) {
+            path = await tryGetPathFromGameExe(dirHandle);
+        }
+        if (path) {
+            writeCachedFolderPath(folderName, clientVersion, path);
+            return path;
+        }
+
+        const cached = readCachedFolderPath(folderName, clientVersion);
+        if (cached) return cached;
+
+        return folderName;
     }
 
     async function getDirHandle(root, relativePath, create = false) {
@@ -329,6 +506,34 @@
 
     function catalogEntries() {
         return Array.isArray(window.WOTMODS_CATALOG) ? window.WOTMODS_CATALOG : [];
+    }
+
+    function normalizeGameClient(client) {
+        const value = String(client || '').toLowerCase();
+        if (value === 'wg' || value === 'wargaming' || value === 'worldoftanks' || value === 'wot') {
+            return 'wot';
+        }
+        return 'lesta';
+    }
+
+    function packageExtension(gameClient) {
+        return normalizeGameClient(gameClient) === 'wot' ? '.wotmod' : '.mtmod';
+    }
+
+    function modCatalogEntry(modId) {
+        return catalogEntries().find((mod) => String(mod.id) === modId) || null;
+    }
+
+    function modSupportedClients(modId) {
+        const entry = modCatalogEntry(modId);
+        if (!entry || !Array.isArray(entry.clients)) {
+            return ['lesta', 'wot'];
+        }
+        return [...new Set(entry.clients.map((client) => normalizeGameClient(client)))];
+    }
+
+    function modSupportsGameClient(modId, gameClient) {
+        return modSupportedClients(modId).includes(normalizeGameClient(gameClient));
     }
 
     let progressToastEl = null;
@@ -418,14 +623,15 @@
             this.gameTitleEl = document.getElementById('wotmodsGameTitle');
             this.gameIconEl = document.getElementById('wotmodsGameIcon');
             this.gameVersionEl = document.getElementById('wotmodsGameVersion');
-            this.folderPathEl = document.getElementById('wotmodsFolderPath');
             this.modItems = Array.from(document.querySelectorAll('.wotmods-mod-item'));
             this.modChecks = this.modItems.map((item) => item.querySelector('.wotmods-mod-item__check')).filter(Boolean);
             this.gameDir = null;
             this.gameLabel = '';
+            this.gameFolderPath = '';
             this.gameClient = 'lesta';
             this.clientVersion = '';
             this.manifest = null;
+            this.manifestClient = '';
             this.modInstallState = new Map();
             this.bind();
             this.init();
@@ -541,6 +747,7 @@
             return this.modItems
                 .filter((item) => {
                     if (item.classList.contains('is-installed-locked')) return false;
+                    if (item.classList.contains('is-unsupported')) return false;
                     const checkbox = item.querySelector('.wotmods-mod-item__check');
                     return checkbox && checkbox.checked;
                 })
@@ -573,6 +780,7 @@
                     const checkbox = item.querySelector('.wotmods-mod-item__check');
                     if (checkbox) checkbox.disabled = false;
                 });
+                this.applyModClientAvailability();
             }
             this.updateInstallButton();
         }
@@ -588,11 +796,17 @@
             if (this.gameVersionEl) {
                 this.gameVersionEl.textContent = this.clientVersion ? ('v' + this.clientVersion) : '';
             }
-            if (this.folderPathEl) {
-                const folderName = this.gameLabel || '—';
-                this.folderPathEl.textContent = t('folderPath', { folder: folderName });
-                this.folderPathEl.title = folderName;
-            }
+            this.updateModClientHighlight();
+        }
+
+        updateModClientHighlight() {
+            const activeClient = normalizeGameClient(this.gameClient);
+            const hasFolder = !!this.gameDir;
+            document.querySelectorAll('.wotmods-mod-item__client-row').forEach((row) => {
+                const rowClient = normalizeGameClient(row.getAttribute('data-wotmods-client') || '');
+                row.classList.toggle('is-active', hasFolder && rowClient === activeClient);
+                row.classList.toggle('is-inactive', hasFolder && rowClient !== activeClient);
+            });
         }
 
         setFolderContentInteractive(isInteractive) {
@@ -630,11 +844,11 @@
             }
             if (this.gameTitleEl) this.gameTitleEl.textContent = '';
             if (this.gameVersionEl) this.gameVersionEl.textContent = '';
-            if (this.folderPathEl) this.folderPathEl.textContent = '';
             if (this.resetBtn) this.resetBtn.hidden = true;
             if (this.pickBtnLabel) this.pickBtnLabel.textContent = t('pickFolder');
             this.setFolderContentInteractive(true);
             this.setModsLocked(true);
+            this.updateModClientHighlight();
             this.clearStatus();
             this.restoreActionButtons();
         }
@@ -642,11 +856,14 @@
         resetFolder() {
             this.gameDir = null;
             this.gameLabel = '';
+            this.gameFolderPath = '';
             this.clientVersion = '';
             this.gameClient = 'lesta';
+            this.manifest = null;
+            this.manifestClient = '';
             this.modInstallState.clear();
             this.modItems.forEach((item) => {
-                item.classList.remove('is-installed', 'is-installed-locked', 'is-selected', 'is-updatable');
+                item.classList.remove('is-installed', 'is-installed-locked', 'is-selected', 'is-updatable', 'is-unsupported');
                 const checkbox = item.querySelector('.wotmods-mod-item__check');
                 if (checkbox) {
                     checkbox.checked = false;
@@ -656,6 +873,8 @@
                 if (badge) badge.hidden = true;
                 const updateBadge = item.querySelector('[data-wotmods-update-badge]');
                 if (updateBadge) updateBadge.hidden = true;
+                const unsupportedBadge = item.querySelector('[data-wotmods-unsupported-badge]');
+                if (unsupportedBadge) unsupportedBadge.hidden = true;
             });
             this.showFolderEmpty();
             this.updateInstallButton();
@@ -684,15 +903,49 @@
             }
         }
 
+        applyModClientAvailability() {
+            this.modItems.forEach((item) => {
+                const modId = item.getAttribute('data-wotmods-mod-id') || '';
+                const supported = modSupportsGameClient(modId, this.gameClient);
+                item.classList.toggle('is-unsupported', !supported);
+                const unsupportedBadge = item.querySelector('[data-wotmods-unsupported-badge]');
+                if (unsupportedBadge) {
+                    unsupportedBadge.hidden = supported;
+                    if (!supported) {
+                        unsupportedBadge.title = t('statusWrongGame');
+                    }
+                }
+                const checkbox = item.querySelector('.wotmods-mod-item__check');
+                if (checkbox && !supported) {
+                    checkbox.checked = false;
+                    checkbox.disabled = true;
+                    item.classList.remove('is-selected');
+                }
+            });
+            this.updateInstallButton();
+        }
+
         async resolveModInstallState(modId, manifestMods) {
             const entry = catalogEntries().find((mod) => String(mod.id) === modId);
             const manifestMod = manifestMods.find((mod) => String(mod.id) === modId);
+            if (!modSupportsGameClient(modId, this.gameClient)) {
+                return {
+                    installed: false,
+                    upToDate: false,
+                    needsUpdate: false,
+                    unsupported: true,
+                    targetVersion: manifestMod ? String(manifestMod.version || entry?.version || '') : '',
+                    installedPackage: '',
+                    expectedPackage: '',
+                };
+            }
             const marker = entry ? String(entry.configMarker || '') : '';
             const targetVersion = manifestMod ? String(manifestMod.version || entry?.version || '') : '';
             const expectedPackage = manifestMod ? expectedPackageName(manifestMod) : '';
             const packagePath = manifestMod
                 ? formatTemplate(String(manifestMod.packageGamePath || ''), { clientVersion: this.clientVersion })
                 : '';
+            const expectedExt = packageExtension(this.gameClient).toLowerCase();
 
             let configExists = false;
             if (marker) {
@@ -723,8 +976,15 @@
                     primaryMarker,
                 );
                 if (found.length) {
-                    installedPackage = found.sort().pop();
-                    packageExists = true;
+                    const matching = found.filter((name) => name.toLowerCase().endsWith(expectedExt));
+                    const wrong = found.filter((name) => !name.toLowerCase().endsWith(expectedExt));
+                    if (matching.length) {
+                        installedPackage = matching.sort().pop();
+                        packageExists = true;
+                    } else if (wrong.length) {
+                        installedPackage = wrong.sort().pop();
+                        packageExists = true;
+                    }
                 }
             }
 
@@ -738,6 +998,7 @@
                 installed,
                 upToDate,
                 needsUpdate,
+                unsupported: false,
                 targetVersion,
                 installedPackage,
                 expectedPackage,
@@ -746,6 +1007,11 @@
 
         applyModInstallState(item, state) {
             const modId = item.getAttribute('data-wotmods-mod-id') || '';
+            if (!modSupportsGameClient(modId, this.gameClient)) {
+                this.modInstallState.set(modId, state);
+                this.applyModClientAvailability();
+                return;
+            }
             this.modInstallState.set(modId, state);
 
             const badge = item.querySelector('[data-wotmods-installed-badge]');
@@ -777,14 +1043,11 @@
         async scanInstalledMods() {
             if (!this.gameDir) return;
 
-            let manifestMods = this.manifest;
-            if (!manifestMods) {
-                try {
-                    manifestMods = await this.loadManifest();
-                    this.manifest = manifestMods;
-                } catch (error) {
-                    manifestMods = [];
-                }
+            let manifestMods;
+            try {
+                manifestMods = await this.loadManifest(true);
+            } catch (error) {
+                manifestMods = [];
             }
 
             await Promise.all(this.modItems.map(async (item) => {
@@ -792,6 +1055,7 @@
                 const state = await this.resolveModInstallState(modId, manifestMods);
                 this.applyModInstallState(item, state);
             }));
+            this.applyModClientAvailability();
             this.updateInstallButton();
         }
 
@@ -810,14 +1074,23 @@
             });
         }
 
-        async loadManifest() {
-            const response = await fetch('/api/wotmods/manifest', { credentials: 'same-origin' });
+        async loadManifest(force = false) {
+            const client = normalizeGameClient(this.gameClient);
+            if (!force && this.manifest && this.manifestClient === client) {
+                return this.manifest;
+            }
+            const response = await fetch(
+                '/api/wotmods/manifest?client=' + encodeURIComponent(client),
+                { credentials: 'same-origin' },
+            );
             if (!response.ok) throw new Error(t('statusNoManifest'));
             const data = await response.json();
             if (!data.ok || !Array.isArray(data.mods) || !data.mods.length) {
                 throw new Error(t('statusNoManifest'));
             }
-            return data.mods;
+            this.manifest = data.mods;
+            this.manifestClient = client;
+            return this.manifest;
         }
 
         buildChadowDeleteTargets(mods) {
@@ -909,7 +1182,10 @@
                 this.gameDir = dir;
                 this.gameLabel = dir.name;
                 this.clientVersion = version;
-                this.gameClient = await detectGameClient(dir);
+                this.gameClient = normalizeGameClient(await detectGameClient(dir));
+                this.gameFolderPath = await resolveDirectoryDisplayPath(dir, version);
+                this.manifest = null;
+                this.manifestClient = '';
                 this.clearStatus();
                 await this.scanInstalledMods();
                 this.showFolderReady();
@@ -1014,6 +1290,10 @@
             const skipped = [];
             const toInstall = [];
             selected.forEach((modId) => {
+                if (!modSupportsGameClient(modId, this.gameClient)) {
+                    skipped.push(modId);
+                    return;
+                }
                 const state = this.modInstallState.get(modId);
                 if (state && state.upToDate) {
                     skipped.push(modId);
@@ -1049,6 +1329,9 @@
 
                 for (const mod of mods) {
                     const modId = String(mod.id || '');
+                    if (mod.supported === false || !mod.packageUrl) {
+                        throw new Error(t('statusWrongGame'));
+                    }
                     const state = this.modInstallState.get(modId);
                     if (state && state.needsUpdate) updatedCount += 1;
 
@@ -1066,6 +1349,20 @@
                         );
                         if (!packageTarget) throw new Error(t('statusNoPackage'));
 
+                        const wrongExt = packageExtension(this.gameClient) === '.wotmod' ? '.mtmod' : '.wotmod';
+                        const markers = (mod.uninstall?.packageMarkers || []).map((m) => String(m).toLowerCase());
+                        const primaryMarker = markers[0] || 'chadow.battle-limit';
+                        const existingPackages = await listPackageFiles(
+                            this.gameDir,
+                            `mods/${this.clientVersion}`,
+                            primaryMarker,
+                        );
+                        for (const name of existingPackages) {
+                            if (name.toLowerCase().endsWith(wrongExt)) {
+                                await deleteRelativePath(this.gameDir, `mods/${this.clientVersion}/${name}`);
+                            }
+                        }
+
                         if (state && state.needsUpdate && state.installedPackage) {
                             const oldPackagePath = `mods/${this.clientVersion}/${state.installedPackage}`;
                             await deleteRelativePath(this.gameDir, oldPackagePath);
@@ -1081,7 +1378,8 @@
                 await this.scanInstalledMods();
                 const games = gameCatalog();
                 const gameLabel = (games[this.gameClient] || {}).label || this.gameLabel;
-                let successMessage = t('statusSuccess', { path: gameLabel + ' · v' + this.clientVersion });
+                const pathLabel = this.gameFolderPath || gameLabel;
+                let successMessage = t('statusSuccess', { path: pathLabel + ' · v' + this.clientVersion });
                 if (skipped.length) {
                     successMessage += ' ' + t('statusSkippedInstalled', { count: skipped.length });
                 }

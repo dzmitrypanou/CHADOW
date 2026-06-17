@@ -18876,6 +18876,11 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     text-overflow: ellipsis;
 }
 
+.wotmods-folder-picker.is-ready .wotmods-folder-picker__path.is-editable {
+    cursor: pointer;
+    text-decoration: underline dotted rgba(142, 203, 255, 0.45);
+}
+
 .wotmods-folder-picker__actions {
     display: flex;
     flex-direction: row;
@@ -19089,6 +19094,54 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     gap: 10px;
 }
 
+.wotmods-mod-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.wotmods-mod-usage {
+    margin-top: -1px;
+    padding: 10px 14px 12px;
+    border: 1px solid rgba(113, 163, 230, 0.2);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: rgba(8, 14, 28, 0.72);
+}
+
+.wotmods-mod-block:has(.wotmods-mod-item.is-selected) .wotmods-mod-usage {
+    border-color: rgba(100, 181, 246, 0.45);
+}
+
+.wotmods-mod-usage__title {
+    margin: 0 0 6px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(142, 203, 255, 0.78);
+}
+
+.wotmods-mod-usage__list {
+    margin: 0;
+    padding: 0 0 0 1.1rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgba(175, 200, 228, 0.82);
+}
+
+.wotmods-mod-usage__list li + li {
+    margin-top: 4px;
+}
+
+.wotmods-mod-block .wotmods-mod-item {
+    border-radius: 8px 8px 0 0;
+}
+
+.wotmods-mod-block:not(:has(.wotmods-mod-usage)) .wotmods-mod-item {
+    border-radius: 8px;
+}
+
 .wotmods-mod-item {
     position: relative;
     display: grid;
@@ -19221,10 +19274,81 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     flex-shrink: 0;
 }
 
+.wotmods-mod-item__clients {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.wotmods-mod-item__client-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.36;
+    filter: grayscale(0.9);
+    transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+.wotmods-mod-item__client-row.is-active {
+    opacity: 1;
+    filter: none;
+}
+
+.wotmods-mod-item__client-row.is-active .wotmods-mod-item__version-label,
+.wotmods-mod-item__client-row.is-active .wotmods-mod-item__version-value {
+    color: rgba(142, 203, 255, 0.95);
+}
+
+.wotmods-mod-item__client-row.is-inactive {
+    opacity: 0.36;
+    filter: grayscale(0.9);
+}
+
+.wotmods-mod-item__game img {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    object-fit: contain;
+}
+
+.wotmods-mod-item__unsupported {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: rgba(255, 160, 120, 0.95);
+    text-align: right;
+    max-width: 7rem;
+}
+
+.wotmods-mod-item.is-unsupported {
+    opacity: 0.62;
+    cursor: not-allowed;
+}
+
+.wotmods-mod-item.is-unsupported:hover {
+    border-color: rgba(113, 163, 230, 0.24);
+    background: rgba(12, 20, 38, 0.55);
+    box-shadow: none;
+}
+
 .wotmods-mod-item__version {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
     font-size: 0.72rem;
-    font-weight: 600;
-    color: rgba(142, 203, 255, 0.82);
+    white-space: nowrap;
+}
+
+.wotmods-mod-item__version-label {
+    font-weight: 500;
+    color: rgba(175, 200, 228, 0.62);
+    letter-spacing: 0.01em;
+}
+
+.wotmods-mod-item__version-value {
+    font-weight: 700;
+    color: rgba(142, 203, 255, 0.55);
     letter-spacing: 0.03em;
 }
 

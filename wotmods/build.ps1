@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Version
+    [string]$Version,
+
+    [string[]]$Extensions = @('mtmod', 'wotmod')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,10 +29,14 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $meta = (Get-Content (Join-Path $root 'meta.xml') -Raw -Encoding UTF8) -replace '\{\{VERSION\}\}', $Version
 Set-Content (Join-Path $build 'meta.xml') $meta -Encoding UTF8
 
-$outFile = Join-Path $outDir ("{0}_{1}.mtmod" -f $modName, $Version)
-if (Test-Path $outFile) { Remove-Item $outFile -Force }
+$built = @()
+foreach ($ext in $Extensions) {
+    $normalizedExt = $ext.Trim().TrimStart('.').ToLower()
+    if ($normalizedExt -eq '') { continue }
+    $outFile = Join-Path $outDir ("{0}_{1}.{2}" -f $modName, $Version, $normalizedExt)
+    if (Test-Path $outFile) { Remove-Item $outFile -Force }
 
-python -c @"
+    python -c @"
 import os, zipfile
 build = r'$build'
 out = r'$outFile'
@@ -43,3 +49,7 @@ with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_STORED) as z:
                 z.write(full, rel)
 print('Built', out)
 "@
+    $built += $outFile
+}
+
+Write-Output ('Built {0} package(s): {1}' -f $built.Count, ($built -join ', '))

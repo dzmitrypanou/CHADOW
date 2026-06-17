@@ -4,7 +4,7 @@
 
 **Сайт:** [chadow.ru](https://chadow.ru)  
 **Репозиторий:** [github.com/dzmitrypanou/chadow.ru](https://github.com/dzmitrypanou/chadow.ru)  
-**Версия:** 0.6.8 Obsidian
+**Версия:** 0.6.7 Uragan
 
 ## Сервисы
 

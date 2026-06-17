@@ -17,6 +17,8 @@
             modsHintReady: 'Отметьте моды и нажмите «Установить выбранные».',
             installed: 'Установлен',
             badgeUpdate: 'Доступно обновление',
+            modUnsupported: 'Не поддерживается',
+            modVersionLabel: 'Версия мода',
             installSelected: 'Установить выбранные',
         },
         en: {
@@ -34,6 +36,8 @@
             modsHintReady: 'Mark mods and click “Install selected”.',
             installed: 'Installed',
             badgeUpdate: 'Update available',
+            modUnsupported: 'Not supported',
+            modVersionLabel: 'Mod version',
             installSelected: 'Install selected',
         },
     };
@@ -115,6 +119,7 @@
             const descEl = item.querySelector('.wotmods-mod-item__desc');
             const badgeEl = item.querySelector('[data-wotmods-installed-badge]');
             const updateBadgeEl = item.querySelector('[data-wotmods-update-badge]');
+            const unsupportedBadgeEl = item.querySelector('[data-wotmods-unsupported-badge]');
             if (titleEl) titleEl.textContent = String(entry.title || '');
             if (authorLabelEl) {
                 authorLabelEl.textContent = String(
@@ -125,6 +130,30 @@
             if (descEl) descEl.textContent = String(entry.short || '');
             if (badgeEl) badgeEl.textContent = installedLabel;
             if (updateBadgeEl) updateBadgeEl.textContent = t('badgeUpdate');
+            if (unsupportedBadgeEl) unsupportedBadgeEl.textContent = t('modUnsupported');
+        });
+
+        document.querySelectorAll('.wotmods-mod-block[data-wotmods-mod-block]').forEach((block) => {
+            const modId = block.getAttribute('data-wotmods-mod-block') || '';
+            const entry = catalog.find((mod) => String(mod.id) === modId);
+            if (!entry) return;
+            const usageTitleEl = block.querySelector('.wotmods-mod-usage__title');
+            const usageListEl = block.querySelector('.wotmods-mod-usage__list');
+            if (usageTitleEl) {
+                usageTitleEl.textContent = String(
+                    entry.usageTitle || (getLang() === 'en' ? 'How to use' : 'Как пользоваться')
+                );
+            }
+            if (usageListEl && Array.isArray(entry.usage)) {
+                usageListEl.replaceChildren();
+                entry.usage.forEach((line) => {
+                    const text = String(line || '').trim();
+                    if (!text) return;
+                    const li = document.createElement('li');
+                    li.textContent = text;
+                    usageListEl.appendChild(li);
+                });
+            }
         });
     }
 
@@ -158,6 +187,9 @@
             modsHint.textContent = locked ? t('modsHintLocked') : t('modsHintReady');
         }
         if (installBtnLabel) installBtnLabel.textContent = t('installSelected');
+        document.querySelectorAll('[data-wotmods-version-label]').forEach((el) => {
+            el.textContent = t('modVersionLabel');
+        });
         updateModList();
     }
 

@@ -43,7 +43,6 @@ $meta = wotmods_hub_meta($lang);
                                                 <strong class="wotmods-folder-picker__game" id="wotmodsGameTitle"></strong>
                                                 <span class="wotmods-folder-picker__version" id="wotmodsGameVersion"></span>
                                             </div>
-                                            <p class="wotmods-folder-picker__path" id="wotmodsFolderPath"></p>
                                         </div>
                                     </div>
                                     <div class="wotmods-folder-picker__actions">
@@ -105,8 +104,11 @@ $meta = wotmods_hub_meta($lang);
                                     );
                                     $authorUrl = trim((string) ($mod['authorUrl'] ?? ''));
                                     $short = htmlspecialchars((string) ($mod['short'] ?? ''), ENT_QUOTES, 'UTF-8');
-                                    $version = htmlspecialchars((string) ($mod['version'] ?? ''), ENT_QUOTES, 'UTF-8');
+                                    $modClients = wotmods_mod_clients($mod);
+                                    $clientsHtml = wotmods_mod_client_rows_html($modClients, (string) ($mod['version'] ?? ''), $lang);
+                                    $usageHtml = wotmods_mod_usage_html($mod, $lang);
                                     ?>
+                                    <div class="wotmods-mod-block" data-wotmods-mod-block="<?php echo $modId; ?>">
                                     <label class="wotmods-mod-item" data-wotmods-mod-id="<?php echo $modId; ?>" role="listitem">
                                         <input type="checkbox" class="wotmods-mod-item__check" name="wotmods_selected[]" value="<?php echo $modId; ?>" disabled>
                                         <span class="wotmods-mod-item__icon" aria-hidden="true"><i class="fas <?php echo $icon; ?>"></i></span>
@@ -133,7 +135,12 @@ $meta = wotmods_hub_meta($lang);
                                             <span class="wotmods-mod-item__desc"><?php echo $short; ?></span>
                                         </span>
                                         <span class="wotmods-mod-item__meta">
-                                            <span class="wotmods-mod-item__version">v<?php echo $version; ?></span>
+                                            <?php if ($clientsHtml !== ''): ?>
+                                                <?php echo $clientsHtml; ?>
+                                            <?php endif; ?>
+                                            <span class="wotmods-mod-item__unsupported" hidden data-wotmods-unsupported-badge>
+                                                <?php echo $isEn ? 'Not supported' : 'Не поддерживается'; ?>
+                                            </span>
                                             <span class="wotmods-mod-item__installed" hidden data-wotmods-installed-badge>
                                                 <?php echo $isEn ? 'Installed' : 'Установлен'; ?>
                                             </span>
@@ -143,6 +150,10 @@ $meta = wotmods_hub_meta($lang);
                                         </span>
                                         <span class="wotmods-mod-item__tick" aria-hidden="true"><i class="fas fa-check"></i></span>
                                     </label>
+                                    <?php if ($usageHtml !== ''): ?>
+                                        <?php echo $usageHtml; ?>
+                                    <?php endif; ?>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         </div>
