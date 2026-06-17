@@ -17,14 +17,12 @@ def set_chadow_slot_mode(enabled):
     _chadow_slot_mode = bool(enabled)
 
 
-def counter_value(controller):
-    if controller is None:
-        return 0
-    if controller.hardBlockRandom:
-        return 0
-    if not controller.isActive():
-        return 0
-    return max(controller.battlesPlayed, 0)
+def counter_value(_controller):
+    return 0
+
+
+def referral_counter_value(_controller):
+    return 0
 
 
 def counter_label(controller):

@@ -3,10 +3,39 @@ from .text import to_scaleform, to_system_message, _as_unicode
 
 _MORE = '__more__'
 _CLOSE = '__close__'
-DIALOG_TITLE = u'CHADOW: Лимит боёв'
+DIALOG_TITLE = u'CHADOW: Лимит боёв (сессионный)'
 
 _settings_dialog_open = False
 _checkbox_dialog_patched = False
+_active_settings_dialog = None
+_reopening_settings_dialog = False
+
+
+def _close_active_settings_dialog():
+    global _active_settings_dialog
+    dialog = _active_settings_dialog
+    _active_settings_dialog = None
+    if dialog is None:
+        return
+    try:
+        dialog._chadow_dialog_handled = True
+    except Exception:
+        pass
+    try:
+        if hasattr(dialog, 'destroy'):
+            dialog.destroy()
+    except Exception:
+        pass
+
+
+def mark_settings_dialog_closed():
+    global _settings_dialog_open, _active_settings_dialog
+    _settings_dialog_open = False
+    _active_settings_dialog = None
+
+
+def is_settings_reopening():
+    return _reopening_settings_dialog
 
 
 def _patch_checkbox_dialog():
@@ -14,13 +43,24 @@ def _patch_checkbox_dialog():
     if _checkbox_dialog_patched:
         return
     try:
-        from gui.Scaleform.daapi.view.dialogs import CheckBoxDialog
-    except Exception:
-        return
+        from gui.Scaleform.daapi.view.dialogs.CheckBoxDialog import CheckBoxDialog as CheckBoxDialogView
+    except ImportError:
+        try:
+            import gui.Scaleform.daapi.view.dialogs.CheckBoxDialog as _checkbox_module
+            CheckBoxDialogView = _checkbox_module.CheckBoxDialog
+        except Exception:
+            return
 
-    _orig_call_handler = CheckBoxDialog._callHandler
-    _orig_on_window_close = CheckBoxDialog.onWindowClose
-    _orig_submit = CheckBoxDialog.submit
+    _orig_call_handler = CheckBoxDialogView._callHandler
+    _orig_on_window_close = CheckBoxDialogView.onWindowClose
+    _orig_submit = CheckBoxDialogView.submit
+    _orig_init = CheckBoxDialogView.__init__
+
+    def __init__(self, meta, handler):
+        _orig_init(self, meta, handler)
+        global _active_settings_dialog
+        if _settings_dialog_open:
+            _active_settings_dialog = self
 
     def _call_handler(self, success, selected):
         if _settings_dialog_open:
@@ -31,39 +71,47 @@ def _patch_checkbox_dialog():
         _orig_call_handler(self, success, selected)
 
     def on_window_close(self):
+        global _active_settings_dialog
+        if getattr(self, '_chadow_dialog_handled', False):
+            try:
+                self.destroy()
+            except Exception:
+                pass
+            if _active_settings_dialog is self:
+                _active_settings_dialog = None
+            return
         if _settings_dialog_open:
             if self.handler:
                 self.handler(('close', self.meta.getCheckBoxSelected()))
+            self._chadow_dialog_handled = True
+            if _active_settings_dialog is self:
+                _active_settings_dialog = None
             self.destroy()
             return
         _orig_on_window_close(self)
 
     def submit(self, selected):
         if _settings_dialog_open:
+            self._chadow_dialog_handled = True
             if self.handler:
                 self.handler(('accept', selected))
-            self.destroy()
             return
         _orig_submit(self, selected)
 
     def cancel(self, selected):
         if _settings_dialog_open:
+            self._chadow_dialog_handled = True
             if self.handler:
                 self.handler(('reset', selected))
-            self.destroy()
             return
         on_window_close(self)
 
-    CheckBoxDialog._callHandler = _call_handler
-    CheckBoxDialog.onWindowClose = on_window_close
-    CheckBoxDialog.submit = submit
-    CheckBoxDialog.cancel = cancel
+    CheckBoxDialogView.__init__ = __init__
+    CheckBoxDialogView._callHandler = _call_handler
+    CheckBoxDialogView.onWindowClose = on_window_close
+    CheckBoxDialogView.submit = submit
+    CheckBoxDialogView.cancel = cancel
     _checkbox_dialog_patched = True
-
-
-def mark_settings_dialog_closed():
-    global _settings_dialog_open
-    _settings_dialog_open = False
 
 
 def _make_buttons(submit_label, close_label):
@@ -139,6 +187,28 @@ except Exception:
     _HAS_CHECKBOX_DIALOG = False
 
 
+def schedule_settings_dialog_reopen(callback, close_active=False):
+    global _reopening_settings_dialog
+    _reopening_settings_dialog = True
+    if close_active:
+        _close_active_settings_dialog()
+        mark_settings_dialog_closed()
+
+    def _run_settings_dialog_reopen():
+        global _reopening_settings_dialog
+        _reopening_settings_dialog = False
+        try:
+            callback()
+        except Exception as error:
+            print('[chadow.battle_limit] settings dialog reopen failed: %s' % error)
+
+    try:
+        import BigWorld
+        BigWorld.callback(0.08, _run_settings_dialog_reopen)
+    except Exception:
+        _run_settings_dialog_reopen()
+
+
 def show_confirm(title, message, buttons, handler, on_cancel=None):
     if len(buttons) < 1:
         return False
@@ -189,7 +259,7 @@ def show_confirm(title, message, buttons, handler, on_cancel=None):
 
 def show_settings_dialog(title, message, submit_label, cancel_label, checkbox_label,
                          checkbox_selected, handler, on_dismiss=None):
-    global _settings_dialog_open
+    global _settings_dialog_open, _reopening_settings_dialog
 
     def _dispatch(action, selected):
         handler(action, bool(selected))
@@ -207,6 +277,7 @@ def show_settings_dialog(title, message, submit_label, cancel_label, checkbox_la
         )
 
     _patch_checkbox_dialog()
+    _close_active_settings_dialog()
     _settings_dialog_open = True
 
     meta = ChadowSettingsDialogMeta(

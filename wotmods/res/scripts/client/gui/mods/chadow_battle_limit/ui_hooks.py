@@ -12,6 +12,7 @@ from .battle_limit_button import (
     counter_value,
     is_chadow_slot_mode,
     open_settings,
+    referral_counter_value,
     set_chadow_slot_mode,
 )
 from .text import to_scaleform
@@ -21,7 +22,6 @@ _patches = []
 _messenger_bar = None
 _refresh_callback = None
 _compare_basket = None
-_settings_badge_active = False
 
 
 def _get_controller():
@@ -66,8 +66,22 @@ def _compare_cart_busy():
     return False
 
 
-def _should_use_chadow_slot():
+def _should_use_compare_slot():
     return not _compare_cart_busy()
+
+
+def _native_referral_enabled(bar=None):
+    bar = bar or _messenger_bar or _find_messenger_bar()
+    if bar is None:
+        return False
+    try:
+        return bool(bar._MessengerBar__isReferralProgramGUIEnabled())
+    except Exception:
+        return False
+
+
+def _use_referral_chadow_slot(bar=None):
+    return not _native_referral_enabled(bar)
 
 
 def _find_hangar_component(alias):
@@ -145,34 +159,87 @@ def _refresh_compare_slot_button():
         return False
 
 
+def _refresh_referral_chadow_button(bar, controller):
+    if bar is None or controller is None:
+        return
+    try:
+        from gui.impl import backport
+        from gui import makeTooltip
+        from gui.Scaleform.locale.RES_ICONS import R
+
+        icon = backport.image(R.images.gui.maps.icons.messenger.iconSettings)
+        tooltip = makeTooltip(
+            backport.text(u'CHADOW: Лимит боёв'),
+            backport.text(u'Alt+Shift+M — настройки'),
+        )
+        bar.as_setInitDataS({
+            'isReferralEnabled': True,
+            'referralHtmlIcon': icon,
+            'referralCounter': referral_counter_value(controller),
+            'referralTooltip': tooltip,
+            'isReferralScoresLimitIndication': bool(
+                controller.hardBlockRandom
+                or (controller.isActive() and controller.isLimitReached())
+            ),
+        })
+    except Exception:
+        pass
+    try:
+        bar.as_setReferralProgramButtonVisibleS(True)
+    except Exception:
+        pass
+    try:
+        bar.as_setReferralBtnCounterS(referral_counter_value(controller))
+    except Exception:
+        pass
+    try:
+        bar.as_setReferralBtnLimitIndicationS(bool(
+            controller.hardBlockRandom
+            or (controller.isActive() and controller.isLimitReached())
+        ))
+    except Exception:
+        pass
+
+
+def _clear_session_stats_badge(bar):
+    if bar is None:
+        return
+    try:
+        if hasattr(bar, 'as_setSessionStatsButtonSettingsUpdateS'):
+            bar.as_setSessionStatsButtonSettingsUpdateS(False, to_scaleform(u''))
+    except Exception:
+        pass
+
+
 def refresh_widget():
-    global _messenger_bar, _settings_badge_active
+    global _messenger_bar
     controller = _get_controller()
     if controller is None:
         return
 
-    use_chadow_slot = _should_use_chadow_slot()
-    set_chadow_slot_mode(use_chadow_slot)
-
     bar = _messenger_bar or _find_messenger_bar()
     if bar is not None:
         _messenger_bar = bar
-        badge_text = to_scaleform(ui.format_button_value(controller))
-        show_badge = controller.isActive() or controller.hardBlockRandom
-        _settings_badge_active = show_badge
-        try:
-            if hasattr(bar, 'as_setSessionStatsButtonSettingsUpdateS'):
-                bar.as_setSessionStatsButtonSettingsUpdateS(show_badge, badge_text)
-        except Exception:
-            pass
-        if use_chadow_slot:
+
+    use_referral_slot = _use_referral_chadow_slot(bar)
+    use_compare_slot = _should_use_compare_slot() and not use_referral_slot
+    set_chadow_slot_mode(use_compare_slot)
+
+    if bar is not None:
+        if use_referral_slot:
+            _clear_session_stats_badge(bar)
+            _refresh_referral_chadow_button(bar, controller)
+        else:
+            _clear_session_stats_badge(bar)
+
+        if use_compare_slot:
             try:
                 if hasattr(bar, 'as_setVehicleCompareCartButtonVisibleS'):
                     bar.as_setVehicleCompareCartButtonVisibleS(True)
             except Exception:
                 pass
 
-    if not _refresh_registered_button():
+    if not _refresh_registered_button() and use_compare_slot:
         _refresh_compare_slot_button()
 
 
@@ -184,9 +251,34 @@ def _populate_patch(self, original, *args, **kwargs):
     return result
 
 
+def _update_init_data_patch(self, original, *args, **kwargs):
+    result = original(self, *args, **kwargs)
+    if _use_referral_chadow_slot(self):
+        _refresh_referral_chadow_button(self, _get_controller())
+    return result
+
+
+def _referral_visibility_patch(self, original, *args, **kwargs):
+    result = original(self, *args, **kwargs)
+    if _use_referral_chadow_slot(self):
+        try:
+            self.as_setReferralProgramButtonVisibleS(True)
+        except Exception:
+            pass
+        refresh_widget()
+    return result
+
+
+def _referral_click_patch(self, original, *args, **kwargs):
+    if _use_referral_chadow_slot(self):
+        open_settings(self)
+        return
+    return original(self, *args, **kwargs)
+
+
 def _update_btn_visibility_patch(self, original, *args, **kwargs):
     result = original(self, *args, **kwargs)
-    if _should_use_chadow_slot():
+    if _should_use_compare_slot() and not _use_referral_chadow_slot():
         try:
             view = getattr(self, '_CompareBasketListener__view', None)
             if view is not None and hasattr(view, 'as_setVehicleCompareCartButtonVisibleS'):
@@ -209,14 +301,14 @@ def _compare_state_patch(self, original, *args, **kwargs):
 
 
 def _compare_count_patch(self, original, count, *args, **kwargs):
-    if is_chadow_slot_mode() and _should_use_chadow_slot():
+    if is_chadow_slot_mode() and _should_use_compare_slot():
         controller = _get_controller()
         return original(self, counter_value(controller))
     return original(self, count)
 
 
 def _open_compare_popover_patch(self, original, *args, **kwargs):
-    if is_chadow_slot_mode() and _should_use_chadow_slot():
+    if is_chadow_slot_mode() and _should_use_compare_slot():
         open_settings(self)
         return
     return original(self, *args, **kwargs)
@@ -254,7 +346,7 @@ def _cancel_refresh_loop():
 def _install_view_settings():
     try:
         import gui.Scaleform.daapi.view.lobby.messengerBar as messenger_bar_pkg
-        from gui.Scaleform.genConsts.SESSION_STATS_CONSTANTS import SESSION_STATS_CONSTANTS
+        from gui.Scaleform.daapi.settings.views import VIEW_ALIAS
         from gui.Scaleform.framework import ComponentSettings, ScopeTemplates
     except Exception as error:
         print('%s view settings hook skipped: %s' % (TAG, error))
@@ -273,7 +365,7 @@ def _install_view_settings():
             )
             for index, item in enumerate(settings):
                 alias = getattr(item, 'alias', None)
-                if alias == SESSION_STATS_CONSTANTS.SESSION_STATS_BUTTON_ALIAS:
+                if alias == VIEW_ALIAS.VEHICLE_COMPARE_CART_BUTTON:
                     settings.insert(index, chadow_settings)
                     break
             else:
@@ -308,6 +400,16 @@ def _install_messenger_bar():
 
         patched = False
         if _patch_method(cls, '_populate', _populate_patch):
+            patched = True
+        if _patch_method(cls, '_MessengerBar__updateInitData', _update_init_data_patch):
+            patched = True
+        if _patch_method(cls, 'referralButtonClick', _referral_click_patch):
+            patched = True
+        if _patch_method(cls, '_MessengerBar__onReferralProgramEnabled', _referral_visibility_patch):
+            patched = True
+        if _patch_method(cls, '_MessengerBar__onReferralProgramDisabled', _referral_visibility_patch):
+            patched = True
+        if _patch_method(cls, '_MessengerBar__onReferralProgramUpdated', _referral_visibility_patch):
             patched = True
         if _patch_method(cls, 'as_openVehicleCompareCartPopoverS', _open_compare_popover_patch):
             patched = True
@@ -354,7 +456,7 @@ def install():
 
 
 def uninstall():
-    global _messenger_bar, _settings_badge_active
+    global _messenger_bar
     _cancel_refresh_loop()
     g_eventBus.removeListener(
         events.FightButtonEvent.FIGHT_BUTTON_UPDATE,
@@ -372,5 +474,4 @@ def uninstall():
             setattr(cls, method_name, original)
     del _patches[:]
     _messenger_bar = None
-    _settings_badge_active = False
     set_chadow_slot_mode(False)

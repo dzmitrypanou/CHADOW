@@ -89,7 +89,7 @@ def configPath():
 def _defaults():
     return {
         'enabled': True,
-        'maxBattles': 5,
+        'maxBattles': 0,
         'battlesPlayed': 0,
         'showNotifications': True,
         'randomOnly': True,

@@ -31,12 +31,12 @@ def is_settings_active():
 
 def _initial_draft(controller):
     if controller is None:
-        return u''
+        return u'0'
     if controller.hardBlockRandom:
         return u'0'
     if controller.isActive():
         return unicode(controller.maxBattles)
-    return u''
+    return u'0'
 
 
 def _draft_display():
@@ -77,7 +77,6 @@ def _settings_message(controller):
         u'',
         u'Боёв за сессию (0=блок):  [ %s ]' % _draft_display(),
         u'Введите цифры на клавиатуре, затем нажмите «Принять».',
-        u'Сброс счётчика: кнопка «Сбросить» или Alt+Shift+R.',
     ])
 
 
@@ -122,23 +121,19 @@ def _close_settings_state():
     ui_dialogs.mark_settings_dialog_closed()
 
 
-def _schedule_settings_refresh(controller):
+def _schedule_settings_reopen(controller, keep_draft=False):
     global _settings_refreshing
     if _settings_refreshing:
         return
     _settings_refreshing = True
-    try:
-        import BigWorld
-        BigWorld.callback(0.05, lambda: _reopen_settings(controller))
-    except Exception:
-        _reopen_settings(controller)
 
+    def _reopen():
+        global _settings_refreshing
+        _settings_refreshing = False
+        if _settings_active and controller is not None:
+            _open_settings_scaleform(controller, keep_draft=keep_draft)
 
-def _reopen_settings(controller):
-    global _settings_refreshing
-    _settings_refreshing = False
-    if _settings_active and controller is not None:
-        _open_settings_scaleform(controller, keep_draft=True)
+    ui_dialogs.schedule_settings_dialog_reopen(_reopen, close_active=True)
 
 
 def handle_settings_key(controller, event):
@@ -156,12 +151,12 @@ def handle_settings_key(controller, event):
     if key == Keys.KEY_R and event.isAltDown() and event.isShiftDown():
         controller.resetCounter(notify=True)
         refresh_hangar_widget()
-        _open_settings_scaleform(controller, keep_draft=False)
+        _schedule_settings_reopen(controller, keep_draft=False)
         return True
 
     if key in (Keys.KEY_BACKSPACE, Keys.KEY_DELETE):
         _draft_limit = _draft_limit[:-1]
-        _schedule_settings_refresh(controller)
+        _schedule_settings_reopen(controller, keep_draft=True)
         return True
 
     top_digits = (
@@ -172,7 +167,7 @@ def handle_settings_key(controller, event):
         if len(_draft_limit) >= 3:
             return True
         _draft_limit += unicode(top_digits.index(key))
-        _schedule_settings_refresh(controller)
+        _schedule_settings_reopen(controller, keep_draft=True)
         return True
 
     for digit in range(10):
@@ -181,7 +176,7 @@ def handle_settings_key(controller, event):
             if len(_draft_limit) >= 3:
                 return True
             _draft_limit += unicode(digit)
-            _schedule_settings_refresh(controller)
+            _schedule_settings_reopen(controller, keep_draft=True)
             return True
 
     return False
@@ -200,12 +195,12 @@ def _open_settings_scaleform(controller, keep_draft=False):
     _settings_active = True
 
     def _on_dismiss():
-        if not _settings_refreshing:
+        if not _settings_refreshing and not ui_dialogs.is_settings_reopening():
             _close_settings_state()
 
     def _handle(action, notifications_enabled):
         global _draft_notifications
-        if _settings_refreshing:
+        if _settings_refreshing or ui_dialogs.is_settings_reopening():
             return
 
         _draft_notifications = bool(notifications_enabled)
@@ -218,17 +213,17 @@ def _open_settings_scaleform(controller, keep_draft=False):
             else:
                 controller.disableLimits(notify=True)
             refresh_hangar_widget()
-            _open_settings_scaleform(controller, keep_draft=False)
+            _schedule_settings_reopen(controller, keep_draft=False)
             return
 
         if action == 'reset':
             controller.setShowNotifications(_draft_notifications, notify=False)
             controller.resetCounter(notify=True)
             refresh_hangar_widget()
-            _open_settings_scaleform(controller, keep_draft=False)
+            _schedule_settings_reopen(controller, keep_draft=False)
             return
 
-        if _settings_refreshing:
+        if _settings_refreshing or ui_dialogs.is_settings_reopening():
             return
 
         _close_settings_state()

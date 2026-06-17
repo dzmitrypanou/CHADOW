@@ -84,7 +84,7 @@ function wotmods_download_exists(string $filename): bool
 function wotmods_catalog(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.14';
+    $version = '1.0.20';
 
     return [
         [
@@ -93,7 +93,7 @@ function wotmods_catalog(string $lang = 'ru'): array
             'icon' => 'fa-hand-paper',
             'version' => $version,
             'clients' => ['lesta', 'wg'],
-            'title' => $isEn ? 'Battle button limiter' : 'Блокировка кнопки «В бой»',
+            'title' => $isEn ? 'Battle button limiter (session)' : 'Блокировка кнопки «В бой» (сессионная)',
             'author' => 'Immortal_Emperor',
             'authorLabel' => $isEn ? 'Author:' : 'Автор:',
             'authorUrl' => 'https://tanki.su/ru/community/accounts/282194247',
@@ -125,7 +125,7 @@ function wotmods_get_mod(string $slug, string $lang = 'ru'): ?array
 function wotmods_battle_limit_page(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.14';
+    $version = '1.0.20';
     $configFile = 'chadow.battle_limit.json';
     $resArchive = 'chadow.battle-limit-res.zip';
 
@@ -207,8 +207,8 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
         'slug' => 'battle-limit',
         'version' => $version,
         'icon' => 'fa-hand-paper',
-        'title' => $isEn ? 'Battle button limiter' : 'Блокировка кнопки «В бой»',
-        'metaTitle' => $isEn ? 'Battle button limiter mod' : 'Мод: блокировка кнопки «В бой»',
+        'title' => $isEn ? 'Battle button limiter (session)' : 'Блокировка кнопки «В бой» (сессионная)',
+        'metaTitle' => $isEn ? 'Battle button limiter mod (session)' : 'Мод: блокировка кнопки «В бой» (сессионная)',
         'desc' => $isEn
             ? 'Limits how many battles you can queue per session. When the limit is reached, the fight button is disabled until you reset the counter or raise the limit.'
             : 'Ограничивает число боёв за сессию. Когда лимит достигнут, кнопка «В бой» блокируется, пока не сбросите счётчик или не увеличите лимит.',
@@ -241,7 +241,7 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
         'downloads' => $downloads,
         'hotkeys' => $hotkeys,
         'configFields' => $configFields,
-        'configSample' => "{\n  \"enabled\": true,\n  \"maxBattles\": 5,\n  \"battlesPlayed\": 0,\n  \"showNotifications\": true,\n  \"randomOnly\": true,\n  \"hardBlockRandom\": false\n}",
+        'configSample' => "{\n  \"enabled\": true,\n  \"maxBattles\": 0,\n  \"battlesPlayed\": 0,\n  \"showNotifications\": true,\n  \"randomOnly\": true,\n  \"hardBlockRandom\": false\n}",
     ];
 }
 
@@ -404,10 +404,10 @@ function wotmods_install_mod_definition(string $modId): ?array
     $definitions = [
         'battle-limit' => [
             'id' => 'battle-limit',
-            'version' => '1.0.14',
+            'version' => '1.0.20',
             'configGamePath' => 'mods/configs/chadow.battle_limit.json',
             'configFile' => 'chadow.battle_limit.json',
-            'packageFile' => 'chadow.battle-limit_1.0.14.mtmod',
+            'packageFile' => 'chadow.battle-limit_1.0.20.mtmod',
         ],
     ];
 
