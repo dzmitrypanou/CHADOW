@@ -1,0 +1,10 @@
+# Временные и локальные артефакты
+_wot-src-tmp/
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Сборка мода (генерируется build.bat)
+wotmods/build/
+wotmods/*.mtmod

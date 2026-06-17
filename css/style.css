@@ -18503,3 +18503,320 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
         width: 100%;
     }
 }
+
+/* WoT mods installation service */
+.page-wotmods {
+    --wotmods-accent: #8ecbff;
+}
+
+.page-wotmods .header {
+    margin-bottom: 0;
+}
+
+.page-wotmods .container {
+    max-width: 1080px;
+}
+
+.page-wotmods footer {
+    margin-top: 28px;
+}
+
+.wotmods-service {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 18px 0 8px;
+}
+
+.wotmods-service-header.checkers-panel {
+    padding: 16px 20px;
+}
+
+.wotmods-list-section {
+    padding: 20px 24px;
+}
+
+.wotmods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
+    gap: 18px;
+}
+
+.wotmods-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+    padding: 18px 18px 16px;
+    border: 1px solid rgba(113, 163, 230, 0.28);
+    background: linear-gradient(165deg, rgba(24, 36, 68, 0.92) 0%, rgba(12, 20, 38, 0.88) 52%, rgba(8, 14, 28, 0.94) 100%);
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    isolation: isolate;
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.wotmods-card:hover {
+    border-color: rgba(100, 181, 246, 0.58);
+    box-shadow: 0 14px 36px rgba(20, 60, 120, 0.28);
+    transform: translateY(-3px);
+}
+
+.wotmods-card__watermark {
+    position: absolute;
+    right: -8px;
+    bottom: -16px;
+    font-size: 5.5rem;
+    line-height: 1;
+    color: rgba(142, 203, 255, 0.06);
+    pointer-events: none;
+    transform: rotate(-8deg);
+    z-index: 0;
+}
+
+.wotmods-card__head,
+.wotmods-card__body,
+.wotmods-card__footer {
+    position: relative;
+    z-index: 1;
+}
+
+.wotmods-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.wotmods-card__version {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(142, 203, 255, 0.82);
+}
+
+.wotmods-card__title {
+    margin: 0 0 8px;
+    font-size: 1.08rem;
+    line-height: 1.3;
+    color: #f2f7ff;
+}
+
+.wotmods-card__desc {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: rgba(214, 228, 248, 0.82);
+}
+
+.wotmods-card__footer {
+    margin-top: auto;
+    padding-top: 16px;
+}
+
+.wotmods-card__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--wotmods-accent);
+}
+
+.wotmods-card:hover .wotmods-card__action {
+    color: #fff;
+}
+
+.wotmods-detail__badges {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.wotmods-detail__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.wotmods-detail-section {
+    padding: 18px 22px;
+}
+
+.wotmods-detail-section--split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.wotmods-detail__heading {
+    margin: 0 0 12px;
+    font-size: 1rem;
+    color: #f2f7ff;
+}
+
+.wotmods-detail__list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: rgba(214, 228, 248, 0.88);
+    line-height: 1.55;
+}
+
+.wotmods-detail__list li + li {
+    margin-top: 6px;
+}
+
+.wotmods-detail__note {
+    margin: 14px 0 0;
+    padding: 10px 12px;
+    border-left: 3px solid rgba(100, 181, 246, 0.55);
+    background: rgba(12, 22, 42, 0.55);
+    color: rgba(214, 228, 248, 0.78);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.wotmods-detail__steps {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: rgba(214, 228, 248, 0.9);
+    line-height: 1.55;
+}
+
+.wotmods-detail__steps li + li {
+    margin-top: 8px;
+}
+
+.wotmods-downloads {
+    display: grid;
+    gap: 12px;
+}
+
+.wotmods-download-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(113, 163, 230, 0.22);
+    background: rgba(8, 14, 28, 0.55);
+}
+
+.wotmods-download-card__title {
+    margin: 0 0 6px;
+    font-size: 0.98rem;
+    color: #f2f7ff;
+}
+
+.wotmods-download-card__file {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+}
+
+.wotmods-download-card__hint {
+    margin: 0;
+    font-size: 0.84rem;
+    color: rgba(214, 228, 248, 0.76);
+    line-height: 1.45;
+}
+
+.wotmods-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.wotmods-download-btn--disabled {
+    display: inline-flex;
+    padding: 10px 14px;
+    border: 1px dashed rgba(113, 163, 230, 0.35);
+    color: rgba(214, 228, 248, 0.55);
+    font-size: 0.84rem;
+}
+
+.wotmods-paths {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.wotmods-paths__item {
+    display: grid;
+    gap: 4px;
+}
+
+.wotmods-paths__label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: rgba(142, 203, 255, 0.78);
+}
+
+.wotmods-paths__value {
+    display: block;
+    padding: 8px 10px;
+    background: rgba(8, 14, 28, 0.72);
+    border: 1px solid rgba(113, 163, 230, 0.18);
+    font-size: 0.82rem;
+    word-break: break-word;
+}
+
+.wotmods-table-wrap {
+    overflow-x: auto;
+}
+
+.wotmods-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+
+.wotmods-table th,
+.wotmods-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(113, 163, 230, 0.18);
+    text-align: left;
+    vertical-align: top;
+}
+
+.wotmods-table th {
+    color: rgba(142, 203, 255, 0.85);
+    font-weight: 600;
+}
+
+.wotmods-code {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    background: rgba(8, 14, 28, 0.82);
+    border: 1px solid rgba(113, 163, 230, 0.18);
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .wotmods-detail-section--split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .wotmods-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wotmods-card {
+        min-height: 0;
+    }
+
+    .wotmods-download-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

@@ -1,0 +1,6 @@
+<mod>
+  <name>chadow.battle-limit</name>
+  <description>Блокирует кнопку «В бой» после выбранного числа боёв за сессию</description>
+  <version>{{VERSION}}</version>
+  <author>chadow.ru</author>
+</mod>

@@ -27,6 +27,7 @@ $tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать план
 $tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
 $aimServiceHref = $lang === 'en' ? '/en/services/aim' : '/services/aim';
 $onlineGamesServiceHref = $lang === 'en' ? '/en/services/onlinegames' : '/services/onlinegames';
+$wotmodsServiceHref = $lang === 'en' ? '/en/services/wotmods' : '/services/wotmods';
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';
@@ -86,6 +87,10 @@ $onlineBadgesHtml = '<div class="project-card-badge-row">'
     . '</div>';
 $inDevBadgeHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge">' . htmlspecialchars($inDevLabel, ENT_QUOTES, 'UTF-8') . '</span>'
+    . '</div>';
+$wotmodsBadgesHtml = '<div class="project-card-badge-row">'
+    . '<span class="project-card-badge project-card-badge--wg">WG</span>'
+    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
     . '</div>';
 $bracketBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
@@ -242,11 +247,11 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </div>
 
-                <div class="project-card project-card--disabled" aria-disabled="true" data-landing-id="mod-install">
+                <a href="<?php echo htmlspecialchars($wotmodsServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" id="mod-install" data-landing-id="mod-install">
                     <i class="fas fa-puzzle-piece project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
-                            <?php echo $inDevBadgeHtml; ?>
+                            <?php echo $wotmodsBadgesHtml; ?>
                             <h2 class="project-card-title">
                                 <i class="fas fa-puzzle-piece project-card-icon" aria-hidden="true"></i>
                                 <span class="project-card-title-text">
@@ -261,12 +266,12 @@ require __DIR__ . '/includes/site_header.php';
                         </p>
                     </div>
                     <div class="project-card-footer">
-                        <span class="project-card-action project-card-action--placeholder" aria-hidden="true">
+                        <span class="project-card-action">
                             <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
                             <i class="fas fa-arrow-right" aria-hidden="true"></i>
                         </span>
                     </div>
-                </div>
+                </a>
 
                 <a href="<?php echo htmlspecialchars($aimServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="aim-trainers">
                     <i class="fas fa-crosshairs project-card-bg-icon" aria-hidden="true"></i>

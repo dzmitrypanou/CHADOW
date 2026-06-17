@@ -71,6 +71,8 @@ $pages = [
     abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings', abs_sitemap_lastmod_from_file('/services/aim/ratings.php')),
     abs_sitemap_page('/services/onlinegames', '/en/services/onlinegames', abs_sitemap_lastmod_from_file('/services/onlinegames/index.php')),
     abs_sitemap_page('/services/onlinegames/checkers', '/en/services/onlinegames/checkers', abs_sitemap_lastmod_from_file('/services/onlinegames/checkers/index.php')),
+    abs_sitemap_page('/services/wotmods', '/en/services/wotmods', abs_sitemap_lastmod_from_file('/services/wotmods/index.php')),
+    abs_sitemap_page('/services/wotmods/battle-limit', '/en/services/wotmods/battle-limit', abs_sitemap_lastmod_from_file('/services/wotmods/battle-limit/index.php')),
 ];
 
 foreach (AIM_TRAINERS as $trainer) {
