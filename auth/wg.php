@@ -97,7 +97,11 @@ if ($action === 'login') {
     $isLestaLink = $provider === 'lesta' || $realm === 'ru';
     if ($isLestaLink) {
         if (user_lesta_is_linked($profile)) {
-            header('Location: ' . $errorUrl($isEn ? 'A Lesta account is already linked.' : 'Аккаунт Lesta уже привязан.'));
+            require_once __DIR__ . '/../includes/game_api.php';
+            $publisher = game_api_ru_publisher_name($lang);
+            header('Location: ' . $errorUrl($isEn
+                ? ('An ' . $publisher . ' account is already linked.')
+                : ('Аккаунт ' . $publisher . ' уже привязан.')));
             exit();
         }
     } elseif (user_wg_api_is_linked($profile)) {

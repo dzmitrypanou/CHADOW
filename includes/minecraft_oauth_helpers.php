@@ -103,7 +103,7 @@ function minecraft_oauth_create_session($db, string $provider): array
     if ($appId === '') {
         return [
             'ok' => false,
-            'error' => $provider === 'lesta' ? 'Lesta API не настроен' : 'WG API не настроен',
+            'error' => $provider === 'lesta' ? (game_api_ru_api_label('ru') . ' не настроен') : 'WG API не настроен',
         ];
     }
 

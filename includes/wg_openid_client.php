@@ -55,8 +55,12 @@ class WgOpenIdClient
         $realm = self::normalizeRealm($realm);
         $appId = $this->applicationIdForRealm($realm);
         if ($appId === '') {
+            if (!function_exists('game_api_ru_api_label')) {
+                require_once __DIR__ . '/game_api.php';
+            }
+
             return ['ok' => false, 'error' => $realm === 'ru'
-                ? 'Lesta application_id не настроен'
+                ? (game_api_ru_api_label('ru') . ' application_id не настроен')
                 : 'WG application_id не настроен'];
         }
 
@@ -93,8 +97,12 @@ class WgOpenIdClient
         $realm = self::normalizeRealm($realm);
         $appId = $this->applicationIdForRealm($realm);
         if ($appId === '') {
+            if (!function_exists('game_api_ru_api_label')) {
+                require_once __DIR__ . '/game_api.php';
+            }
+
             return ['ok' => false, 'error' => $realm === 'ru'
-                ? 'Lesta application_id не настроен'
+                ? (game_api_ru_api_label('ru') . ' application_id не настроен')
                 : 'WG application_id не настроен'];
         }
 

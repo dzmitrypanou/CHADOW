@@ -48,3 +48,24 @@ function game_api_application_id_for_realm(string $realm, $db = null): string {
 function game_api_is_configured_for_realm(string $realm, $db = null): bool {
     return game_api_application_id_for_realm($realm, $db) !== '';
 }
+
+function game_api_ru_publisher_name(string $lang = 'ru'): string {
+    return $lang === 'en' ? 'AO IT Technologies' : 'АО «Айти Технологии»';
+}
+
+function game_api_ru_api_label(string $lang = 'ru'): string {
+    $name = game_api_ru_publisher_name($lang);
+
+    return $lang === 'en' ? ($name . ' API') : ('API ' . $name);
+}
+
+function game_api_ru_publisher_badge_span(string $lang = 'ru'): string {
+    $ru = game_api_ru_publisher_name('ru');
+    $en = game_api_ru_publisher_name('en');
+    $label = $lang === 'en' ? $en : $ru;
+
+    return '<span class="project-card-badge project-card-badge--lesta" data-badge-custom="1"'
+        . ' data-label-ru="' . htmlspecialchars($ru, ENT_QUOTES, 'UTF-8') . '"'
+        . ' data-label-en="' . htmlspecialchars($en, ENT_QUOTES, 'UTF-8') . '">'
+        . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
+}

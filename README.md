@@ -11,7 +11,7 @@
 | Сервис | Путь | Описание |
 |--------|------|----------|
 | **ABS** | `/services/abs` | Анализ реплеев World of Tanks |
-| **Online** | `/services/online` | Статус серверов WoT (WG / Lesta) |
+| **Online** | `/services/online` | Статус серверов WoT (WG / АО «Айти Технологии») |
 | **Recruiting** | `/services/recruiting` | Доска объявлений для поиска команды / клана |
 | **Bracket** | `/services/bracket` | Турнирные сетки (single / double elimination, группы) |
 | **Tactics** | `/services/tactics` | Совместный тактический планшет с картами и чатом |
@@ -110,7 +110,7 @@ sudo bash deploy/systemd/install-online-cache-service.sh
 | Переменная | Назначение |
 |------------|------------|
 | `WG_APPLICATION_ID` | Application ID Wargaming API |
-| `LESTA_APPLICATION_ID` | Application ID Lesta API |
+| `LESTA_APPLICATION_ID` | Application ID API АО «Айти Технологии» (RU) |
 | `CHADOW_RUNTIME_SCHEMA_CHECKS` | Включить проверки схемы при запросах (обычно через warmup) |
 | `CHECKERS_WS_SECRET` | Секрет WebSocket шашек (синхронизируется с `site_settings`) |
 

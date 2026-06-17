@@ -422,10 +422,15 @@ function user_wg_is_linked(array $profile): bool {
 
 function user_wg_provider_label(string $realm, string $lang = 'ru'): string {
     $realm = user_normalize_wg_realm($realm);
-    if ($lang === 'en') {
-        return $realm === 'ru' ? 'Lesta' : 'Wargaming';
+    if ($realm === 'ru') {
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+
+        return game_api_ru_publisher_name($lang);
     }
-    return $realm === 'ru' ? 'Lesta' : 'Wargaming';
+
+    return 'Wargaming';
 }
 
 function user_game_nickname_realms(): array {
@@ -620,9 +625,15 @@ function user_link_wg_account($db, int $userId, int $accountId, string $realm, ?
         ];
     }
     if ($realm === 'ru') {
+        if (!function_exists('game_api_ru_api_label')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+
         return [
             'ok' => false,
-            'error' => $isEn ? 'Use Lesta API for the RU region.' : 'Для региона RU используйте Lesta API.',
+            'error' => $isEn
+                ? ('Use ' . game_api_ru_api_label('en') . ' for the RU region.')
+                : ('Для региона RU используйте ' . game_api_ru_api_label('ru') . '.'),
         ];
     }
 
@@ -681,9 +692,16 @@ function user_link_lesta_account($db, int $userId, int $accountId, ?string $nick
         ];
     }
     if (user_lesta_is_linked($profile)) {
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+        $publisher = game_api_ru_publisher_name($lang);
+
         return [
             'ok' => false,
-            'error' => $isEn ? 'A Lesta account is already linked. Unlink it first.' : 'Аккаунт Lesta уже привязан. Сначала отвяжите его.',
+            'error' => $isEn
+                ? ('An ' . $publisher . ' account is already linked. Unlink it first.')
+                : ('Аккаунт ' . $publisher . ' уже привязан. Сначала отвяжите его.'),
         ];
     }
 
@@ -712,11 +730,16 @@ function user_link_lesta_account($db, int $userId, int $accountId, ?string $nick
         if ($lestaNick !== null) {
             user_set_game_nickname_for_realm($db, $userId, 'ru', $lestaNick);
         }
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+        $publisher = game_api_ru_publisher_name($lang);
+
         return [
             'ok' => true,
             'message' => $isEn
-                ? 'Lesta nickname linked.'
-                : 'Ник Lesta привязан.',
+                ? ($publisher . ' nickname linked.')
+                : ('Ник ' . $publisher . ' привязан.'),
         ];
     } catch (Throwable $e) {
         error_log('user_link_lesta_account: ' . $e->getMessage());
@@ -780,9 +803,16 @@ function user_unlink_lesta_account($db, int $userId, string $lang = 'ru'): array
         ];
     }
     if (!user_lesta_is_linked($profile)) {
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+        $publisher = game_api_ru_publisher_name($lang);
+
         return [
             'ok' => false,
-            'error' => $isEn ? 'No Lesta account is linked.' : 'Аккаунт Lesta не привязан.',
+            'error' => $isEn
+                ? ('No ' . $publisher . ' account is linked.')
+                : ('Аккаунт ' . $publisher . ' не привязан.'),
         ];
     }
 
@@ -810,9 +840,16 @@ function user_unlink_lesta_account($db, int $userId, string $lang = 'ru'): array
             );
         }
 
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/game_api.php';
+        }
+        $publisher = game_api_ru_publisher_name($lang);
+
         return [
             'ok' => true,
-            'message' => $isEn ? 'Lesta nickname unlinked.' : 'Ник Lesta отвязан.',
+            'message' => $isEn
+                ? ($publisher . ' nickname unlinked.')
+                : ('Ник ' . $publisher . ' отвязан.'),
         ];
     } catch (Throwable $e) {
         error_log('user_unlink_lesta_account: ' . $e->getMessage());

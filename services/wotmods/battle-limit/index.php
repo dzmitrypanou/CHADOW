@@ -26,11 +26,13 @@ require __DIR__ . '/../../../includes/site_header.php';
 ?>
 
         <main class="wotmods-service wotmods-detail">
+            <?php $installerModId = 'battle-limit'; require __DIR__ . '/../_installer.php'; ?>
+
             <section class="checkers-panel wotmods-service-header">
                 <div class="checkers-section-head">
                     <div>
                         <div class="wotmods-detail__badges">
-                            <?php echo wotmods_client_badges_html(); ?>
+                            <?php echo wotmods_client_badges_html($lang); ?>
                             <span class="wotmods-card__version">v<?php echo htmlspecialchars((string) $mod['version'], ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
                         <h2 class="checkers-section-title">
@@ -152,5 +154,10 @@ require __DIR__ . '/../../../includes/site_header.php';
         </main>
 
 <?php require __DIR__ . '/../../../includes/site_footer.php'; ?>
+
+    <script>
+        window.ABS_LANG = <?php echo json_encode($lang); ?>;
+    </script>
+    <script src="/js/services/wotmods/installer.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
 </body>
 </html>

@@ -215,8 +215,8 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
                 'Не автоматизирует стрельбу — только блокирует постановку в очередь.',
             ],
         'compatNote' => $isEn
-            ? 'Tested against the Lesta RU client layout. WG clients use the same hook points but may need verification after major patches.'
-            : 'Разработано под клиент Lesta (Мир танков RU). На WG-клиенте используются те же точки подключения, но после крупных патчей может потребоваться проверка.',
+            ? 'Tested against the AO IT Technologies RU client layout. WG clients use the same hook points but may need verification after major patches.'
+            : 'Разработано под клиент АО «Айти Технологии» (Мир танков RU). На WG-клиенте используются те же точки подключения, но после крупных патчей может потребоваться проверка.',
         'installSteps' => $installSteps,
         'examplePaths' => $isEn
             ? [
@@ -234,10 +234,138 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
     ];
 }
 
-function wotmods_client_badges_html(): string
+function wotmods_client_badges_html(string $lang = 'ru'): string
 {
+    if (!function_exists('game_api_ru_publisher_badge_span')) {
+        require_once __DIR__ . '/game_api.php';
+    }
+
     return '<div class="project-card-badge-row">'
         . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-        . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
+        . game_api_ru_publisher_badge_span($lang)
         . '</div>';
+}
+
+function wotmods_res_root(): string
+{
+    return dirname(__DIR__) . '/' . WOTMODS_SOURCE_DIR . '/res';
+}
+
+/**
+ * @return list<string>
+ */
+function wotmods_list_res_files(): array
+{
+    $root = wotmods_res_root();
+    if (!is_dir($root)) {
+        return [];
+    }
+
+    $files = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($iterator as $fileInfo) {
+        if (!$fileInfo->isFile()) {
+            continue;
+        }
+        $name = $fileInfo->getFilename();
+        if (!preg_match('/\.py$/i', $name)) {
+            continue;
+        }
+        $relative = str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($root) + 1));
+        $files[] = $relative;
+    }
+    sort($files);
+
+    return $files;
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function wotmods_install_mod_definition(string $modId): ?array
+{
+    $definitions = [
+        'battle-limit' => [
+            'id' => 'battle-limit',
+            'version' => '1.0.0',
+            'configGamePath' => 'mods/configs/chadow.battle_limit.json',
+            'configFile' => 'chadow.battle_limit.json',
+        ],
+    ];
+
+    return $definitions[$modId] ?? null;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function wotmods_install_manifest_mods(?string $modId = null): array
+{
+    $ids = $modId !== null && $modId !== '' ? [$modId] : ['battle-limit'];
+    $mods = [];
+
+    foreach ($ids as $id) {
+        $definition = wotmods_install_mod_definition($id);
+        if ($definition === null) {
+            continue;
+        }
+
+        $scripts = [];
+        foreach (wotmods_list_res_files() as $relativePath) {
+            $scripts[] = [
+                'path' => $relativePath,
+                'url' => '/api/wotmods/file?mod=' . rawurlencode($id) . '&path=' . rawurlencode($relativePath),
+            ];
+        }
+
+        $configFile = (string) ($definition['configFile'] ?? '');
+        $mods[] = [
+            'id' => $definition['id'],
+            'version' => $definition['version'],
+            'configGamePath' => $definition['configGamePath'],
+            'configUrl' => wotmods_download_exists($configFile)
+                ? wotmods_download_public_path($configFile)
+                : null,
+            'scripts' => $scripts,
+            'resRoot' => 'res_mods/{clientVersion}/res',
+        ];
+    }
+
+    return $mods;
+}
+
+/**
+ * @return array{ok: bool, path?: string, error?: string}
+ */
+function wotmods_resolve_install_file(string $modId, string $path): array
+{
+    $definition = wotmods_install_mod_definition($modId);
+    if ($definition === null) {
+        return ['ok' => false, 'error' => 'unknown_mod'];
+    }
+
+    $path = str_replace('\\', '/', $path);
+    $path = ltrim($path, '/');
+    if ($path === '' || strpos($path, '..') !== false) {
+        return ['ok' => false, 'error' => 'invalid_path'];
+    }
+
+    $root = realpath(wotmods_res_root());
+    if ($root === false) {
+        return ['ok' => false, 'error' => 'missing_source'];
+    }
+
+    $full = realpath($root . '/' . $path);
+    if ($full === false || strpos($full, $root) !== 0 || !is_file($full)) {
+        return ['ok' => false, 'error' => 'not_found'];
+    }
+
+    return ['ok' => true, 'path' => $full];
+}
+
+function wotmods_prepare_install_file_contents(string $contents, string $modVersion): string
+{
+    return str_replace('{{VERSION}}', $modVersion, $contents);
 }

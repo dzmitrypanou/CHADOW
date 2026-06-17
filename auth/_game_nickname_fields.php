@@ -2,6 +2,10 @@
 
 $gameNicknames = is_array($gameNicknames ?? null) ? $gameNicknames : [];
 $isEn = ($lang ?? 'ru') === 'en';
+if (!function_exists('game_api_ru_api_label')) {
+    require_once __DIR__ . '/../includes/game_api.php';
+}
+$ruApiLabel = game_api_ru_api_label($isEn ? 'en' : 'ru');
 $realmLabels = [
     'ru' => 'RU',
     'eu' => 'EU',
@@ -22,7 +26,7 @@ $realmLabels = [
             <label class="recruiting-form-label profile-game-nick-field__label" for="<?php echo htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8'); ?>">
                 <span class="profile-game-nick-field__realm"><?php echo htmlspecialchars($realmLabels[$realm] ?? strtoupper($realm), ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php if ($locked): ?>
-                <span class="profile-game-nick-field__badge"><?php echo $realm === 'ru' ? 'Lesta API' : 'WG API'; ?></span>
+                <span class="profile-game-nick-field__badge"><?php echo $realm === 'ru' ? htmlspecialchars($ruApiLabel, ENT_QUOTES, 'UTF-8') : 'WG API'; ?></span>
                 <?php endif; ?>
             </label>
             <input

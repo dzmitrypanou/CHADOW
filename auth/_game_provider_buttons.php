@@ -75,7 +75,7 @@ function wg_provider_linked_info(string $provider, array $profile): array {
 
 function wg_provider_button_label(string $provider, bool $isProfileNickname, bool $isEn, bool $linked = false, array $linkedInfo = []): array {
     $icon = $provider === 'lesta' ? 'fa-shield-alt' : 'fa-gamepad';
-    $apiName = $provider === 'lesta' ? 'Lesta API' : 'WG API';
+    $apiName = $provider === 'lesta' ? game_api_ru_api_label($isEn ? 'en' : 'ru') : 'WG API';
 
     if ($isProfileNickname) {
         if ($linked) {
@@ -94,7 +94,7 @@ function wg_provider_button_label(string $provider, bool $isProfileNickname, boo
 
         if ($provider === 'lesta') {
             return [
-                'title' => $isEn ? ('Link ' . $apiName) : 'Привязать Lesta API',
+                'title' => $isEn ? ('Link ' . $apiName) : ('Привязать ' . $apiName),
                 'api' => '',
                 'icon' => $icon,
             ];
@@ -108,7 +108,7 @@ function wg_provider_button_label(string $provider, bool $isProfileNickname, boo
     }
 
     return [
-        'title' => $provider === 'lesta' ? 'Lesta API' : 'Wargaming API',
+        'title' => $provider === 'lesta' ? game_api_ru_api_label($isEn ? 'en' : 'ru') : 'Wargaming API',
         'api' => '',
         'icon' => $icon,
     ];

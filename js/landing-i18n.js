@@ -238,7 +238,7 @@
                 && !badge.classList.contains('project-card-badge--wg')
                 && !badge.classList.contains('project-card-badge--lesta')
                 && badge.textContent.trim() !== 'WG'
-                && badge.textContent.trim() !== 'LESTA') {
+                && !badge.hasAttribute('data-badge-custom')) {
                 badge.textContent = dict.inDev;
             }
         });

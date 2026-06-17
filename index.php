@@ -77,30 +77,31 @@ $launcherCardDesc = $lang === 'en'
 $launcherCardBadgesHtml = minecraft_landing_card_badges_html($launcherLanding, $lang, $launcherCardActive);
 $launcherDownloadLabel = $lang === 'en' ? 'Download' : 'Скачать';
 $lestaApiConfigured = game_api_is_configured_for_realm('ru');
+$lestaBadgeHtml = game_api_ru_publisher_badge_span($lang);
 $realmBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
+    . $lestaBadgeHtml
     . '</div>';
 $onlineBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . ($lestaApiConfigured ? '<span class="project-card-badge project-card-badge--lesta">LESTA</span>' : '')
+    . ($lestaApiConfigured ? $lestaBadgeHtml : '')
     . '</div>';
 $inDevBadgeHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge">' . htmlspecialchars($inDevLabel, ENT_QUOTES, 'UTF-8') . '</span>'
     . '</div>';
 $wotmodsBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
+    . $lestaBadgeHtml
     . '</div>';
 $bracketBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
+    . $lestaBadgeHtml
     . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'
     . '<span class="project-card-badge project-card-badge--dota2">Dota 2</span>'
     . '</div>';
 $aimBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . '<span class="project-card-badge project-card-badge--lesta">LESTA</span>'
+    . $lestaBadgeHtml
     . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'
     . '<span class="project-card-badge project-card-badge--dota2">Dota 2</span>'
     . '</div>';

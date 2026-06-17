@@ -416,10 +416,17 @@ function tactics_project_card_badge_class(string $game): string {
     return $map[tactics_sanitize_game($game)] ?? '';
 }
 
-function tactics_project_card_badge_label(string $game): string {
+function tactics_project_card_badge_label(string $game, string $lang = 'ru'): string {
+    if ($game === 'lesta') {
+        if (!function_exists('game_api_ru_publisher_name')) {
+            require_once __DIR__ . '/../includes/game_api.php';
+        }
+
+        return game_api_ru_publisher_name($lang);
+    }
+
     $map = [
         'wot' => 'WG',
-        'lesta' => 'LESTA',
         'cs2' => 'CS2',
         'dota2' => 'Dota 2',
     ];
@@ -427,14 +434,21 @@ function tactics_project_card_badge_label(string $game): string {
     return $map[$game] ?? tactics_game_label($game);
 }
 
-function tactics_project_card_badges_html(array $games): string {
+function tactics_project_card_badges_html(array $games, string $lang = 'ru'): string {
     if (!$games) {
         return '';
     }
     $html = '<div class="project-card-badge-row">';
     foreach ($games as $game) {
+        if ($game === 'lesta') {
+            if (!function_exists('game_api_ru_publisher_badge_span')) {
+                require_once __DIR__ . '/../includes/game_api.php';
+            }
+            $html .= game_api_ru_publisher_badge_span($lang);
+            continue;
+        }
         $class = tactics_project_card_badge_class($game);
-        $label = tactics_project_card_badge_label($game);
+        $label = tactics_project_card_badge_label($game, $lang);
         $html .= '<span class="project-card-badge' . ($class !== '' ? ' ' . $class : '') . '">'
             . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
             . '</span>';

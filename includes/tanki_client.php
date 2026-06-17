@@ -41,7 +41,13 @@ class TankiClient
             case self::REALM_ASIA:
                 return $isEn ? 'WoT ASIA' : 'WoT ASIA';
             default:
-                return $isEn ? 'WoT RU (Lesta)' : 'WoT RU (Lesta)';
+                if (!function_exists('game_api_ru_publisher_name')) {
+                    require_once __DIR__ . '/game_api.php';
+                }
+
+                $publisher = game_api_ru_publisher_name($lang);
+
+                return $isEn ? ('WoT RU (' . $publisher . ')') : ('WoT RU (' . $publisher . ')');
         }
     }
 

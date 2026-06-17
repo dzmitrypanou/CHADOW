@@ -16,8 +16,8 @@
             const lang = currentLang();
             const confirmMsg = provider === 'lesta'
                 ? (lang === 'en'
-                    ? 'Unlink the Lesta nickname from this profile?'
-                    : 'Отвязать ник Lesta от этого профиля?')
+                    ? 'Unlink the AO IT Technologies nickname from this profile?'
+                    : 'Отвязать ник АО «Айти Технологии» от этого профиля?')
                 : (lang === 'en'
                     ? 'Unlink the Wargaming nickname from this profile?'
                     : 'Отвязать ник Wargaming от этого профиля?');
