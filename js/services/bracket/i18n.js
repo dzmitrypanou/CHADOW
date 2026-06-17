@@ -605,7 +605,13 @@
 
     function buildHref(path) {
         const lang = getLang();
-        const clean = String(path || '').replace(/^\
+        let clean = String(path || '').trim();
+        if (clean.startsWith('/')) {
+            clean = clean.slice(1);
+        }
+        if (clean.startsWith('en/')) {
+            clean = clean.slice(3);
+        }
         if (lang === 'en') {
             return clean ? `/en/${clean}` : '/en';
         }

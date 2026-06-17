@@ -25,6 +25,8 @@ def _defaults():
         'maxBattles': 5,
         'battlesPlayed': 0,
         'showNotifications': True,
+        'randomOnly': True,
+        'hardBlockRandom': False,
     }
 
 

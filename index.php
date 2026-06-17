@@ -13,7 +13,7 @@ $metaDescription = $lang === 'en'
 $bodyClass = 'page-landing';
 
 $absServiceHref = $lang === 'en' ? '/en/services/abs' : '/services/abs';
-$onlineServiceHref = $lang === 'en' ? '/en/services/online/' : '/services/online/';
+$onlineServiceHref = $lang === 'en' ? '/en/services/online' : '/services/online';
 $recruitingServiceHref = $lang === 'en' ? '/en/services/recruiting' : '/services/recruiting';
 $bracketServiceHref = $lang === 'en' ? '/en/services/bracket' : '/services/bracket';
 $bracketCreateHref = $lang === 'en' ? '/en/services/bracket/create' : '/services/bracket/create';
@@ -263,7 +263,7 @@ require __DIR__ . '/includes/site_header.php';
                         <p class="project-card-desc">
                             <?php echo $lang === 'en'
                                 ? 'Step-by-step mod installation and setup for World of Tanks and Mir Tankov.'
-                                : 'Пошаговая установка и настройка модов для World of Tanks и Мира танков.'; ?>
+                                : 'Пошаговая установка модов для World of Tanks или Мира танков.'; ?>
                         </p>
                     </div>
                     <div class="project-card-footer">

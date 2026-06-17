@@ -42,7 +42,7 @@ function wotmods_hub_meta(string $lang = 'ru'): array
 
     return [
         'title' => 'Установка модов',
-        'desc' => 'Пошаговая установка и настройка модов Chadow для World of Tanks и Мира танков.',
+        'desc' => 'Пошаговая установка модов для World of Tanks или Мира танков.',
     ];
 }
 
@@ -84,7 +84,7 @@ function wotmods_download_exists(string $filename): bool
 function wotmods_catalog(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.1';
+    $version = '1.0.4';
 
     return [
         [
@@ -122,7 +122,7 @@ function wotmods_get_mod(string $slug, string $lang = 'ru'): ?array
 function wotmods_battle_limit_page(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.1';
+    $version = '1.0.4';
     $configFile = 'chadow.battle_limit.json';
     $resArchive = 'chadow.battle-limit-res.zip';
 
@@ -167,16 +167,18 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
 
     $hotkeys = $isEn
         ? [
-            ['keys' => 'Alt+Shift+1 … 9', 'action' => 'Set limit to 1–9 battles'],
-            ['keys' => 'Alt+Shift+0', 'action' => 'Disable the limit'],
-            ['keys' => 'Alt+Shift+B', 'action' => 'Cycle presets: 1 → 3 → 5 → 10 → 15 → 20 → 30 → 50 → off'],
-            ['keys' => 'Alt+Shift+R', 'action' => 'Reset battles played counter'],
+            ['keys' => 'Hangar counter', 'action' => 'Open settings (bottom-right, near chat)'],
+            ['keys' => 'Alt+Shift+1 … 9', 'action' => 'Set limit to 1–9 battles (optional)'],
+            ['keys' => 'Alt+Shift+0', 'action' => 'Disable the limit (optional)'],
+            ['keys' => 'Alt+Shift+B', 'action' => 'Cycle presets (optional)'],
+            ['keys' => 'Alt+Shift+R', 'action' => 'Reset battles played counter (optional)'],
         ]
         : [
-            ['keys' => 'Alt+Shift+1 … 9', 'action' => 'Лимит 1–9 боёв'],
-            ['keys' => 'Alt+Shift+0', 'action' => 'Отключить лимит'],
-            ['keys' => 'Alt+Shift+B', 'action' => 'Пресеты: 1 → 3 → 5 → 10 → 15 → 20 → 30 → 50 → выкл'],
-            ['keys' => 'Alt+Shift+R', 'action' => 'Сбросить счётчик сыгранных боёв'],
+            ['keys' => 'Счётчик в ангаре', 'action' => 'Открыть настройки (внизу справа, у чата)'],
+            ['keys' => 'Alt+Shift+1 … 9', 'action' => 'Лимит 1–9 боёв (опционально)'],
+            ['keys' => 'Alt+Shift+0', 'action' => 'Отключить лимит (опционально)'],
+            ['keys' => 'Alt+Shift+B', 'action' => 'Пресеты (опционально)'],
+            ['keys' => 'Alt+Shift+R', 'action' => 'Сбросить счётчик (опционально)'],
         ];
 
     $configFields = $isEn
@@ -185,12 +187,16 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
             ['name' => 'maxBattles', 'desc' => 'Battle limit per session (0 = unlimited)'],
             ['name' => 'battlesPlayed', 'desc' => 'Battles already played this session'],
             ['name' => 'showNotifications', 'desc' => 'Hangar notifications when the limit changes'],
+            ['name' => 'randomOnly', 'desc' => 'Apply limit only to random battles'],
+            ['name' => 'hardBlockRandom', 'desc' => 'Always block random battles (other modes stay available)'],
         ]
         : [
             ['name' => 'enabled', 'desc' => 'Включить ограничение (нужен maxBattles > 0)'],
-            ['name' => 'maxBattles', 'desc' => 'Лимит боёв за сессию (0 = без ограничения)'],
-            ['name' => 'battlesPlayed', 'desc' => 'Сколько боёв уже сыграно'],
+            ['name' => 'maxBattles', 'desc' => 'Лимит случайных боёв за сессию (0 = без ограничения)'],
+            ['name' => 'battlesPlayed', 'desc' => 'Сколько случайных боёв уже сыграно'],
             ['name' => 'showNotifications', 'desc' => 'Уведомления в ангаре при смене лимита'],
+            ['name' => 'randomOnly', 'desc' => 'Ограничение только для случайного боя'],
+            ['name' => 'hardBlockRandom', 'desc' => 'Полный запрет случайного боя (другие режимы доступны)'],
         ];
 
     return [
@@ -205,12 +211,14 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
             : 'Ограничивает число боёв за сессию. Когда лимит достигнут, кнопка «В бой» блокируется, пока не сбросите счётчик или не увеличите лимит.',
         'features' => $isEn
             ? [
-                'Configurable battle limit via config file or hotkeys in the hangar.',
+                'Hangar counter button (bottom-right) opens a settings window.',
+                'Configurable battle limit via config file or optional hotkeys.',
                 'Persists counter and limit between game restarts.',
                 'Does not automate aiming or shooting — only blocks queueing.',
             ]
             : [
-                'Настраиваемый лимит через файл конфигурации или горячие клавиши в ангаре.',
+                'Счётчик внизу справа в ангаре — нажмите, чтобы открыть настройки.',
+                'Лимит можно задать через окно настроек, файл конфигурации или горячие клавиши.',
                 'Счётчик и лимит сохраняются между перезапусками клиента.',
                 'Не автоматизирует стрельбу — только блокирует постановку в очередь.',
             ],
@@ -230,7 +238,7 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
         'downloads' => $downloads,
         'hotkeys' => $hotkeys,
         'configFields' => $configFields,
-        'configSample' => "{\n  \"enabled\": true,\n  \"maxBattles\": 5,\n  \"battlesPlayed\": 0,\n  \"showNotifications\": true\n}",
+        'configSample' => "{\n  \"enabled\": true,\n  \"maxBattles\": 5,\n  \"battlesPlayed\": 0,\n  \"showNotifications\": true,\n  \"randomOnly\": true,\n  \"hardBlockRandom\": false\n}",
     ];
 }
 
@@ -393,10 +401,10 @@ function wotmods_install_mod_definition(string $modId): ?array
     $definitions = [
         'battle-limit' => [
             'id' => 'battle-limit',
-            'version' => '1.0.1',
+            'version' => '1.0.4',
             'configGamePath' => 'mods/configs/chadow.battle_limit.json',
             'configFile' => 'chadow.battle_limit.json',
-            'packageFile' => 'chadow.battle-limit_1.0.1.mtmod',
+            'packageFile' => 'chadow.battle-limit_1.0.4.mtmod',
         ],
     ];
 

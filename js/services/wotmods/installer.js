@@ -24,7 +24,7 @@
             modsHintLocked: 'Сначала выберите папку игры выше.',
             folderCancelled: 'Выбор папки отменён.',
             versionDetectError: 'Не удалось определить версию из version.xml или папки mods.',
-            confirmDeleteChadow: 'Удалить моды Chadow с сайта из выбранной папки игры?',
+            confirmDeleteChadow: 'Удалить моды установленные на сайте CHADOW из выбранной папки игры?',
             confirmDeleteAll: 'Удалить ВСЕ файлы модов в mods/{version} и res_mods/{version}, а также содержимое mods/configs/? Папки версий останутся пустыми.',
             confirmTitle: 'Подтвердите действие',
             confirmOk: 'Подтвердить',
@@ -371,9 +371,9 @@
             this.root = root;
             this.unsupportedEl = document.getElementById('wotmodsInstallerUnsupported');
             this.folderPicker = document.getElementById('wotmodsFolderPicker');
+            this.folderContent = document.getElementById('wotmodsFolderContent');
             this.folderPlaceholder = document.getElementById('wotmodsFolderPlaceholder');
             this.folderSelected = document.getElementById('wotmodsFolderSelected');
-            this.folderHint = document.getElementById('wotmodsFolderHint');
             this.folderTools = document.getElementById('wotmodsFolderTools');
             this.folderIcon = document.getElementById('wotmodsFolderIcon');
             this.stepMods = document.getElementById('wotmodsStepMods');
@@ -403,6 +403,20 @@
         bind() {
             if (this.pickBtn) this.pickBtn.addEventListener('click', () => this.pickFolder());
             if (this.resetBtn) this.resetBtn.addEventListener('click', () => this.resetFolder());
+            if (this.folderContent) {
+                this.folderContent.addEventListener('click', () => {
+                    if (!this.gameDir && supportsInstaller()) {
+                        this.pickFolder();
+                    }
+                });
+                this.folderContent.addEventListener('keydown', (event) => {
+                    if (this.gameDir || !supportsInstaller()) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        this.pickFolder();
+                    }
+                });
+            }
             if (this.deleteChadowBtn) this.deleteChadowBtn.addEventListener('click', () => this.deleteChadowMods());
             if (this.deleteAllBtn) this.deleteAllBtn.addEventListener('click', () => this.deleteAllMods());
             if (this.installBtn) this.installBtn.addEventListener('click', () => this.installSelected());
@@ -439,7 +453,10 @@
             const folderSelected = !!this.gameDir;
             const installerReady = supportsInstaller();
             if (this.pickBtn) this.pickBtn.disabled = !installerReady;
-            if (this.resetBtn) this.resetBtn.hidden = !folderSelected;
+            if (this.resetBtn) {
+                this.resetBtn.hidden = !folderSelected;
+                this.resetBtn.disabled = !folderSelected;
+            }
             if (this.deleteChadowBtn) this.deleteChadowBtn.disabled = !folderSelected;
             if (this.deleteAllBtn) this.deleteAllBtn.disabled = !folderSelected;
             if (this.folderTools) this.folderTools.classList.toggle('is-locked', !folderSelected);
@@ -523,17 +540,25 @@
                 this.folderPathEl.textContent = t('folderPath', { folder: folderName });
                 this.folderPathEl.title = folderName;
             }
-            if (this.pickBtnLabel) {
-                this.pickBtnLabel.textContent = t('changeFolder');
+        }
+
+        setFolderContentInteractive(isInteractive) {
+            if (!this.folderContent) return;
+            if (isInteractive) {
+                this.folderContent.setAttribute('role', 'button');
+                this.folderContent.setAttribute('tabindex', '0');
+            } else {
+                this.folderContent.removeAttribute('role');
+                this.folderContent.removeAttribute('tabindex');
             }
         }
 
         showFolderReady() {
             if (this.folderPicker) this.folderPicker.classList.add('is-ready');
-            if (this.folderHint) this.folderHint.hidden = true;
             if (this.folderIcon) this.folderIcon.classList.remove('is-visible');
             if (this.gameIconEl) this.gameIconEl.classList.add('is-visible');
             if (this.resetBtn) this.resetBtn.hidden = false;
+            this.setFolderContentInteractive(false);
             this.updateGameDisplay();
             this.setModsLocked(false);
             this.restoreActionButtons();
@@ -544,7 +569,6 @@
             if (this.folderPlaceholder) {
                 this.folderPlaceholder.textContent = t('folderPlaceholder');
             }
-            if (this.folderHint) this.folderHint.hidden = false;
             if (this.folderIcon) this.folderIcon.classList.add('is-visible');
             if (this.gameIconEl) {
                 this.gameIconEl.classList.remove('is-visible');
@@ -556,6 +580,7 @@
             if (this.folderPathEl) this.folderPathEl.textContent = '';
             if (this.resetBtn) this.resetBtn.hidden = true;
             if (this.pickBtnLabel) this.pickBtnLabel.textContent = t('pickFolder');
+            this.setFolderContentInteractive(true);
             this.setModsLocked(true);
             this.clearStatus();
             this.restoreActionButtons();
@@ -580,6 +605,17 @@
         updateInstallButton() {
             if (!this.installBtn) return;
             this.installBtn.disabled = !this.gameDir || this.getSelectedModIds().length === 0;
+        }
+
+        relocalizeView() {
+            if (this.gameDir) {
+                this.updateGameDisplay();
+                if (this.modsHint) this.modsHint.textContent = t('modsHintReady');
+            } else {
+                if (this.folderPlaceholder) this.folderPlaceholder.textContent = t('folderPlaceholder');
+                if (this.pickBtnLabel) this.pickBtnLabel.textContent = t('pickFolder');
+                if (this.modsHint) this.modsHint.textContent = t('modsHintLocked');
+            }
         }
 
         async scanInstalledMods() {
@@ -884,7 +920,7 @@
     function init() {
         const root = document.getElementById('wotmodsInstaller');
         if (!root) return;
-        new WotmodsInstaller(root);
+        window.AbsWotmodsInstaller = new WotmodsInstaller(root);
     }
 
     if (document.readyState === 'loading') {

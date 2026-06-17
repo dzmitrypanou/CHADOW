@@ -18601,7 +18601,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 24px 26px 12px;
+    padding: 24px 26px;
 }
 
 .wotmods-workspace__head {
@@ -18713,6 +18713,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     grid-template-columns: auto 1fr auto;
     align-items: stretch;
     gap: 0;
+    height: 48px;
     border: 1px solid rgba(100, 181, 246, 0.28);
     border-radius: 10px;
     background: rgba(6, 12, 24, 0.55);
@@ -18729,8 +18730,8 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 56px;
-    padding: 10px;
+    width: 48px;
+    padding: 0;
     border-right: 1px solid rgba(113, 163, 230, 0.14);
     background: rgba(12, 20, 38, 0.55);
     flex-shrink: 0;
@@ -18782,14 +18783,39 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 12px 14px;
+    width: 100%;
+    height: 100%;
+    padding: 0 14px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: default;
+    overflow: hidden;
+}
+
+.wotmods-folder-picker:not(.is-ready) .wotmods-folder-picker__content {
+    cursor: pointer;
+}
+
+.wotmods-folder-picker:not(.is-ready) .wotmods-folder-picker__content:hover {
+    background: rgba(24, 40, 68, 0.35);
+}
+
+.wotmods-folder-picker:not(.is-ready) .wotmods-folder-picker__content:focus-visible {
+    outline: 2px solid rgba(142, 203, 255, 0.65);
+    outline-offset: -2px;
 }
 
 .wotmods-folder-picker__placeholder {
     margin: 0;
     color: rgba(175, 200, 228, 0.62);
     font-size: 0.92rem;
-    line-height: 1.4;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .wotmods-folder-picker:not(.is-ready) .wotmods-folder-picker__selected {
@@ -18802,22 +18828,28 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .wotmods-folder-picker__selected {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
     width: 100%;
+    overflow: hidden;
 }
 
 .wotmods-folder-picker__game-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+    min-width: 0;
 }
 
 .wotmods-folder-picker__game {
-    font-size: 0.98rem;
+    font-size: 0.92rem;
     color: #f7f9ff;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .wotmods-folder-picker__version {
@@ -18833,10 +18865,12 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .wotmods-folder-picker__path {
     margin: 0;
-    color: #c5e4ff;
+    flex: 1 1 auto;
+    min-width: 0;
+    color: rgba(197, 228, 255, 0.72);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.84rem;
-    line-height: 1.35;
+    font-size: 0.8rem;
+    line-height: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -18844,7 +18878,8 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .wotmods-folder-picker__actions {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: stretch;
     flex-shrink: 0;
 }
 
@@ -18853,6 +18888,8 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     align-items: center;
     justify-content: center;
     gap: 8px;
+    height: 100%;
+    min-height: 0;
     padding: 0 18px;
     border: 0;
     border-left: 1px solid rgba(100, 181, 246, 0.28);
@@ -18861,16 +18898,29 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     font-family: inherit;
     font-size: 0.9rem;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.18s ease, color 0.18s ease;
-    flex: 1 1 auto;
+}
+
+.wotmods-folder-picker__btn > i {
+    display: block;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .wotmods-folder-picker__btn--reset {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
     background: rgba(12, 20, 38, 0.92);
     color: rgba(175, 200, 228, 0.82);
-    border-top: 1px solid rgba(100, 181, 246, 0.18);
+    border-right: 1px solid rgba(100, 181, 246, 0.18);
+}
+
+.wotmods-folder-picker__btn--reset[hidden] {
+    display: none;
 }
 
 .wotmods-folder-picker__btn--reset:hover:not(:disabled) {
@@ -18950,7 +19000,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 11px 16px;
     border-radius: 8px;
     border: 1px solid rgba(100, 181, 246, 0.45);
     background: rgba(30, 51, 89, 0.88);
@@ -18958,8 +19008,15 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     font-family: inherit;
     font-size: 0.92rem;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+.wotmods-btn > i {
+    display: block;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .wotmods-btn:hover:not(:disabled) {
@@ -19153,6 +19210,21 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .wotmods-btn--install {
     min-width: 220px;
+    min-height: 50px;
+    padding: 12px 18px;
+    border-color: rgba(100, 181, 246, 0.28);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(38, 64, 110, 0.95) 0%, rgba(30, 51, 89, 0.98) 100%);
+    color: #c5e4ff;
+    font-size: 0.9rem;
+    box-shadow: none;
+}
+
+.wotmods-btn--install:hover:not(:disabled) {
+    border-color: rgba(100, 181, 246, 0.45);
+    background: rgba(48, 78, 128, 0.98);
+    color: #fff;
+    transform: none;
 }
 
 .wotmods-section-title {
@@ -19439,30 +19511,25 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 @media (max-width: 900px) {
     .wotmods-workspace {
-        padding: 18px 16px 10px;
+        padding: 18px 16px;
     }
 
     .wotmods-folder-picker__bar {
-        grid-template-columns: auto 1fr;
-        grid-template-rows: auto auto;
+        grid-template-columns: auto 1fr auto;
     }
 
     .wotmods-folder-picker__actions {
-        grid-column: 1 / -1;
+        grid-column: auto;
         flex-direction: row;
     }
 
-    .wotmods-folder-picker__btn,
     .wotmods-folder-picker__btn--reset {
-        flex: 1 1 50%;
-        width: auto;
-        padding: 12px 16px;
-        border-left: 0;
-        border-top: 1px solid rgba(100, 181, 246, 0.28);
+        border-left: 1px solid rgba(100, 181, 246, 0.28);
+        border-top: 0;
     }
 
-    .wotmods-folder-picker__btn--reset {
-        border-left: 1px solid rgba(100, 181, 246, 0.18);
+    .wotmods-folder-picker__btn--pick {
+        padding: 0 14px;
     }
 
     .wotmods-folder-picker__tools {

@@ -38,7 +38,7 @@
                 },
                 'mod-install': {
                     title: 'Установка модов',
-                    desc: 'Пошаговая установка и настройка модов для World of Tanks и Мира танков.',
+                    desc: 'Пошаговая установка модов для World of Tanks или Мира танков.',
                 },
                 'aim-trainers': {
                     title: 'Аим-тренажеры',
@@ -56,7 +56,7 @@
             hrefs: {
                 abs: '/services/abs',
                 recruiting: '/services/recruiting',
-                online: '/services/online/',
+                online: '/services/online',
                 tactics: '/services/tactics',
                 'tactics-create': '/services/tactics',
                 'tactics-rooms': '/services/tactics/rooms',
@@ -122,7 +122,7 @@
             hrefs: {
                 abs: '/en/services/abs',
                 recruiting: '/en/services/recruiting',
-                online: '/en/services/online/',
+                online: '/en/services/online',
                 tactics: '/en/services/tactics',
                 'tactics-create': '/en/services/tactics',
                 'tactics-rooms': '/en/services/tactics/rooms',

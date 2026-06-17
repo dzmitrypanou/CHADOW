@@ -1,15 +1,8 @@
-from chadow_battle_limit import config
-from chadow_battle_limit.controller import BattleLimitController
+from . import config
+from .controller import BattleLimitController
 
 TAG = config.TAG
 _patches = []
-
-TOOLTIP_BODY = (
-    u'Достигнут лимит боёв за сессию (%d/%d).\n'
-    u'Alt+Shift+R — сбросить счётчик\n'
-    u'Alt+Shift+0 — отключить лимит\n'
-    u'Alt+Shift+1..9 — выбрать лимит'
-)
 
 _HOOK_TARGETS = (
     ('gui.Scaleform.daapi.view.lobby.header.LobbyHeader', 'LobbyHeader'),
@@ -19,6 +12,25 @@ _HOOK_TARGETS = (
 
 def _getController():
     return BattleLimitController.instance
+
+
+def _fight_tooltip(controller):
+    if controller is None:
+        return u''
+    if controller.hardBlockRandom:
+        return u'Chadow: случайный бой заблокирован.\nДругие режимы доступны.'
+    if controller.isLimitReached() and controller.appliesToCurrentQueue():
+        return (
+            u'Лимит случайных боёв (%d/%d).\n'
+            u'Счётчик внизу справа — настройки.'
+        ) % (controller.battlesPlayed, controller.maxBattles)
+    if controller.isActive():
+        remaining = controller.remainingBattles()
+        return (
+            u'Chadow: случайный бой %d/%d.\n'
+            u'Осталось: %d. Нажмите счётчик для настроек.'
+        ) % (controller.battlesPlayed, controller.maxBattles, remaining or 0)
+    return u''
 
 
 def _patch_method(cls, method_name, patch_builder):
@@ -36,7 +48,7 @@ def _patch_method(cls, method_name, patch_builder):
 
 def _check_disabled_patch(self, original, canDo, isLocked):
     controller = _getController()
-    if controller is not None and controller.isLimitReached():
+    if controller is not None and controller.shouldBlockFight():
         return True
     return original(self, canDo, isLocked)
 
@@ -44,12 +56,13 @@ def _check_disabled_patch(self, original, canDo, isLocked):
 def _update_controls_patch(self, original, *args, **kwargs):
     result = original(self, *args, **kwargs)
     controller = _getController()
-    if controller is None or not controller.isLimitReached():
+    if controller is None:
         return result
-    if hasattr(self, 'as_disableFightButtonS'):
-        self.as_disableFightButtonS(True)
-    if hasattr(self, 'as_setFightBtnTooltipS'):
-        tooltip = TOOLTIP_BODY % (controller.battlesPlayed, controller.maxBattles)
+    tooltip = _fight_tooltip(controller)
+    if controller.shouldBlockFight():
+        if hasattr(self, 'as_disableFightButtonS'):
+            self.as_disableFightButtonS(True)
+    if tooltip and hasattr(self, 'as_setFightBtnTooltipS'):
         self.as_setFightBtnTooltipS(tooltip, False)
     return result
 

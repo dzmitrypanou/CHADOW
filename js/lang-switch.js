@@ -27,7 +27,7 @@
 
     function getHrefForLang(currentHref, lang) {
         if (typeof currentHref !== 'string' || currentHref === '') return currentHref;
-        if (/^https?:\/\
+        if (/^https?:\/\//i.test(currentHref)) return currentHref;
         if (currentHref[0] !== '/') return currentHref;
         return buildLangPath(currentHref, lang);
     }
@@ -63,7 +63,7 @@
             const label = a.getAttribute(isEn ? 'data-label-en' : 'data-label-ru');
             const href = a.getAttribute(isEn ? 'data-href-en' : 'data-href-ru');
             if (label) a.textContent = label;
-            if (href && !/^https?:\/\
+            if (href && !/^https?:\/\//i.test(href)) {
                 a.href = href;
             }
         });
@@ -343,6 +343,25 @@
         return true;
     }
 
+    async function switchWotmodsLanguage(lang) {
+        if (lang !== 'ru' && lang !== 'en') return false;
+        if (window.ABS_WOTMODS_LANG === lang && window.ABS_LANG === lang) return true;
+
+        if (!window.AbsWotmodsI18n || typeof window.AbsWotmodsI18n.switchLanguage !== 'function') {
+            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
+            return true;
+        }
+
+        window.AbsWotmodsI18n.switchLanguage(lang);
+
+        const newPath = buildLangPath(window.location.pathname, lang);
+        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
+
+        updateLangLinks(lang);
+        updateHeaderFooterTexts(lang);
+        return true;
+    }
+
     async function switchAimLanguage(lang) {
         if (lang !== 'ru' && lang !== 'en') return false;
         if (window.ABS_AIM_LANG === lang && window.ABS_LANG === lang) return true;
@@ -439,6 +458,11 @@
 
         if (document.body.classList.contains('page-aim')) {
             await switchAimLanguage(lang);
+            return;
+        }
+
+        if (document.body.classList.contains('page-wotmods')) {
+            await switchWotmodsLanguage(lang);
             return;
         }
 

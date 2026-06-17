@@ -34,7 +34,7 @@ $meta = wotmods_hub_meta($lang);
                                             <img class="wotmods-folder-picker__game-icon" id="wotmodsGameIcon" width="32" height="32" alt="" decoding="async">
                                         </div>
                                     </div>
-                                    <div class="wotmods-folder-picker__content">
+                                    <div class="wotmods-folder-picker__content" id="wotmodsFolderContent" role="button" tabindex="0">
                                         <p class="wotmods-folder-picker__placeholder" id="wotmodsFolderPlaceholder">
                                             <?php echo $isEn ? 'No game folder selected' : 'Папка игры не выбрана'; ?>
                                         </p>
@@ -47,25 +47,25 @@ $meta = wotmods_hub_meta($lang);
                                         </div>
                                     </div>
                                     <div class="wotmods-folder-picker__actions">
-                                        <button type="button" class="wotmods-folder-picker__btn" id="wotmodsPickFolderBtn">
+                                        <button
+                                            type="button"
+                                            class="wotmods-folder-picker__btn wotmods-folder-picker__btn--reset"
+                                            id="wotmodsResetFolderBtn"
+                                            hidden
+                                            aria-label="<?php echo $isEn ? 'Reset folder' : 'Сбросить папку'; ?>"
+                                        >
+                                            <i class="fas fa-times" aria-hidden="true"></i>
+                                        </button>
+                                        <button type="button" class="wotmods-folder-picker__btn wotmods-folder-picker__btn--pick" id="wotmodsPickFolderBtn">
                                             <i class="fas fa-folder-open" aria-hidden="true"></i>
                                             <span id="wotmodsPickFolderBtnLabel"><?php echo $isEn ? 'Browse' : 'Выбрать'; ?></span>
                                         </button>
-                                        <button type="button" class="wotmods-folder-picker__btn wotmods-folder-picker__btn--reset" id="wotmodsResetFolderBtn" hidden>
-                                            <i class="fas fa-times" aria-hidden="true"></i>
-                                            <span><?php echo $isEn ? 'Reset' : 'Сбросить'; ?></span>
-                                        </button>
                                     </div>
                                 </div>
-                                <p class="wotmods-folder-picker__hint" id="wotmodsFolderHint">
-                                    <?php echo $isEn
-                                        ? 'Pick the game root where Tanki.exe is located, not the mods subfolder.'
-                                        : 'Укажите корень игры, где лежит Tanki.exe, а не папку mods.'; ?>
-                                </p>
                                 <div class="wotmods-folder-picker__tools is-locked" id="wotmodsFolderTools">
                                     <button type="button" class="wotmods-folder-picker__tool wotmods-folder-picker__tool--warn" id="wotmodsDeleteChadowBtn" disabled>
                                         <i class="fas fa-eraser" aria-hidden="true"></i>
-                                        <?php echo $isEn ? 'Remove Chadow mods' : 'Удалить моды Chadow'; ?>
+                                        <?php echo $isEn ? 'Remove CHADOW mods' : 'Удалить моды CHADOW'; ?>
                                     </button>
                                     <button type="button" class="wotmods-folder-picker__tool wotmods-folder-picker__tool--danger" id="wotmodsDeleteAllBtn" disabled>
                                         <i class="fas fa-trash-alt" aria-hidden="true"></i>
@@ -122,9 +122,9 @@ $meta = wotmods_hub_meta($lang);
                 </div>
 
                 <footer class="wotmods-workspace__footer">
-                    <button type="button" class="wotmods-btn wotmods-btn--primary wotmods-btn--install" id="wotmodsInstallSelectedBtn" disabled>
+                    <button type="button" class="wotmods-btn wotmods-btn--install" id="wotmodsInstallSelectedBtn" disabled>
                         <i class="fas fa-download" aria-hidden="true"></i>
-                        <?php echo $isEn ? 'Install selected' : 'Установить выбранные'; ?>
+                        <span><?php echo $isEn ? 'Install selected' : 'Установить выбранные'; ?></span>
                     </button>
                 </footer>
             </section>

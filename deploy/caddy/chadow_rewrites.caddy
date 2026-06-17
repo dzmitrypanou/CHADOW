@@ -56,8 +56,19 @@
 
         rewrite /services/abs /services/abs/index.php
         rewrite /en/services/abs /services/abs/index.php
-        rewrite /services/online /services/online/index.php
-        rewrite /en/services/online /services/online/index.php
+        @online_en path_regexp online_en ^/en/services/online/?$
+        rewrite @online_en /services/online/index.php
+        @online path_regexp online ^/services/online/?$
+        rewrite @online /services/online/index.php
+
+        redir /services/wotmods /services/mods permanent
+        redir /en/services/wotmods /en/services/mods permanent
+        redir /services/wotmods/battle-limit /services/mods permanent
+        redir /en/services/wotmods/battle-limit /en/services/mods permanent
+        @mods_en path_regexp mods_en ^/en/services/mods/?$
+        rewrite @mods_en /services/mods/index.php
+        @mods path_regexp mods ^/services/mods/?$
+        rewrite @mods /services/mods/index.php
 
         rewrite /services/recruiting/post /services/recruiting/post.php
         rewrite /services/recruiting/edit /services/recruiting/edit.php
