@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from . import config
 from .controller import BattleLimitController
+from .text import to_scaleform, to_system_message
+from . import ui_dialogs
+from .ui_dialogs import DIALOG_TITLE
 
 TAG = config.TAG
 
@@ -12,17 +15,30 @@ try:
     _HAS_IMPL_DIALOGS = True
 except ImportError:
     _HAS_IMPL_DIALOGS = False
+    DButtons = None
 
 BTN_LIMIT = 'chadow_limit'
 BTN_RESET = 'chadow_reset'
 BTN_NOTIFY = 'chadow_notify'
 BTN_BLOCK = 'chadow_block'
+BTN_OFF = 'chadow_off'
+BTN_BAN = 'chadow_ban'
+BTN_CUSTOM = 'chadow_custom'
 BTN_CLOSE = DButtons.CANCEL if _HAS_IMPL_DIALOGS else 'close'
 
-_LIMIT_PAGES = (
-    ((1, u'1 бой'), (3, u'3 боя'), (5, u'5 боёв'), ('more', u'Ещё…')),
-    ((10, u'10 боёв'), (15, u'15 боёв'), (20, u'20 боёв'), ('more', u'Ещё…')),
-    ((30, u'30 боёв'), (50, u'50 боёв'), (0, u'Выкл'), (BTN_CLOSE, u'Назад')),
+_LIMIT_CHOICES = (
+    (BTN_CUSTOM, u'Ввести вручную'),
+    (1, u'1 бой'),
+    (3, u'3 боя'),
+    (5, u'5 боёв'),
+    (10, u'10 боёв'),
+    (15, u'15 боёв'),
+    (20, u'20 боёв'),
+    (30, u'30 боёв'),
+    (50, u'50 боёв'),
+    (BTN_BAN, u'0 — полный запрет'),
+    (BTN_OFF, u'Выкл'),
+    (BTN_CLOSE, u'Close'),
 )
 
 
@@ -57,7 +73,7 @@ def _status_message(controller):
         return u'Мод не инициализирован.'
     if controller.hardBlockRandom:
         return (
-            u'Случайный бой полностью заблокирован.\n'
+            u'Случайный бой полностью заблокирован (0 боёв).\n'
             u'Рейтинговые, клановые и другие режимы доступны.'
         )
     if not controller.isActive():
@@ -96,24 +112,27 @@ def format_button_value(controller):
     if controller is None:
         return u'—'
     if controller.hardBlockRandom:
-        return u'БАН'
+        return u'0'
     if not controller.isActive():
         return u'∞'
     return u'%d/%d' % (controller.battlesPlayed, controller.maxBattles)
 
 
 def button_tooltip(controller):
-    lines = [u'Chadow: лимит случайных боёв', u'Нажмите для настроек']
+    lines = [
+        u'CHADOW: Battles Limit Mode',
+        u'Кнопка слева от статистики — настройки (Alt+Shift+M)',
+    ]
     if controller is None:
-        return u'\n'.join(lines)
+        return to_scaleform(u'\n'.join(lines))
     if controller.hardBlockRandom:
-        lines.append(u'Случайный бой заблокирован полностью')
-        return u'\n'.join(lines)
+        lines.append(u'Случайный бой заблокирован полностью (0 боёв)')
+        return to_scaleform(u'\n'.join(lines))
     if controller.isActive():
         remaining = controller.remainingBattles()
         if remaining is not None:
             lines.append(u'Осталось: %d' % remaining)
-    return u'\n'.join(lines)
+    return to_scaleform(u'\n'.join(lines))
 
 
 def refresh_hangar_widget():
@@ -127,7 +146,15 @@ def refresh_hangar_widget():
 def _apply_limit(controller, value):
     if controller is None:
         return
-    controller.setMaxBattles(value, notify=False)
+    if value == BTN_CUSTOM:
+        controller.startManualLimitInput(on_applied=refresh_hangar_widget)
+        return
+    if value == BTN_BAN:
+        controller.enableHardBlock(notify=True)
+    elif value == BTN_OFF:
+        controller.disableLimits(notify=True)
+    else:
+        controller.setMaxBattles(value, notify=True)
     refresh_hangar_widget()
 
 
@@ -142,59 +169,120 @@ def _toggle_notifications(controller):
 def _toggle_hard_block(controller):
     if controller is None:
         return
-    controller.setHardBlockRandom(not controller.hardBlockRandom, notify=False)
+    controller.setHardBlockRandom(not controller.hardBlockRandom, notify=True)
+    refresh_hangar_widget()
 
 
 def _build_dialog(title, message, buttons):
     builder = WarningDialogBuilder()
-    builder.setFormattedTitle(title)
-    builder.setFormattedMessage(message)
+    builder.setFormattedTitle(to_scaleform(title))
+    builder.setFormattedMessage(to_scaleform(message))
     for button_id, label, is_default in buttons:
-        builder.addButton(button_id, None, is_default, rawLabel=label)
+        builder.addButton(button_id, None, is_default, rawLabel=to_scaleform(label))
     return builder.build(_dialog_parent())
+
+
+def _open_settings_scaleform(controller):
+    def _handle_main(choice):
+        if choice in (BTN_CLOSE, 'close', 'chadow_close'):
+            return
+        if choice == BTN_LIMIT:
+            _open_limit_picker_scaleform(controller)
+            return
+        if choice == BTN_RESET and controller is not None:
+            controller.resetCounter(notify=True)
+            refresh_hangar_widget()
+            _open_settings_scaleform(controller)
+            return
+        if choice == BTN_BLOCK:
+            _toggle_hard_block(controller)
+            _open_settings_scaleform(controller)
+            return
+        if choice == BTN_NOTIFY:
+            _toggle_notifications(controller)
+            _open_settings_scaleform(controller)
+            return
+
+    ui_dialogs.show_choice(
+        DIALOG_TITLE,
+        _status_message(controller),
+        (
+            (BTN_LIMIT, u'Сменить лимит'),
+            (BTN_RESET, u'Сбросить счётчик'),
+            (BTN_BLOCK, _block_state(controller)),
+            (BTN_NOTIFY, _notify_state(controller)),
+            (BTN_CLOSE, u'Close'),
+        ),
+        _handle_main,
+    )
+
+
+def _open_limit_picker_scaleform(controller):
+    def _handle_limit(choice):
+        if choice in (BTN_CLOSE, 'close', 'chadow_close'):
+            return
+        if choice in (BTN_OFF, BTN_BAN, BTN_CUSTOM) or isinstance(choice, (int, long)):
+            _apply_limit(controller, choice)
+            if choice != BTN_CUSTOM:
+                _open_settings_scaleform(controller)
+            return
+        try:
+            _apply_limit(controller, int(choice))
+            _open_settings_scaleform(controller)
+        except (TypeError, ValueError):
+            return
+
+    ui_dialogs.show_choice(
+        DIALOG_TITLE,
+        u'Выберите максимум случайных боёв за сессию или введите вручную.',
+        _LIMIT_CHOICES,
+        _handle_limit,
+    )
 
 
 if _HAS_IMPL_DIALOGS:
 
     @wg_async
     def _show_limit_picker(controller):
-        page_index = 0
-        while True:
-            page = _LIMIT_PAGES[page_index]
-            buttons = []
-            for index, (value, label) in enumerate(page):
-                buttons.append((value, label, index == 0))
-            result = yield wg_await(dialogs.show(_build_dialog(
-                u'Лимит случайных боёв',
-                u'Выберите максимум случайных боёв за текущую сессию.',
-                buttons,
-            )))
-            choice = getattr(result, 'result', None)
-            if choice in (None, BTN_CLOSE, DButtons.CANCEL):
-                return
-            if choice == 'more':
-                page_index = min(page_index + 1, len(_LIMIT_PAGES) - 1)
+        buttons = []
+        for index, (value, label) in enumerate(_LIMIT_CHOICES):
+            if value == BTN_CLOSE:
                 continue
-            try:
-                limit = int(choice)
-            except (TypeError, ValueError):
-                return
-            _apply_limit(controller, limit)
+            buttons.append((value, label, index == 0))
+        buttons.append((BTN_CLOSE, u'Close', False))
+        result = yield wg_await(dialogs.show(_build_dialog(
+            DIALOG_TITLE,
+            u'Выберите максимум случайных боёв за сессию или введите вручную.',
+            buttons,
+        )))
+        choice = getattr(result, 'result', None)
+        if choice in (None, BTN_CLOSE, DButtons.CANCEL):
             return
+        if choice == BTN_CUSTOM:
+            _apply_limit(controller, choice)
+            return
+        if choice in (BTN_OFF, BTN_BAN):
+            _apply_limit(controller, choice)
+            return
+        try:
+            limit = int(choice)
+        except (TypeError, ValueError):
+            return
+        _apply_limit(controller, limit)
 
     @wg_async
     def open_settings_panel(_source=None):
         controller = BattleLimitController.instance
         while True:
             result = yield wg_await(dialogs.show(_build_dialog(
-                u'Chadow: лимит боёв',
+                DIALOG_TITLE,
                 _status_message(controller),
                 (
                     (BTN_LIMIT, u'Сменить лимит', True),
                     (BTN_RESET, u'Сбросить счётчик', False),
                     (BTN_BLOCK, _block_state(controller), False),
                     (BTN_NOTIFY, _notify_state(controller), False),
-                    (BTN_CLOSE, u'Закрыть', False),
+                    (BTN_CLOSE, u'Close', False),
                 ),
             )))
             choice = getattr(result, 'result', None)
@@ -222,10 +310,4 @@ else:
         controller = BattleLimitController.instance
         if controller is None:
             return
-        from gui import SystemMessages
-        from gui.SystemMessages import SM_TYPE
-        SystemMessages.pushMessage(
-            _status_message(controller) + u'\n\nИспользуйте Alt+Shift+1..9 или Alt+Shift+B.',
-            type=SM_TYPE.Information,
-            messageData={'header': u'Chadow: лимит боёв'},
-        )
+        _open_settings_scaleform(controller)

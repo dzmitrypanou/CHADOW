@@ -18884,6 +18884,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .wotmods-folder-picker__btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -18893,7 +18894,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     padding: 0 18px;
     border: 0;
     border-left: 1px solid rgba(100, 181, 246, 0.28);
-    background: linear-gradient(180deg, rgba(38, 64, 110, 0.95) 0%, rgba(30, 51, 89, 0.98) 100%);
+    background-color: rgba(30, 51, 89, 0.98);
     color: #c5e4ff;
     font-family: inherit;
     font-size: 0.9rem;
@@ -18901,7 +18902,13 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     line-height: 1;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.wotmods-folder-picker__btn > i,
+.wotmods-folder-picker__btn > span {
+    position: relative;
+    z-index: 1;
 }
 
 .wotmods-folder-picker__btn > i {
@@ -18914,7 +18921,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     width: 44px;
     min-width: 44px;
     padding: 0;
-    background: rgba(12, 20, 38, 0.92);
+    background-color: rgba(12, 20, 38, 0.92);
     color: rgba(175, 200, 228, 0.82);
     border-right: 1px solid rgba(100, 181, 246, 0.18);
 }
@@ -18924,12 +18931,16 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .wotmods-folder-picker__btn--reset:hover:not(:disabled) {
-    background: rgba(24, 40, 68, 0.95);
+    background-color: rgba(24, 40, 68, 0.95);
     color: #f2f7ff;
 }
 
-.wotmods-folder-picker__btn:hover:not(:disabled) {
-    background: rgba(48, 78, 128, 0.98);
+.wotmods-folder-picker__btn--pick {
+    background-color: rgba(38, 64, 110, 0.95);
+}
+
+.wotmods-folder-picker__btn--pick:hover:not(:disabled) {
+    background-color: rgba(56, 88, 140, 0.98);
     color: #fff;
 }
 

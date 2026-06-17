@@ -8,6 +8,7 @@ from gui.shared import g_eventBus, events, EVENT_BUS_SCOPE
 
 from . import config
 from .compat import is_random_queue, lobby_context_instance
+from .text import to_scaleform, to_system_message, to_system_message_bytes
 
 PRESET_LIMITS = config.PRESET_LIMITS
 
@@ -21,6 +22,9 @@ class BattleLimitController(object):
         self._lobbyBound = False
         self._confirmator = self._confirmFightButtonPress
         self._lastBattleQueue = None
+        self._limitInputActive = False
+        self._limitInputBuffer = u''
+        self._limitInputOnApplied = None
 
     @property
     def enabled(self):
@@ -89,27 +93,48 @@ class BattleLimitController(object):
         self.refreshFightButton()
         self._refreshHangarWidget()
         if notify and self._data.get('showNotifications', True):
-            if limit <= 0:
+            if limit <= 0 and not self.hardBlockRandom:
                 self._notify(u'Лимит боёв отключён. Случайный бой снова доступен.')
             else:
                 self._notify(u'Лимит сессии: %d %s (только случайный бой).' % (
                     limit, self._battlesWord(limit)))
 
-    def setHardBlockRandom(self, enabled, notify=True):
-        self._data['hardBlockRandom'] = bool(enabled)
-        if self._data['hardBlockRandom']:
-            self._data['enabled'] = True
+    def enableHardBlock(self, notify=True):
+        self._data['hardBlockRandom'] = True
+        self._data['enabled'] = True
+        self._data['maxBattles'] = 0
         config.save(self._data)
         self.refreshFightButton()
         self._refreshHangarWidget()
         if notify and self._data.get('showNotifications', True):
-            if self._data['hardBlockRandom']:
-                self._notify(
-                    u'Случайный бой заблокирован. Другие режимы доступны.',
-                    SM_TYPE.Warning,
-                )
-            else:
-                self._notify(u'Полный запрет случайного боя снят.')
+            self._notify(
+                u'Случайный бой заблокирован (0 боёв). Другие режимы доступны.',
+                SM_TYPE.Warning,
+            )
+
+    def disableLimits(self, notify=True):
+        self._data['hardBlockRandom'] = False
+        self._data['maxBattles'] = 0
+        self._data['enabled'] = False
+        config.save(self._data)
+        self.refreshFightButton()
+        self._refreshHangarWidget()
+        if notify and self._data.get('showNotifications', True):
+            self._notify(u'Лимит боёв отключён. Случайный бой снова доступен.')
+
+    def setHardBlockRandom(self, enabled, notify=True):
+        if enabled:
+            self.enableHardBlock(notify=notify)
+            return
+        if self._data.get('hardBlockRandom'):
+            self.disableLimits(notify=notify)
+            return
+        self._data['hardBlockRandom'] = False
+        config.save(self._data)
+        self.refreshFightButton()
+        self._refreshHangarWidget()
+        if notify and self._data.get('showNotifications', True):
+            self._notify(u'Полный запрет случайного боя снят.')
 
     def resetCounter(self, notify=True):
         self._data['battlesPlayed'] = 0
@@ -150,7 +175,7 @@ class BattleLimitController(object):
         except ValueError:
             nextIndex = 0
         if nextIndex >= len(PRESET_LIMITS):
-            self.setMaxBattles(0)
+            self.disableLimits()
             return
         self.setMaxBattles(PRESET_LIMITS[nextIndex])
 
@@ -179,6 +204,7 @@ class BattleLimitController(object):
         g_playerEvents.onAccountBecomePlayer += self._onAccountBecomePlayer
         g_playerEvents.onAvatarBecomePlayer += self._onAvatarBecomePlayer
         InputHandler.g_instance.onKeyDown += self._onKeyDown
+        InputHandler.g_instance.onKeyUp += self._onKeyUp
 
     def unbind(self):
         if self._lobbyBound and self._lobbyContext is not None:
@@ -192,6 +218,7 @@ class BattleLimitController(object):
         g_playerEvents.onAccountBecomePlayer -= self._onAccountBecomePlayer
         g_playerEvents.onAvatarBecomePlayer -= self._onAvatarBecomePlayer
         InputHandler.g_instance.onKeyDown -= self._onKeyDown
+        InputHandler.g_instance.onKeyUp -= self._onKeyUp
 
     def reloadConfig(self):
         self._data = config.load()
@@ -234,10 +261,75 @@ class BattleLimitController(object):
             self._lastBattleQueue = None
 
     def _onAccountBecomePlayer(self):
+        config.refreshGameRoot()
         self._ensureLobbyBind()
         self.reloadConfig()
 
+    def startManualLimitInput(self, on_applied=None):
+        self._limitInputActive = True
+        self._limitInputBuffer = u''
+        self._limitInputOnApplied = on_applied
+        self._notify(
+            u'Введите лимит цифрами (1–999). Enter — применить, Esc — отмена.',
+        )
+
+    def cancelManualLimitInput(self, notify=False):
+        self._limitInputActive = False
+        self._limitInputBuffer = u''
+        self._limitInputOnApplied = None
+        if notify:
+            self._notify(u'Ввод лимита отменён.')
+
+    def _handleManualLimitInput(self, event):
+        if not self._limitInputActive:
+            return False
+        key = event.key
+        if key == Keys.KEY_ESCAPE:
+            self.cancelManualLimitInput(notify=True)
+            return True
+        if key in (Keys.KEY_RETURN, getattr(Keys, 'KEY_NUMPADENTER', Keys.KEY_RETURN)):
+            text = self._limitInputBuffer.strip()
+            callback = self._limitInputOnApplied
+            self.cancelManualLimitInput()
+            if not text:
+                self._notify(u'Лимит не задан.')
+                return True
+            try:
+                limit = int(text)
+            except (TypeError, ValueError):
+                self._notify(u'Некорректное число.')
+                return True
+            limit = max(min(limit, 999), 1)
+            self.setMaxBattles(limit)
+            if callback:
+                try:
+                    callback()
+                except Exception:
+                    pass
+            return True
+        if key in (Keys.KEY_BACKSPACE, Keys.KEY_DELETE):
+            self._limitInputBuffer = self._limitInputBuffer[:-1]
+            return True
+        top_digits = (
+            Keys.KEY_0, Keys.KEY_1, Keys.KEY_2, Keys.KEY_3, Keys.KEY_4,
+            Keys.KEY_5, Keys.KEY_6, Keys.KEY_7, Keys.KEY_8, Keys.KEY_9,
+        )
+        if key in top_digits:
+            if len(self._limitInputBuffer) >= 3:
+                return True
+            self._limitInputBuffer += unicode(top_digits.index(key))
+            return True
+        numpad = [getattr(Keys, 'KEY_NUMPAD%d' % i, None) for i in range(10)]
+        if key in numpad:
+            if len(self._limitInputBuffer) >= 3:
+                return True
+            self._limitInputBuffer += unicode(numpad.index(key))
+            return True
+        return False
+
     def _onKeyDown(self, event):
+        if self._handleManualLimitInput(event):
+            return
         if not event.isKeyDown():
             return
         if not (event.isAltDown() and event.isShiftDown()):
@@ -245,6 +337,13 @@ class BattleLimitController(object):
         key = event.key
         if key == Keys.KEY_R:
             self.resetCounter()
+            return
+        if key == Keys.KEY_M:
+            try:
+                from .ui import open_settings_panel
+                open_settings_panel()
+            except Exception as error:
+                print('%s settings panel failed: %s' % (config.TAG, error))
             return
         if key == Keys.KEY_B:
             self.cyclePreset()
@@ -257,16 +356,24 @@ class BattleLimitController(object):
             return
         digit = digitKeys.index(key)
         if digit == 0:
-            self.setMaxBattles(0)
+            self.enableHardBlock()
             return
         if 1 <= digit <= 9:
             self.setMaxBattles(digit)
 
+    def _onKeyUp(self, event):
+        self._handleManualLimitInput(event)
+
     def _notify(self, text, messageType=SM_TYPE.Information):
+        try:
+            from .ui_dialogs import DIALOG_TITLE
+            header = DIALOG_TITLE
+        except ImportError:
+            header = u'CHADOW: Battles Limit Mode'
         SystemMessages.pushMessage(
-            text,
+            to_system_message_bytes(text),
             type=messageType,
-            messageData={'header': u'Chadow: лимит боёв'}
+            messageData={'header': to_system_message_bytes(header)},
         )
 
     @staticmethod

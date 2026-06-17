@@ -28,13 +28,34 @@ def get_queue_type():
         return None
 
 
+def get_arena_gui_type():
+    try:
+        from gui.prb_control import prb_getters
+        return prb_getters.getArenaGUIType()
+    except Exception:
+        return None
+
+
 def is_random_queue(queue_type=None):
     try:
-        from constants import QUEUE_TYPE
+        from constants import ARENA_GUI_TYPE, QUEUE_TYPE
+        from gui.prb_control import prb_getters
     except ImportError:
         return False
+
+    try:
+        arena_type = prb_getters.getArenaGUIType()
+        if arena_type == ARENA_GUI_TYPE.RANDOM:
+            return True
+        if arena_type != ARENA_GUI_TYPE.UNKNOWN:
+            return False
+    except Exception:
+        arena_type = None
+
     if queue_type is None:
         queue_type = get_queue_type()
     if queue_type is None:
         return False
+    if queue_type == QUEUE_TYPE.UNKNOWN:
+        return arena_type in (None, ARENA_GUI_TYPE.UNKNOWN)
     return queue_type == QUEUE_TYPE.RANDOMS

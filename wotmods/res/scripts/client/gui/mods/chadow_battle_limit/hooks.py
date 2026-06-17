@@ -1,5 +1,6 @@
 from . import config
 from .controller import BattleLimitController
+from .text import to_scaleform
 
 TAG = config.TAG
 _patches = []
@@ -22,13 +23,13 @@ def _fight_tooltip(controller):
     if controller.isLimitReached() and controller.appliesToCurrentQueue():
         return (
             u'Лимит случайных боёв (%d/%d).\n'
-            u'Счётчик внизу справа — настройки.'
+            u'Кнопка слева от статистики — настройки мода.'
         ) % (controller.battlesPlayed, controller.maxBattles)
     if controller.isActive():
         remaining = controller.remainingBattles()
         return (
             u'Chadow: случайный бой %d/%d.\n'
-            u'Осталось: %d. Нажмите счётчик для настроек.'
+            u'Осталось: %d. Кнопка слева — настройки.'
         ) % (controller.battlesPlayed, controller.maxBattles, remaining or 0)
     return u''
 
@@ -63,7 +64,7 @@ def _update_controls_patch(self, original, *args, **kwargs):
         if hasattr(self, 'as_disableFightButtonS'):
             self.as_disableFightButtonS(True)
     if tooltip and hasattr(self, 'as_setFightBtnTooltipS'):
-        self.as_setFightBtnTooltipS(tooltip, False)
+        self.as_setFightBtnTooltipS(to_scaleform(tooltip), False)
     return result
 
 
