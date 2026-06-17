@@ -1,6 +1,6 @@
 Options -Indexes
 
-<FilesMatch "\.(json|zip)$">
+<FilesMatch "\.(json|zip|mtmod)$">
     <IfModule mod_authz_core.c>
         Require all granted
     </IfModule>
@@ -11,7 +11,7 @@ Options -Indexes
 </FilesMatch>
 
 <IfModule mod_headers.c>
-    <FilesMatch "\.(json|zip)$">
+    <FilesMatch "\.(json|zip|mtmod)$">
         Header set Cache-Control "public, max-age=3600"
     </FilesMatch>
 </IfModule>

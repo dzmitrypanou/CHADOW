@@ -9,7 +9,7 @@ function wotmods_build_href(string $lang, string $suffix = ''): string
         require_once __DIR__ . '/lang.php';
     }
 
-    $path = 'services/wotmods';
+    $path = 'services/mods';
     if ($suffix !== '') {
         $path .= '/' . ltrim($suffix, '/');
     }
@@ -84,7 +84,7 @@ function wotmods_download_exists(string $filename): bool
 function wotmods_catalog(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.0';
+    $version = '1.0.1';
 
     return [
         [
@@ -97,7 +97,7 @@ function wotmods_catalog(string $lang = 'ru'): array
             'short' => $isEn
                 ? 'Blocks the fight button after the selected number of battles per session.'
                 : 'Блокирует кнопку «В бой» после выбранного числа боёв за сессию.',
-            'href' => wotmods_build_href($lang, 'battle-limit'),
+            'configMarker' => 'mods/configs/chadow.battle_limit.json',
         ],
     ];
 }
@@ -122,7 +122,7 @@ function wotmods_get_mod(string $slug, string $lang = 'ru'): ?array
 function wotmods_battle_limit_page(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.0';
+    $version = '1.0.1';
     $configFile = 'chadow.battle_limit.json';
     $resArchive = 'chadow.battle-limit-res.zip';
 
@@ -246,6 +246,66 @@ function wotmods_client_badges_html(string $lang = 'ru'): string
         . '</div>';
 }
 
+function wotmods_game_client_icon(string $client): string
+{
+    return $client === 'wot'
+        ? '/assets/icons/games/wot-white.png'
+        : '/assets/icons/games/mir-tankov.png';
+}
+
+function wotmods_game_client_label(string $client, string $lang = 'ru'): string
+{
+    if ($client === 'wot') {
+        return 'World of Tanks';
+    }
+
+    return $lang === 'en' ? 'Mir Tankov' : 'Мир танков';
+}
+
+/**
+ * @return array{files: list<string>, dirs: list<string>, packageMarkers: list<string>, configMarkers: list<string>}
+ */
+function wotmods_uninstall_spec_for_mod(string $modId): array
+{
+    $definition = wotmods_install_mod_definition($modId);
+    if ($definition === null) {
+        return ['files' => [], 'dirs' => [], 'packageMarkers' => [], 'configMarkers' => []];
+    }
+
+    $files = [];
+    $configPath = (string) ($definition['configGamePath'] ?? '');
+    if ($configPath !== '') {
+        $files[] = $configPath;
+    }
+
+    $packageFile = (string) ($definition['packageFile'] ?? '');
+    if ($packageFile !== '') {
+        $files[] = 'mods/{clientVersion}/' . $packageFile;
+    }
+
+    $dirs = [];
+    foreach (wotmods_list_res_files() as $relativePath) {
+        $files[] = 'res_mods/{clientVersion}/res/' . $relativePath;
+        if (preg_match('/\.py$/i', $relativePath)) {
+            $files[] = 'res_mods/{clientVersion}/res/' . preg_replace('/\.py$/i', '.pyc', $relativePath);
+        }
+        $parent = dirname(str_replace('\\', '/', $relativePath));
+        if ($parent !== '.' && str_contains($parent, 'chadow')) {
+            $dirs[] = 'res_mods/{clientVersion}/res/' . $parent;
+        }
+    }
+
+    $dirs = array_values(array_unique($dirs));
+    rsort($dirs);
+
+    return [
+        'files' => array_values(array_unique($files)),
+        'dirs' => $dirs,
+        'packageMarkers' => ['chadow.battle-limit', 'chadow.battle_limit', 'mod_chadow', 'chadow_'],
+        'configMarkers' => ['chadow.'],
+    ];
+}
+
 function wotmods_res_root(): string
 {
     return dirname(__DIR__) . '/' . WOTMODS_SOURCE_DIR . '/res';
@@ -284,14 +344,59 @@ function wotmods_list_res_files(): array
 /**
  * @return array<string, mixed>|null
  */
+function wotmods_normalize_client_version(string $version, array $folderVersions = []): string
+{
+    $version = trim($version);
+    if ($version === '') {
+        return '';
+    }
+
+    if ($folderVersions !== [] && in_array($version, $folderVersions, true)) {
+        return $version;
+    }
+
+    if ($folderVersions !== []) {
+        $matches = array_values(array_filter($folderVersions, static function (string $folderVersion) use ($version): bool {
+            return $folderVersion === $version
+                || str_starts_with($folderVersion, $version . '.')
+                || str_starts_with($version, $folderVersion . '.');
+        }));
+        if ($matches !== []) {
+            usort($matches, static function (string $a, string $b): int {
+                return version_compare($b, $a);
+            });
+
+            return $matches[0];
+        }
+    }
+
+    if (preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/', $version)) {
+        return $version . '.0';
+    }
+
+    return $version;
+}
+
+function wotmods_install_paths_for_version(string $version): array
+{
+    $version = wotmods_normalize_client_version($version);
+
+    return [
+        'config' => 'mods/configs/',
+        'scripts' => 'res_mods/' . $version . '/res/',
+        'modsVersion' => 'mods/' . $version . '/',
+    ];
+}
+
 function wotmods_install_mod_definition(string $modId): ?array
 {
     $definitions = [
         'battle-limit' => [
             'id' => 'battle-limit',
-            'version' => '1.0.0',
+            'version' => '1.0.1',
             'configGamePath' => 'mods/configs/chadow.battle_limit.json',
             'configFile' => 'chadow.battle_limit.json',
+            'packageFile' => 'chadow.battle-limit_1.0.1.mtmod',
         ],
     ];
 
@@ -303,7 +408,17 @@ function wotmods_install_mod_definition(string $modId): ?array
  */
 function wotmods_install_manifest_mods(?string $modId = null): array
 {
-    $ids = $modId !== null && $modId !== '' ? [$modId] : ['battle-limit'];
+    if ($modId !== null && $modId !== '') {
+        $ids = [$modId];
+    } else {
+        $ids = [];
+        foreach (wotmods_catalog('ru') as $entry) {
+            $id = (string) ($entry['id'] ?? '');
+            if ($id !== '') {
+                $ids[] = $id;
+            }
+        }
+    }
     $mods = [];
 
     foreach ($ids as $id) {
@@ -312,15 +427,8 @@ function wotmods_install_manifest_mods(?string $modId = null): array
             continue;
         }
 
-        $scripts = [];
-        foreach (wotmods_list_res_files() as $relativePath) {
-            $scripts[] = [
-                'path' => $relativePath,
-                'url' => '/api/wotmods/file?mod=' . rawurlencode($id) . '&path=' . rawurlencode($relativePath),
-            ];
-        }
-
         $configFile = (string) ($definition['configFile'] ?? '');
+        $packageFile = (string) ($definition['packageFile'] ?? '');
         $mods[] = [
             'id' => $definition['id'],
             'version' => $definition['version'],
@@ -328,8 +436,13 @@ function wotmods_install_manifest_mods(?string $modId = null): array
             'configUrl' => wotmods_download_exists($configFile)
                 ? wotmods_download_public_path($configFile)
                 : null,
-            'scripts' => $scripts,
-            'resRoot' => 'res_mods/{clientVersion}/res',
+            'packageGamePath' => $packageFile !== ''
+                ? 'mods/{clientVersion}/' . $packageFile
+                : null,
+            'packageUrl' => ($packageFile !== '' && wotmods_download_exists($packageFile))
+                ? wotmods_download_public_path($packageFile)
+                : null,
+            'uninstall' => wotmods_uninstall_spec_for_mod($id),
         ];
     }
 

@@ -27,7 +27,7 @@ $tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать план
 $tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
 $aimServiceHref = $lang === 'en' ? '/en/services/aim' : '/services/aim';
 $onlineGamesServiceHref = $lang === 'en' ? '/en/services/onlinegames' : '/services/onlinegames';
-$wotmodsServiceHref = $lang === 'en' ? '/en/services/wotmods' : '/services/wotmods';
+$wotmodsServiceHref = $lang === 'en' ? '/en/services/mods' : '/services/mods';
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';

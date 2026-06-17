@@ -17,7 +17,7 @@
 | **Tactics** | `/services/tactics` | Совместный тактический планшет с картами и чатом |
 | **Aim** | `/services/aim` | Тренажёры прицеливания и таблицы лидеров |
 | **Online Games** | `/services/onlinegames` | Браузерные мини-игры (шашки и др.) |
-| **WoT Mods** | `/services/wotmods` | Установка модов для клиента World of Tanks / Мир танков |
+| **WoT Mods** | `/services/mods` | Установка модов для клиента World of Tanks / Мир танков |
 | **Minecraft Launcher** | карточка на главной | Chadow Games Launcher (управление через админку) |
 
 Английская локализация доступна по префиксу `/en/` (например, `/en/services/abs`).

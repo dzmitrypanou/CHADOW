@@ -6,8 +6,13 @@ function showSiteToast(message, type, options) {
     const toast = document.createElement('div');
     toast.className = `site-toast site-toast--${type}`;
     toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    const icon = type === 'error' ? 'exclamation-circle' : 'check-circle';
-    toast.innerHTML = `<i class="fas fa-${icon}" aria-hidden="true"></i><span></span>`;
+    let iconClass = 'fa-check-circle';
+    if (type === 'error') {
+        iconClass = 'fa-exclamation-circle';
+    } else if (type === 'info') {
+        iconClass = 'fa-circle-notch fa-spin';
+    }
+    toast.innerHTML = `<i class="fas ${iconClass}" aria-hidden="true"></i><span></span>`;
     toast.querySelector('span').textContent = message;
     document.body.appendChild(toast);
 

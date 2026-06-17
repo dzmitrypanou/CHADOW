@@ -5,12 +5,9 @@ from adisp import adisp_async, adisp_process
 from gui import InputHandler, SystemMessages
 from gui.SystemMessages import SM_TYPE
 from gui.shared import g_eventBus, events, EVENT_BUS_SCOPE
-from helpers import dependency
-from skeletons.gui.shared.utils import ILobbyContext
 
 from chadow_battle_limit import config
-
-TAG = config.TAG
+from chadow_battle_limit.compat import lobby_context_instance
 PRESET_LIMITS = config.PRESET_LIMITS
 
 
@@ -19,7 +16,7 @@ class BattleLimitController(object):
 
     def __init__(self):
         self._data = config.load()
-        self._lobbyContext = dependency.instance(ILobbyContext)
+        self._lobbyContext = lobby_context_instance()
         self._confirmator = self._confirmFightButtonPress
 
     @property

@@ -5,6 +5,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Сборка мода (генерируется build.bat)
+# Сборка мода (генерируется build.bat / build.ps1)
 wotmods/build/
+wotmods/.build/
+wotmods/.build-tools/
 wotmods/*.mtmod
