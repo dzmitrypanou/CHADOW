@@ -98,6 +98,11 @@ $meta = wotmods_hub_meta($lang);
                                     $icon = htmlspecialchars((string) ($mod['icon'] ?? 'fa-puzzle-piece'), ENT_QUOTES, 'UTF-8');
                                     $title = htmlspecialchars((string) ($mod['title'] ?? ''), ENT_QUOTES, 'UTF-8');
                                     $author = trim((string) ($mod['author'] ?? ''));
+                                    $authorLabel = htmlspecialchars(
+                                        (string) ($mod['authorLabel'] ?? ($isEn ? 'Author:' : 'Автор:')),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    );
                                     $authorUrl = trim((string) ($mod['authorUrl'] ?? ''));
                                     $short = htmlspecialchars((string) ($mod['short'] ?? ''), ENT_QUOTES, 'UTF-8');
                                     $version = htmlspecialchars((string) ($mod['version'] ?? ''), ENT_QUOTES, 'UTF-8');
@@ -109,17 +114,20 @@ $meta = wotmods_hub_meta($lang);
                                             <span class="wotmods-mod-item__title-row">
                                                 <span class="wotmods-mod-item__title"><?php echo $title; ?></span>
                                                 <?php if ($author !== ''): ?>
-                                                    <?php if ($authorUrl !== ''): ?>
-                                                        <a
-                                                            class="wotmods-mod-item__author wotmods-mod-item__author-link"
-                                                            href="<?php echo htmlspecialchars($authorUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onclick="event.stopPropagation();"
-                                                        ><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></a>
-                                                    <?php else: ?>
-                                                        <span class="wotmods-mod-item__author"><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></span>
-                                                    <?php endif; ?>
+                                                    <span class="wotmods-mod-item__author">
+                                                        <span class="wotmods-mod-item__author-label" data-wotmods-author-label><?php echo $authorLabel; ?></span>
+                                                        <?php if ($authorUrl !== ''): ?>
+                                                            <a
+                                                                class="wotmods-mod-item__author-name wotmods-mod-item__author-link"
+                                                                href="<?php echo htmlspecialchars($authorUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                onclick="event.stopPropagation();"
+                                                            ><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></a>
+                                                        <?php else: ?>
+                                                            <span class="wotmods-mod-item__author-name"><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                        <?php endif; ?>
+                                                    </span>
                                                 <?php endif; ?>
                                             </span>
                                             <span class="wotmods-mod-item__desc"><?php echo $short; ?></span>

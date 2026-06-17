@@ -110,12 +110,18 @@
             const entry = catalog.find((mod) => String(mod.id) === modId);
             if (!entry) return;
             const titleEl = item.querySelector('.wotmods-mod-item__title');
-            const authorEl = item.querySelector('.wotmods-mod-item__author');
+            const authorLabelEl = item.querySelector('[data-wotmods-author-label]');
+            const authorNameEl = item.querySelector('.wotmods-mod-item__author-name');
             const descEl = item.querySelector('.wotmods-mod-item__desc');
             const badgeEl = item.querySelector('[data-wotmods-installed-badge]');
             const updateBadgeEl = item.querySelector('[data-wotmods-update-badge]');
             if (titleEl) titleEl.textContent = String(entry.title || '');
-            if (authorEl) authorEl.textContent = String(entry.author || '');
+            if (authorLabelEl) {
+                authorLabelEl.textContent = String(
+                    entry.authorLabel || (getLang() === 'en' ? 'Author:' : 'Автор:')
+                );
+            }
+            if (authorNameEl) authorNameEl.textContent = String(entry.author || '');
             if (descEl) descEl.textContent = String(entry.short || '');
             if (badgeEl) badgeEl.textContent = installedLabel;
             if (updateBadgeEl) updateBadgeEl.textContent = t('badgeUpdate');

@@ -95,6 +95,7 @@ function wotmods_catalog(string $lang = 'ru'): array
             'clients' => ['lesta', 'wg'],
             'title' => $isEn ? 'Battle button limiter' : 'Блокировка кнопки «В бой»',
             'author' => 'Immortal_Emperor',
+            'authorLabel' => $isEn ? 'Author:' : 'Автор:',
             'authorUrl' => 'https://tanki.su/ru/community/accounts/282194247',
             'short' => $isEn
                 ? 'Blocks the fight button after the selected number of battles per session. Set 0 to block completely.'
