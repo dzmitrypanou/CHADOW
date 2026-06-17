@@ -97,6 +97,8 @@ $meta = wotmods_hub_meta($lang);
                                     $modId = htmlspecialchars((string) ($mod['id'] ?? ''), ENT_QUOTES, 'UTF-8');
                                     $icon = htmlspecialchars((string) ($mod['icon'] ?? 'fa-puzzle-piece'), ENT_QUOTES, 'UTF-8');
                                     $title = htmlspecialchars((string) ($mod['title'] ?? ''), ENT_QUOTES, 'UTF-8');
+                                    $author = trim((string) ($mod['author'] ?? ''));
+                                    $authorUrl = trim((string) ($mod['authorUrl'] ?? ''));
                                     $short = htmlspecialchars((string) ($mod['short'] ?? ''), ENT_QUOTES, 'UTF-8');
                                     $version = htmlspecialchars((string) ($mod['version'] ?? ''), ENT_QUOTES, 'UTF-8');
                                     ?>
@@ -104,13 +106,31 @@ $meta = wotmods_hub_meta($lang);
                                         <input type="checkbox" class="wotmods-mod-item__check" name="wotmods_selected[]" value="<?php echo $modId; ?>" disabled>
                                         <span class="wotmods-mod-item__icon" aria-hidden="true"><i class="fas <?php echo $icon; ?>"></i></span>
                                         <span class="wotmods-mod-item__content">
-                                            <span class="wotmods-mod-item__title"><?php echo $title; ?></span>
+                                            <span class="wotmods-mod-item__title-row">
+                                                <span class="wotmods-mod-item__title"><?php echo $title; ?></span>
+                                                <?php if ($author !== ''): ?>
+                                                    <?php if ($authorUrl !== ''): ?>
+                                                        <a
+                                                            class="wotmods-mod-item__author wotmods-mod-item__author-link"
+                                                            href="<?php echo htmlspecialchars($authorUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onclick="event.stopPropagation();"
+                                                        ><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></a>
+                                                    <?php else: ?>
+                                                        <span class="wotmods-mod-item__author"><?php echo htmlspecialchars($author, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </span>
                                             <span class="wotmods-mod-item__desc"><?php echo $short; ?></span>
                                         </span>
                                         <span class="wotmods-mod-item__meta">
                                             <span class="wotmods-mod-item__version">v<?php echo $version; ?></span>
                                             <span class="wotmods-mod-item__installed" hidden data-wotmods-installed-badge>
                                                 <?php echo $isEn ? 'Installed' : 'Установлен'; ?>
+                                            </span>
+                                            <span class="wotmods-mod-item__update" hidden data-wotmods-update-badge>
+                                                <?php echo $isEn ? 'Update available' : 'Доступно обновление'; ?>
                                             </span>
                                         </span>
                                         <span class="wotmods-mod-item__tick" aria-hidden="true"><i class="fas fa-check"></i></span>

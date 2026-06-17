@@ -84,7 +84,7 @@ function wotmods_download_exists(string $filename): bool
 function wotmods_catalog(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.9';
+    $version = '1.0.14';
 
     return [
         [
@@ -94,9 +94,11 @@ function wotmods_catalog(string $lang = 'ru'): array
             'version' => $version,
             'clients' => ['lesta', 'wg'],
             'title' => $isEn ? 'Battle button limiter' : 'Блокировка кнопки «В бой»',
+            'author' => 'Immortal_Emperor',
+            'authorUrl' => 'https://tanki.su/ru/community/accounts/282194247',
             'short' => $isEn
-                ? 'Blocks the fight button after the selected number of battles per session.'
-                : 'Блокирует кнопку «В бой» после выбранного числа боёв за сессию.',
+                ? 'Blocks the fight button after the selected number of battles per session. Set 0 to block completely.'
+                : 'Блокирует кнопку «В бой» после выбранного числа боёв за сессию. Выставьте 0, чтобы заблокировать полностью',
             'configMarker' => 'mods/configs/chadow.battle_limit.json',
         ],
     ];
@@ -122,7 +124,7 @@ function wotmods_get_mod(string $slug, string $lang = 'ru'): ?array
 function wotmods_battle_limit_page(string $lang = 'ru'): array
 {
     $isEn = $lang === 'en';
-    $version = '1.0.9';
+    $version = '1.0.14';
     $configFile = 'chadow.battle_limit.json';
     $resArchive = 'chadow.battle-limit-res.zip';
 
@@ -401,10 +403,10 @@ function wotmods_install_mod_definition(string $modId): ?array
     $definitions = [
         'battle-limit' => [
             'id' => 'battle-limit',
-            'version' => '1.0.9',
+            'version' => '1.0.14',
             'configGamePath' => 'mods/configs/chadow.battle_limit.json',
             'configFile' => 'chadow.battle_limit.json',
-            'packageFile' => 'chadow.battle-limit_1.0.9.mtmod',
+            'packageFile' => 'chadow.battle-limit_1.0.14.mtmod',
         ],
     ];
 

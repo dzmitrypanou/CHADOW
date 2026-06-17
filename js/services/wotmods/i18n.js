@@ -16,6 +16,7 @@
             modsHintLocked: 'Сначала выберите папку игры выше.',
             modsHintReady: 'Отметьте моды и нажмите «Установить выбранные».',
             installed: 'Установлен',
+            badgeUpdate: 'Доступно обновление',
             installSelected: 'Установить выбранные',
         },
         en: {
@@ -32,6 +33,7 @@
             modsHintLocked: 'Select the game folder above first.',
             modsHintReady: 'Mark mods and click “Install selected”.',
             installed: 'Installed',
+            badgeUpdate: 'Update available',
             installSelected: 'Install selected',
         },
     };
@@ -108,11 +110,15 @@
             const entry = catalog.find((mod) => String(mod.id) === modId);
             if (!entry) return;
             const titleEl = item.querySelector('.wotmods-mod-item__title');
+            const authorEl = item.querySelector('.wotmods-mod-item__author');
             const descEl = item.querySelector('.wotmods-mod-item__desc');
             const badgeEl = item.querySelector('[data-wotmods-installed-badge]');
+            const updateBadgeEl = item.querySelector('[data-wotmods-update-badge]');
             if (titleEl) titleEl.textContent = String(entry.title || '');
+            if (authorEl) authorEl.textContent = String(entry.author || '');
             if (descEl) descEl.textContent = String(entry.short || '');
             if (badgeEl) badgeEl.textContent = installedLabel;
+            if (updateBadgeEl) updateBadgeEl.textContent = t('badgeUpdate');
         });
     }
 

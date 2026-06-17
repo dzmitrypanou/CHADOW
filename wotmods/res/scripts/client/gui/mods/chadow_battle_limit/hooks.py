@@ -18,18 +18,20 @@ def _getController():
 def _fight_tooltip(controller):
     if controller is None:
         return u''
+    if not controller.appliesToCurrentQueue():
+        return u''
     if controller.hardBlockRandom:
-        return u'Chadow: случайный бой заблокирован.\nДругие режимы доступны.'
-    if controller.isLimitReached() and controller.appliesToCurrentQueue():
+        return u'Chadow: random battles blocked.\nOther modes stay available.'
+    if controller.isLimitReached():
         return (
-            u'Лимит случайных боёв (%d/%d).\n'
-            u'Кнопка слева от статистики — настройки мода.'
+            u'Random battle limit (%d/%d).\n'
+            u'Scales icon: settings (Alt+Shift+M).'
         ) % (controller.battlesPlayed, controller.maxBattles)
     if controller.isActive():
         remaining = controller.remainingBattles()
         return (
-            u'Chadow: случайный бой %d/%d.\n'
-            u'Осталось: %d. Кнопка слева — настройки.'
+            u'Chadow: random battles %d/%d.\n'
+            u'Remaining: %d. Scales icon: settings.'
         ) % (controller.battlesPlayed, controller.maxBattles, remaining or 0)
     return u''
 
@@ -59,12 +61,23 @@ def _update_controls_patch(self, original, *args, **kwargs):
     controller = _getController()
     if controller is None:
         return result
+    should_block = controller.shouldBlockFight()
+    if hasattr(self, 'as_disableFightButtonS'):
+        self.as_disableFightButtonS(should_block)
     tooltip = _fight_tooltip(controller)
-    if controller.shouldBlockFight():
-        if hasattr(self, 'as_disableFightButtonS'):
-            self.as_disableFightButtonS(True)
-    if tooltip and hasattr(self, 'as_setFightBtnTooltipS'):
-        self.as_setFightBtnTooltipS(to_scaleform(tooltip), False)
+    if hasattr(self, 'as_setFightBtnTooltipS'):
+        if tooltip:
+            self.as_setFightBtnTooltipS(to_scaleform(tooltip), False)
+        else:
+            self.as_setFightBtnTooltipS(to_scaleform(u''), False)
+    return result
+
+
+def _refresh_fight_button_patch(self, original, *args, **kwargs):
+    result = original(self, *args, **kwargs)
+    controller = _getController()
+    if controller is not None:
+        controller.refreshFightButton()
     return result
 
 
@@ -81,6 +94,11 @@ def _install_scaleform_header(module_path, class_name):
         patched = True
     if _patch_method(cls, '_updatePrebattleControls', _update_controls_patch):
         patched = True
+    if class_name == 'LobbyHeader':
+        if _patch_method(cls, '_rebootBattleSelector', _refresh_fight_button_patch):
+            patched = True
+        if _patch_method(cls, '_LobbyHeader__updateBattleTypeSelectPopover', _refresh_fight_button_patch):
+            patched = True
     if patched:
         print('%s header hook installed: %s.%s' % (TAG, module_path, class_name))
     return patched

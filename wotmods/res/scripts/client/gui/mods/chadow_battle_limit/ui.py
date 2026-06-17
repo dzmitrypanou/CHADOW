@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import Keys
+
 from . import config
 from .controller import BattleLimitController
-from .text import to_scaleform, to_system_message
+from .text import to_scaleform
 from . import ui_dialogs
 from .ui_dialogs import DIALOG_TITLE
 
@@ -17,29 +19,241 @@ except ImportError:
     _HAS_IMPL_DIALOGS = False
     DButtons = None
 
-BTN_LIMIT = 'chadow_limit'
-BTN_RESET = 'chadow_reset'
-BTN_NOTIFY = 'chadow_notify'
-BTN_BLOCK = 'chadow_block'
-BTN_OFF = 'chadow_off'
-BTN_BAN = 'chadow_ban'
-BTN_CUSTOM = 'chadow_custom'
-BTN_CLOSE = DButtons.CANCEL if _HAS_IMPL_DIALOGS else 'close'
+_settings_active = False
+_settings_refreshing = False
+_draft_limit = u''
+_draft_notifications = True
 
-_LIMIT_CHOICES = (
-    (BTN_CUSTOM, u'Ввести вручную'),
-    (1, u'1 бой'),
-    (3, u'3 боя'),
-    (5, u'5 боёв'),
-    (10, u'10 боёв'),
-    (15, u'15 боёв'),
-    (20, u'20 боёв'),
-    (30, u'30 боёв'),
-    (50, u'50 боёв'),
-    (BTN_BAN, u'0 — полный запрет'),
-    (BTN_OFF, u'Выкл'),
-    (BTN_CLOSE, u'Close'),
-)
+
+def is_settings_active():
+    return _settings_active
+
+
+def _initial_draft(controller):
+    if controller is None:
+        return u''
+    if controller.hardBlockRandom:
+        return u'0'
+    if controller.isActive():
+        return unicode(controller.maxBattles)
+    return u''
+
+
+def _draft_display():
+    text = _draft_limit.strip()
+    if not text:
+        return u'_'
+    return text
+
+
+def _status_message(controller):
+    if controller is None:
+        return u'Мод не инициализирован.'
+    if controller.hardBlockRandom:
+        return (
+            u'Случайные бои полностью заблокированы.\n'
+            u'Рейтинговые, клановые и другие режимы доступны.'
+        )
+    if not controller.isActive():
+        return (
+            u'Лимит случайных боёв выключен.\n'
+            u'Сыграно за сессию: %d.' % controller.battlesPlayed
+        )
+    remaining = controller.remainingBattles()
+    return (
+        u'Только случайные бои: %d за сессию.\n'
+        u'Сыграно: %d из %d. Осталось: %d.' % (
+            controller.maxBattles,
+            controller.battlesPlayed,
+            controller.maxBattles,
+            remaining if remaining is not None else 0,
+        )
+    )
+
+
+def _settings_message(controller):
+    return u'\n'.join([
+        _status_message(controller),
+        u'',
+        u'Боёв за сессию (0=блок):  [ %s ]' % _draft_display(),
+        u'Введите цифры на клавиатуре, затем нажмите «Принять».',
+        u'Сброс счётчика: кнопка «Сбросить» или Alt+Shift+R.',
+    ])
+
+
+def format_button_value(controller):
+    if controller is None:
+        return u'-'
+    if controller.hardBlockRandom:
+        return u'0'
+    if not controller.isActive():
+        return u'OFF'
+    return u'%d/%d' % (controller.battlesPlayed, controller.maxBattles)
+
+
+def button_tooltip(controller):
+    lines = [
+        u'CHADOW: Battles Limit Mode',
+        u'Scales icon: settings (Alt+Shift+M)',
+    ]
+    if controller is None:
+        return to_scaleform(u'\n'.join(lines))
+    if controller.hardBlockRandom:
+        lines.append(u'Random battles fully blocked')
+    elif controller.isActive():
+        remaining = controller.remainingBattles()
+        if remaining is not None:
+            lines.append(u'Remaining: %d' % remaining)
+    return to_scaleform(u'\n'.join(lines))
+
+
+def refresh_hangar_widget():
+    try:
+        from . import ui_hooks
+        ui_hooks.refresh_widget()
+    except Exception as error:
+        print('%s widget refresh failed: %s' % (TAG, error))
+
+
+def _close_settings_state():
+    global _settings_active, _settings_refreshing
+    _settings_active = False
+    _settings_refreshing = False
+    ui_dialogs.mark_settings_dialog_closed()
+
+
+def _schedule_settings_refresh(controller):
+    global _settings_refreshing
+    if _settings_refreshing:
+        return
+    _settings_refreshing = True
+    try:
+        import BigWorld
+        BigWorld.callback(0.05, lambda: _reopen_settings(controller))
+    except Exception:
+        _reopen_settings(controller)
+
+
+def _reopen_settings(controller):
+    global _settings_refreshing
+    _settings_refreshing = False
+    if _settings_active and controller is not None:
+        _open_settings_scaleform(controller, keep_draft=True)
+
+
+def handle_settings_key(controller, event):
+    global _draft_limit
+    if not _settings_active or _settings_refreshing or controller is None:
+        return False
+    if not event.isKeyDown():
+        return False
+
+    key = event.key
+    if key == Keys.KEY_ESCAPE:
+        _close_settings_state()
+        return False
+
+    if key == Keys.KEY_R and event.isAltDown() and event.isShiftDown():
+        controller.resetCounter(notify=True)
+        refresh_hangar_widget()
+        _open_settings_scaleform(controller, keep_draft=False)
+        return True
+
+    if key in (Keys.KEY_BACKSPACE, Keys.KEY_DELETE):
+        _draft_limit = _draft_limit[:-1]
+        _schedule_settings_refresh(controller)
+        return True
+
+    top_digits = (
+        Keys.KEY_0, Keys.KEY_1, Keys.KEY_2, Keys.KEY_3, Keys.KEY_4,
+        Keys.KEY_5, Keys.KEY_6, Keys.KEY_7, Keys.KEY_8, Keys.KEY_9,
+    )
+    if key in top_digits:
+        if len(_draft_limit) >= 3:
+            return True
+        _draft_limit += unicode(top_digits.index(key))
+        _schedule_settings_refresh(controller)
+        return True
+
+    for digit in range(10):
+        numpad_key = getattr(Keys, 'KEY_NUMPAD%d' % digit, None)
+        if numpad_key is not None and key == numpad_key:
+            if len(_draft_limit) >= 3:
+                return True
+            _draft_limit += unicode(digit)
+            _schedule_settings_refresh(controller)
+            return True
+
+    return False
+
+
+def _open_settings_scaleform(controller, keep_draft=False):
+    global _settings_active, _draft_limit, _draft_notifications
+
+    if controller is None:
+        return
+
+    if not keep_draft:
+        _draft_limit = _initial_draft(controller)
+        _draft_notifications = bool(controller._data.get('showNotifications', True))
+
+    _settings_active = True
+
+    def _on_dismiss():
+        if not _settings_refreshing:
+            _close_settings_state()
+
+    def _handle(action, notifications_enabled):
+        global _draft_notifications
+        if _settings_refreshing:
+            return
+
+        _draft_notifications = bool(notifications_enabled)
+
+        if action == 'accept':
+            controller.setShowNotifications(_draft_notifications, notify=False)
+            text = _draft_limit.strip()
+            if text:
+                controller.applyLimitValue(text, notify=True)
+            else:
+                controller.disableLimits(notify=True)
+            refresh_hangar_widget()
+            _open_settings_scaleform(controller, keep_draft=False)
+            return
+
+        if action == 'reset':
+            controller.setShowNotifications(_draft_notifications, notify=False)
+            controller.resetCounter(notify=True)
+            refresh_hangar_widget()
+            _open_settings_scaleform(controller, keep_draft=False)
+            return
+
+        if _settings_refreshing:
+            return
+
+        _close_settings_state()
+
+    checkbox_label = u'Notifications: ON' if _draft_notifications else u'Notifications: OFF'
+
+    ui_dialogs.show_settings_dialog(
+        DIALOG_TITLE,
+        _settings_message(controller),
+        u'Принять',
+        u'Сбросить',
+        checkbox_label,
+        _draft_notifications,
+        _handle,
+        on_dismiss=_on_dismiss,
+    )
+
+
+def _build_dialog(title, message, buttons):
+    builder = WarningDialogBuilder()
+    builder.setFormattedTitle(to_scaleform(title))
+    builder.setFormattedMessage(to_scaleform(message))
+    for button_id, label, is_default in buttons:
+        builder.addButton(button_id, None, is_default, rawLabel=to_scaleform(label))
+    return builder.build(_dialog_parent())
 
 
 def _dialog_parent():
@@ -56,253 +270,14 @@ def _dialog_parent():
     return None
 
 
-def _battles_word(count):
-    remainder100 = count % 100
-    remainder10 = count % 10
-    if 11 <= remainder100 <= 14:
-        return u'боёв'
-    if remainder10 == 1:
-        return u'бой'
-    if 2 <= remainder10 <= 4:
-        return u'боя'
-    return u'боёв'
-
-
-def _status_message(controller):
-    if controller is None:
-        return u'Мод не инициализирован.'
-    if controller.hardBlockRandom:
-        return (
-            u'Случайный бой полностью заблокирован (0 боёв).\n'
-            u'Рейтинговые, клановые и другие режимы доступны.'
-        )
-    if not controller.isActive():
-        return (
-            u'Лимит случайных боёв отключён.\n'
-            u'Сыграно в сессии: %d.' % controller.battlesPlayed
-        )
-    remaining = controller.remainingBattles()
-    return (
-        u'Только случайный бой: %d %s за сессию.\n'
-        u'Сыграно: %d из %d.\n'
-        u'Осталось: %d.' % (
-            controller.maxBattles,
-            _battles_word(controller.maxBattles),
-            controller.battlesPlayed,
-            controller.maxBattles,
-            remaining if remaining is not None else 0,
-        )
-    )
-
-
-def _notify_state(controller):
-    if controller is None:
-        return u'Уведомления'
-    enabled = bool(controller._data.get('showNotifications', True))
-    return u'Уведомления: %s' % (u'вкл' if enabled else u'выкл')
-
-
-def _block_state(controller):
-    if controller is None:
-        return u'Запрет случайного'
-    return u'Запрет случайного: %s' % (u'вкл' if controller.hardBlockRandom else u'выкл')
-
-
-def format_button_value(controller):
-    if controller is None:
-        return u'—'
-    if controller.hardBlockRandom:
-        return u'0'
-    if not controller.isActive():
-        return u'∞'
-    return u'%d/%d' % (controller.battlesPlayed, controller.maxBattles)
-
-
-def button_tooltip(controller):
-    lines = [
-        u'CHADOW: Battles Limit Mode',
-        u'Кнопка слева от статистики — настройки (Alt+Shift+M)',
-    ]
-    if controller is None:
-        return to_scaleform(u'\n'.join(lines))
-    if controller.hardBlockRandom:
-        lines.append(u'Случайный бой заблокирован полностью (0 боёв)')
-        return to_scaleform(u'\n'.join(lines))
-    if controller.isActive():
-        remaining = controller.remainingBattles()
-        if remaining is not None:
-            lines.append(u'Осталось: %d' % remaining)
-    return to_scaleform(u'\n'.join(lines))
-
-
-def refresh_hangar_widget():
-    try:
-        from . import ui_hooks
-        ui_hooks.refresh_widget()
-    except Exception as error:
-        print('%s widget refresh failed: %s' % (TAG, error))
-
-
-def _apply_limit(controller, value):
-    if controller is None:
-        return
-    if value == BTN_CUSTOM:
-        controller.startManualLimitInput(on_applied=refresh_hangar_widget)
-        return
-    if value == BTN_BAN:
-        controller.enableHardBlock(notify=True)
-    elif value == BTN_OFF:
-        controller.disableLimits(notify=True)
-    else:
-        controller.setMaxBattles(value, notify=True)
-    refresh_hangar_widget()
-
-
-def _toggle_notifications(controller):
-    if controller is None:
-        return
-    current = bool(controller._data.get('showNotifications', True))
-    controller._data['showNotifications'] = not current
-    config.save(controller._data)
-
-
-def _toggle_hard_block(controller):
-    if controller is None:
-        return
-    controller.setHardBlockRandom(not controller.hardBlockRandom, notify=True)
-    refresh_hangar_widget()
-
-
-def _build_dialog(title, message, buttons):
-    builder = WarningDialogBuilder()
-    builder.setFormattedTitle(to_scaleform(title))
-    builder.setFormattedMessage(to_scaleform(message))
-    for button_id, label, is_default in buttons:
-        builder.addButton(button_id, None, is_default, rawLabel=to_scaleform(label))
-    return builder.build(_dialog_parent())
-
-
-def _open_settings_scaleform(controller):
-    def _handle_main(choice):
-        if choice in (BTN_CLOSE, 'close', 'chadow_close'):
-            return
-        if choice == BTN_LIMIT:
-            _open_limit_picker_scaleform(controller)
-            return
-        if choice == BTN_RESET and controller is not None:
-            controller.resetCounter(notify=True)
-            refresh_hangar_widget()
-            _open_settings_scaleform(controller)
-            return
-        if choice == BTN_BLOCK:
-            _toggle_hard_block(controller)
-            _open_settings_scaleform(controller)
-            return
-        if choice == BTN_NOTIFY:
-            _toggle_notifications(controller)
-            _open_settings_scaleform(controller)
-            return
-
-    ui_dialogs.show_choice(
-        DIALOG_TITLE,
-        _status_message(controller),
-        (
-            (BTN_LIMIT, u'Сменить лимит'),
-            (BTN_RESET, u'Сбросить счётчик'),
-            (BTN_BLOCK, _block_state(controller)),
-            (BTN_NOTIFY, _notify_state(controller)),
-            (BTN_CLOSE, u'Close'),
-        ),
-        _handle_main,
-    )
-
-
-def _open_limit_picker_scaleform(controller):
-    def _handle_limit(choice):
-        if choice in (BTN_CLOSE, 'close', 'chadow_close'):
-            return
-        if choice in (BTN_OFF, BTN_BAN, BTN_CUSTOM) or isinstance(choice, (int, long)):
-            _apply_limit(controller, choice)
-            if choice != BTN_CUSTOM:
-                _open_settings_scaleform(controller)
-            return
-        try:
-            _apply_limit(controller, int(choice))
-            _open_settings_scaleform(controller)
-        except (TypeError, ValueError):
-            return
-
-    ui_dialogs.show_choice(
-        DIALOG_TITLE,
-        u'Выберите максимум случайных боёв за сессию или введите вручную.',
-        _LIMIT_CHOICES,
-        _handle_limit,
-    )
-
-
 if _HAS_IMPL_DIALOGS:
-
-    @wg_async
-    def _show_limit_picker(controller):
-        buttons = []
-        for index, (value, label) in enumerate(_LIMIT_CHOICES):
-            if value == BTN_CLOSE:
-                continue
-            buttons.append((value, label, index == 0))
-        buttons.append((BTN_CLOSE, u'Close', False))
-        result = yield wg_await(dialogs.show(_build_dialog(
-            DIALOG_TITLE,
-            u'Выберите максимум случайных боёв за сессию или введите вручную.',
-            buttons,
-        )))
-        choice = getattr(result, 'result', None)
-        if choice in (None, BTN_CLOSE, DButtons.CANCEL):
-            return
-        if choice == BTN_CUSTOM:
-            _apply_limit(controller, choice)
-            return
-        if choice in (BTN_OFF, BTN_BAN):
-            _apply_limit(controller, choice)
-            return
-        try:
-            limit = int(choice)
-        except (TypeError, ValueError):
-            return
-        _apply_limit(controller, limit)
 
     @wg_async
     def open_settings_panel(_source=None):
         controller = BattleLimitController.instance
-        while True:
-            result = yield wg_await(dialogs.show(_build_dialog(
-                DIALOG_TITLE,
-                _status_message(controller),
-                (
-                    (BTN_LIMIT, u'Сменить лимит', True),
-                    (BTN_RESET, u'Сбросить счётчик', False),
-                    (BTN_BLOCK, _block_state(controller), False),
-                    (BTN_NOTIFY, _notify_state(controller), False),
-                    (BTN_CLOSE, u'Close', False),
-                ),
-            )))
-            choice = getattr(result, 'result', None)
-            if choice in (None, BTN_CLOSE, DButtons.CANCEL):
-                return
-            if choice == BTN_LIMIT:
-                yield wg_await(_show_limit_picker(controller))
-                continue
-            if choice == BTN_RESET:
-                if controller is not None:
-                    controller.resetCounter(notify=True)
-                    refresh_hangar_widget()
-                continue
-            if choice == BTN_BLOCK:
-                _toggle_hard_block(controller)
-                continue
-            if choice == BTN_NOTIFY:
-                _toggle_notifications(controller)
-                continue
+        if controller is None:
             return
+        _open_settings_scaleform(controller)
 
 else:
 

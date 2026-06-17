@@ -20,11 +20,3 @@ def to_scaleform(value):
 
 def to_system_message(value):
     return _as_unicode(value)
-
-
-def to_system_message_bytes(value):
-    text = _as_unicode(value)
-    try:
-        return text.encode('cp1251')
-    except UnicodeEncodeError:
-        return text

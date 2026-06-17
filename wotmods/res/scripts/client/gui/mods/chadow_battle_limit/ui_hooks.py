@@ -5,6 +5,7 @@ from gui.shared import g_eventBus, events, EVENT_BUS_SCOPE
 
 from . import config
 from .controller import BattleLimitController
+from . import ui
 from .battle_limit_button import (
     CHADOW_BUTTON_ALIAS,
     ChadowBattleLimitButton,
@@ -13,12 +14,14 @@ from .battle_limit_button import (
     open_settings,
     set_chadow_slot_mode,
 )
+from .text import to_scaleform
 
 TAG = config.TAG
 _patches = []
 _messenger_bar = None
 _refresh_callback = None
 _compare_basket = None
+_settings_badge_active = False
 
 
 def _get_controller():
@@ -36,11 +39,6 @@ def _patch_method(cls, method_name, patch_builder):
     setattr(cls, method_name, patched)
     _patches.append((cls, method_name, original))
     return True
-
-
-def _compare_handle_click(self):
-    if is_chadow_slot_mode() and _should_use_chadow_slot():
-        open_settings(self)
 
 
 def _get_compare_basket():
@@ -148,7 +146,7 @@ def _refresh_compare_slot_button():
 
 
 def refresh_widget():
-    global _messenger_bar
+    global _messenger_bar, _settings_badge_active
     controller = _get_controller()
     if controller is None:
         return
@@ -159,11 +157,20 @@ def refresh_widget():
     bar = _messenger_bar or _find_messenger_bar()
     if bar is not None:
         _messenger_bar = bar
+        badge_text = to_scaleform(ui.format_button_value(controller))
+        show_badge = controller.isActive() or controller.hardBlockRandom
+        _settings_badge_active = show_badge
         try:
             if hasattr(bar, 'as_setSessionStatsButtonSettingsUpdateS'):
-                bar.as_setSessionStatsButtonSettingsUpdateS(False, u'')
+                bar.as_setSessionStatsButtonSettingsUpdateS(show_badge, badge_text)
         except Exception:
             pass
+        if use_chadow_slot:
+            try:
+                if hasattr(bar, 'as_setVehicleCompareCartButtonVisibleS'):
+                    bar.as_setVehicleCompareCartButtonVisibleS(True)
+            except Exception:
+                pass
 
     if not _refresh_registered_button():
         _refresh_compare_slot_button()
@@ -173,12 +180,6 @@ def _populate_patch(self, original, *args, **kwargs):
     global _messenger_bar
     result = original(self, *args, **kwargs)
     _messenger_bar = self
-    refresh_widget()
-    return result
-
-
-def _init_data_patch(self, original, data, *args, **kwargs):
-    result = original(self, data, *args, **kwargs)
     refresh_widget()
     return result
 
@@ -214,15 +215,11 @@ def _compare_count_patch(self, original, count, *args, **kwargs):
     return original(self, count)
 
 
-def _vehicle_compare_cart_button_click(self, *args, **kwargs):
+def _open_compare_popover_patch(self, original, *args, **kwargs):
     if is_chadow_slot_mode() and _should_use_chadow_slot():
         open_settings(self)
         return
-    if hasattr(self, 'as_openVehicleCompareCartPopoverS'):
-        try:
-            self.as_openVehicleCompareCartPopoverS(True)
-        except Exception:
-            pass
+    return original(self, *args, **kwargs)
 
 
 def _fight_button_update(_event=None):
@@ -312,13 +309,8 @@ def _install_messenger_bar():
         patched = False
         if _patch_method(cls, '_populate', _populate_patch):
             patched = True
-        if _patch_method(cls, 'as_setInitDataS', _init_data_patch):
+        if _patch_method(cls, 'as_openVehicleCompareCartPopoverS', _open_compare_popover_patch):
             patched = True
-        if not hasattr(cls, 'vehicleCompareCartButtonClick'):
-            cls.vehicleCompareCartButtonClick = _vehicle_compare_cart_button_click
-            _patches.append((cls, 'vehicleCompareCartButtonClick', None))
-            patched = True
-
         if patched:
             installed = True
             print('%s hangar widget hook installed: %s.%s' % (TAG, module_path, class_name))
@@ -338,7 +330,7 @@ def _install_messenger_bar():
         if _patch_method(VehicleCompareCartButton, '_VehicleCompareCartButton__changeCount', _compare_count_patch):
             installed = True
         if not hasattr(VehicleCompareCartButton, 'handleClick'):
-            VehicleCompareCartButton.handleClick = _compare_handle_click
+            VehicleCompareCartButton.handleClick = lambda self: open_settings(self)
             _patches.append((VehicleCompareCartButton, 'handleClick', None))
             installed = True
     except Exception as error:
@@ -362,7 +354,7 @@ def install():
 
 
 def uninstall():
-    global _messenger_bar
+    global _messenger_bar, _settings_badge_active
     _cancel_refresh_loop()
     g_eventBus.removeListener(
         events.FightButtonEvent.FIGHT_BUTTON_UPDATE,
@@ -380,4 +372,5 @@ def uninstall():
             setattr(cls, method_name, original)
     del _patches[:]
     _messenger_bar = None
+    _settings_badge_active = False
     set_chadow_slot_mode(False)

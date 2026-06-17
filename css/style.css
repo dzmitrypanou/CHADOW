@@ -19117,6 +19117,28 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     border-color: rgba(100, 181, 246, 0.42);
 }
 
+.wotmods-mod-item.is-installed-locked {
+    cursor: default;
+}
+
+.wotmods-mod-item.is-installed-locked:hover {
+    border-color: rgba(100, 181, 246, 0.42);
+    background: rgba(12, 20, 38, 0.55);
+    box-shadow: none;
+}
+
+.wotmods-mod-item.is-installed-locked .wotmods-mod-item__tick {
+    border-color: rgba(130, 142, 158, 0.65);
+    background: linear-gradient(180deg, rgba(128, 138, 152, 0.9) 0%, rgba(98, 108, 122, 0.95) 100%);
+    color: rgba(244, 247, 252, 0.95);
+}
+
+.wotmods-mod-item.is-installed-locked.is-selected .wotmods-mod-item__tick {
+    border-color: rgba(130, 142, 158, 0.65);
+    background: linear-gradient(180deg, rgba(128, 138, 152, 0.9) 0%, rgba(98, 108, 122, 0.95) 100%);
+    color: rgba(244, 247, 252, 0.95);
+}
+
 .wotmods-mod-item__check {
     position: absolute;
     opacity: 0;
@@ -19142,11 +19164,36 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     min-width: 0;
 }
 
+.wotmods-mod-item__title-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
 .wotmods-mod-item__title {
     font-size: 0.95rem;
     font-weight: 600;
     color: #f2f7ff;
     line-height: 1.3;
+}
+
+.wotmods-mod-item__author {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: rgba(175, 200, 228, 0.58);
+    white-space: nowrap;
+}
+
+.wotmods-mod-item__author-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.18s ease;
+}
+
+.wotmods-mod-item__author-link:hover {
+    color: #8ecbff;
 }
 
 .wotmods-mod-item__desc {
@@ -19179,6 +19226,21 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     font-size: 0.65rem;
     font-weight: 700;
     white-space: nowrap;
+}
+
+.wotmods-mod-item__update {
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 183, 77, 0.55);
+    background: rgba(48, 32, 12, 0.85);
+    color: #ffcc80;
+    font-size: 0.65rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.wotmods-mod-item.is-updatable {
+    border-color: rgba(255, 183, 77, 0.45);
 }
 
 .wotmods-mod-item__tick {

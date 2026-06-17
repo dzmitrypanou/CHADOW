@@ -15,6 +15,10 @@
             statusNoPackage: 'Пакет мода недоступен на сервере.',
             statusPermission: 'Нужен доступ на запись. Выберите папку снова и подтвердите доступ.',
             statusNoModsSelected: 'Отметьте хотя бы один мод.',
+            statusNothingToInstall: 'Выбранные моды уже установлены в этой папке.',
+            statusSkippedInstalled: 'Пропущено (уже установлено): {count}',
+            statusUpdated: 'Обновлено: {count}',
+            badgeUpdate: 'Доступно обновление',
             gameMeta: '{game} · версия {version}',
             folderPath: '\\{folder}',
             pickFolder: 'Выбрать',
@@ -43,6 +47,10 @@
             statusNoPackage: 'Mod package is not available on the server.',
             statusPermission: 'Write access is required. Select the folder again.',
             statusNoModsSelected: 'Select at least one mod.',
+            statusNothingToInstall: 'Selected mods are already installed in this folder.',
+            statusSkippedInstalled: 'Skipped (already installed): {count}',
+            statusUpdated: 'Updated: {count}',
+            badgeUpdate: 'Update available',
             gameMeta: '{game} · version {version}',
             folderPath: '\\{folder}',
             pickFolder: 'Browse',
@@ -366,6 +374,29 @@
         return Promise.resolve(window.confirm(message));
     }
 
+    async function listPackageFiles(root, relativeDir, nameIncludes) {
+        const needle = String(nameIncludes || '').toLowerCase();
+        const files = [];
+        try {
+            const dir = await getDirHandle(root, relativeDir);
+            // eslint-disable-next-line no-restricted-syntax
+            for await (const entry of dir.values()) {
+                if (entry.kind === 'file' && entry.name.toLowerCase().includes(needle)) {
+                    files.push(entry.name);
+                }
+            }
+        } catch (error) {
+            /* missing */
+        }
+        return files;
+    }
+
+    function expectedPackageName(manifestMod) {
+        const template = String(manifestMod.packageGamePath || '');
+        const parts = template.split('/').filter(Boolean);
+        return parts.length ? parts[parts.length - 1] : '';
+    }
+
     class WotmodsInstaller {
         constructor(root) {
             this.root = root;
@@ -395,6 +426,7 @@
             this.gameClient = 'lesta';
             this.clientVersion = '';
             this.manifest = null;
+            this.modInstallState = new Map();
             this.bind();
             this.init();
             this.showFolderEmpty();
@@ -424,8 +456,17 @@
                 const checkbox = item.querySelector('.wotmods-mod-item__check');
                 if (!checkbox) return;
                 checkbox.addEventListener('change', () => {
+                    if (item.classList.contains('is-installed-locked')) {
+                        checkbox.checked = true;
+                        return;
+                    }
                     item.classList.toggle('is-selected', checkbox.checked);
                     this.updateInstallButton();
+                });
+                item.addEventListener('click', (event) => {
+                    if (!item.classList.contains('is-installed-locked')) return;
+                    event.preventDefault();
+                    event.stopPropagation();
                 });
             });
         }
@@ -499,6 +540,7 @@
         getSelectedModIds() {
             return this.modItems
                 .filter((item) => {
+                    if (item.classList.contains('is-installed-locked')) return false;
                     const checkbox = item.querySelector('.wotmods-mod-item__check');
                     return checkbox && checkbox.checked;
                 })
@@ -511,14 +553,25 @@
             if (this.modsHint) {
                 this.modsHint.textContent = locked ? t('modsHintLocked') : t('modsHintReady');
             }
-            this.modChecks.forEach((checkbox) => {
-                checkbox.disabled = locked;
-            });
             if (locked) {
+                this.modChecks.forEach((checkbox) => {
+                    checkbox.disabled = true;
+                });
                 this.modItems.forEach((item) => {
                     const checkbox = item.querySelector('.wotmods-mod-item__check');
                     if (checkbox) checkbox.checked = false;
                     item.classList.remove('is-selected');
+                });
+            } else {
+                this.modItems.forEach((item) => {
+                    const modId = item.getAttribute('data-wotmods-mod-id') || '';
+                    const state = this.modInstallState.get(modId);
+                    if (state) {
+                        this.applyModInstallState(item, state);
+                        return;
+                    }
+                    const checkbox = item.querySelector('.wotmods-mod-item__check');
+                    if (checkbox) checkbox.disabled = false;
                 });
             }
             this.updateInstallButton();
@@ -591,12 +644,18 @@
             this.gameLabel = '';
             this.clientVersion = '';
             this.gameClient = 'lesta';
+            this.modInstallState.clear();
             this.modItems.forEach((item) => {
-                item.classList.remove('is-installed', 'is-selected');
+                item.classList.remove('is-installed', 'is-installed-locked', 'is-selected', 'is-updatable');
                 const checkbox = item.querySelector('.wotmods-mod-item__check');
-                if (checkbox) checkbox.checked = false;
+                if (checkbox) {
+                    checkbox.checked = false;
+                    checkbox.disabled = true;
+                }
                 const badge = item.querySelector('[data-wotmods-installed-badge]');
                 if (badge) badge.hidden = true;
+                const updateBadge = item.querySelector('[data-wotmods-update-badge]');
+                if (updateBadge) updateBadge.hidden = true;
             });
             this.showFolderEmpty();
             this.updateInstallButton();
@@ -604,17 +663,114 @@
 
         updateInstallButton() {
             if (!this.installBtn) return;
-            this.installBtn.disabled = !this.gameDir || this.getSelectedModIds().length === 0;
+            const selected = this.getSelectedModIds();
+            const installable = selected.filter((modId) => {
+                const state = this.modInstallState.get(modId);
+                return !state || !state.upToDate;
+            });
+            this.installBtn.disabled = !this.gameDir || installable.length === 0;
         }
 
-        relocalizeView() {
-            if (this.gameDir) {
-                this.updateGameDisplay();
-                if (this.modsHint) this.modsHint.textContent = t('modsHintReady');
-            } else {
-                if (this.folderPlaceholder) this.folderPlaceholder.textContent = t('folderPlaceholder');
-                if (this.pickBtnLabel) this.pickBtnLabel.textContent = t('pickFolder');
-                if (this.modsHint) this.modsHint.textContent = t('modsHintLocked');
+        async ensureWritePermission() {
+            if (!this.gameDir) return false;
+            const options = { mode: 'readwrite' };
+            try {
+                if ((await this.gameDir.queryPermission(options)) === 'granted') {
+                    return true;
+                }
+                return (await this.gameDir.requestPermission(options)) === 'granted';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async resolveModInstallState(modId, manifestMods) {
+            const entry = catalogEntries().find((mod) => String(mod.id) === modId);
+            const manifestMod = manifestMods.find((mod) => String(mod.id) === modId);
+            const marker = entry ? String(entry.configMarker || '') : '';
+            const targetVersion = manifestMod ? String(manifestMod.version || entry?.version || '') : '';
+            const expectedPackage = manifestMod ? expectedPackageName(manifestMod) : '';
+            const packagePath = manifestMod
+                ? formatTemplate(String(manifestMod.packageGamePath || ''), { clientVersion: this.clientVersion })
+                : '';
+
+            let configExists = false;
+            if (marker) {
+                try {
+                    configExists = await fileExists(this.gameDir, marker);
+                } catch (error) {
+                    configExists = false;
+                }
+            }
+
+            let packageExists = false;
+            let installedPackage = '';
+            if (packagePath) {
+                try {
+                    packageExists = await fileExists(this.gameDir, packagePath);
+                    if (packageExists) installedPackage = expectedPackage;
+                } catch (error) {
+                    packageExists = false;
+                }
+            }
+
+            if (!packageExists && manifestMod) {
+                const markers = (manifestMod.uninstall?.packageMarkers || []).map((m) => String(m).toLowerCase());
+                const primaryMarker = markers[0] || 'chadow.battle-limit';
+                const found = await listPackageFiles(
+                    this.gameDir,
+                    `mods/${this.clientVersion}`,
+                    primaryMarker,
+                );
+                if (found.length) {
+                    installedPackage = found.sort().pop();
+                    packageExists = true;
+                }
+            }
+
+            const installed = configExists && packageExists;
+            const upToDate = installed
+                && !!expectedPackage
+                && installedPackage.toLowerCase() === expectedPackage.toLowerCase();
+            const needsUpdate = installed && !upToDate;
+
+            return {
+                installed,
+                upToDate,
+                needsUpdate,
+                targetVersion,
+                installedPackage,
+                expectedPackage,
+            };
+        }
+
+        applyModInstallState(item, state) {
+            const modId = item.getAttribute('data-wotmods-mod-id') || '';
+            this.modInstallState.set(modId, state);
+
+            const badge = item.querySelector('[data-wotmods-installed-badge]');
+            const updateBadge = item.querySelector('[data-wotmods-update-badge]');
+            const checkbox = item.querySelector('.wotmods-mod-item__check');
+
+            item.classList.toggle('is-installed', state.installed);
+            item.classList.toggle('is-updatable', state.needsUpdate);
+            item.classList.toggle('is-installed-locked', state.upToDate);
+
+            if (badge) badge.hidden = !state.installed;
+            if (updateBadge) updateBadge.hidden = !state.needsUpdate;
+
+            if (checkbox) {
+                if (state.upToDate) {
+                    checkbox.checked = true;
+                    checkbox.disabled = true;
+                    item.classList.remove('is-selected');
+                } else {
+                    item.classList.remove('is-installed-locked');
+                    checkbox.checked = false;
+                    if (!this.stepMods?.classList.contains('is-locked')) {
+                        checkbox.disabled = false;
+                    }
+                }
             }
         }
 
@@ -633,32 +789,25 @@
 
             await Promise.all(this.modItems.map(async (item) => {
                 const modId = item.getAttribute('data-wotmods-mod-id') || '';
-                const entry = catalogEntries().find((mod) => String(mod.id) === modId);
-                const manifestMod = manifestMods.find((mod) => String(mod.id) === modId);
-                const marker = entry ? String(entry.configMarker || '') : '';
-                const badge = item.querySelector('[data-wotmods-installed-badge]');
-                let installed = false;
-                if (marker) {
-                    try {
-                        installed = await fileExists(this.gameDir, marker);
-                    } catch (error) {
-                        installed = false;
-                    }
-                }
-                const packagePath = manifestMod ? String(manifestMod.packageGamePath || '') : '';
-                if (installed && packagePath) {
-                    try {
-                        installed = await fileExists(
-                            this.gameDir,
-                            formatTemplate(packagePath, { clientVersion: this.clientVersion }),
-                        );
-                    } catch (error) {
-                        installed = false;
-                    }
-                }
-                if (badge) badge.hidden = !installed;
-                item.classList.toggle('is-installed', installed);
+                const state = await this.resolveModInstallState(modId, manifestMods);
+                this.applyModInstallState(item, state);
             }));
+            this.updateInstallButton();
+        }
+
+        relocalizeView() {
+            if (this.gameDir) {
+                this.updateGameDisplay();
+                if (this.modsHint) this.modsHint.textContent = t('modsHintReady');
+            } else {
+                if (this.folderPlaceholder) this.folderPlaceholder.textContent = t('folderPlaceholder');
+                if (this.pickBtnLabel) this.pickBtnLabel.textContent = t('pickFolder');
+                if (this.modsHint) this.modsHint.textContent = t('modsHintLocked');
+            }
+            const updateLabel = t('badgeUpdate');
+            document.querySelectorAll('[data-wotmods-update-badge]').forEach((el) => {
+                el.textContent = updateLabel;
+            });
         }
 
         async loadManifest() {
@@ -862,12 +1011,33 @@
                 return;
             }
 
+            const skipped = [];
+            const toInstall = [];
+            selected.forEach((modId) => {
+                const state = this.modInstallState.get(modId);
+                if (state && state.upToDate) {
+                    skipped.push(modId);
+                    return;
+                }
+                toInstall.push(modId);
+            });
+
+            if (!toInstall.length) {
+                showInstallerToast(t('statusNothingToInstall'), 'info', { duration: 3200 });
+                return;
+            }
+
+            if (!(await this.ensureWritePermission())) {
+                this.setStatus('error', { message: t('statusPermission') });
+                return;
+            }
+
             this.actionButtons().forEach((btn) => { btn.disabled = true; });
 
             try {
                 const allMods = this.manifest || await this.loadManifest();
                 this.manifest = allMods;
-                const mods = allMods.filter((mod) => selected.includes(String(mod.id || '')));
+                const mods = allMods.filter((mod) => toInstall.includes(String(mod.id || '')));
                 if (!mods.length) throw new Error(t('statusNoManifest'));
 
                 let total = 0;
@@ -875,8 +1045,13 @@
                     total += 1 + (mod.packageUrl ? 1 : 0);
                 });
                 let current = 0;
+                let updatedCount = 0;
 
                 for (const mod of mods) {
+                    const modId = String(mod.id || '');
+                    const state = this.modInstallState.get(modId);
+                    if (state && state.needsUpdate) updatedCount += 1;
+
                     if (!mod.configUrl) throw new Error(t('statusNoConfig'));
                     if (!mod.packageUrl) throw new Error(t('statusNoPackage'));
                     const configBody = await fetchText(mod.configUrl);
@@ -890,6 +1065,12 @@
                             { clientVersion: this.clientVersion },
                         );
                         if (!packageTarget) throw new Error(t('statusNoPackage'));
+
+                        if (state && state.needsUpdate && state.installedPackage) {
+                            const oldPackagePath = `mods/${this.clientVersion}/${state.installedPackage}`;
+                            await deleteRelativePath(this.gameDir, oldPackagePath);
+                        }
+
                         const packageBody = await fetchArrayBuffer(mod.packageUrl);
                         await writeBinaryFile(this.gameDir, packageTarget, packageBody);
                         current += 1;
@@ -900,11 +1081,25 @@
                 await this.scanInstalledMods();
                 const games = gameCatalog();
                 const gameLabel = (games[this.gameClient] || {}).label || this.gameLabel;
-                this.setStatus('success', { path: gameLabel + ' · v' + this.clientVersion });
+                let successMessage = t('statusSuccess', { path: gameLabel + ' · v' + this.clientVersion });
+                if (skipped.length) {
+                    successMessage += ' ' + t('statusSkippedInstalled', { count: skipped.length });
+                }
+                if (updatedCount) {
+                    successMessage += ' ' + t('statusUpdated', { count: updatedCount });
+                }
+                showInstallerToast(successMessage, 'success', { duration: 3600 });
                 this.modItems.forEach((item) => {
+                    const modId = item.getAttribute('data-wotmods-mod-id') || '';
+                    const state = this.modInstallState.get(modId);
+                    if (state) {
+                        this.applyModInstallState(item, state);
+                        return;
+                    }
                     const checkbox = item.querySelector('.wotmods-mod-item__check');
-                    if (checkbox) checkbox.checked = false;
-                    item.classList.remove('is-selected');
+                    if (!checkbox) return;
+                    checkbox.checked = false;
+                    item.classList.remove('is-selected', 'is-installed-locked');
                 });
             } catch (error) {
                 const message = (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError'))
