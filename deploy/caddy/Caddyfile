@@ -24,6 +24,13 @@
         }
     }
 
+    handle /battleship-ws* {
+        reverse_proxy 127.0.0.1:8793 {
+            header_up Host {host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
     @static_xml {
         path *.xml
         file {path}
@@ -99,6 +106,12 @@
         rewrite @onlinegames_checkers_room /services/onlinegames/checkers/room.php?public_id={re.ocr.1}
         @onlinegames_checkers_room_en path_regexp ocre ^/en/services/onlinegames/checkers/([A-Z0-9]{6})/?$
         rewrite @onlinegames_checkers_room_en /services/onlinegames/checkers/room.php?public_id={re.ocre.1}
+        rewrite /services/onlinegames/battleship /services/onlinegames/battleship/index.php
+        rewrite /en/services/onlinegames/battleship /services/onlinegames/battleship/index.php
+        @onlinegames_battleship_room path_regexp obr ^/services/onlinegames/battleship/([A-Z0-9]{6})/?$
+        rewrite @onlinegames_battleship_room /services/onlinegames/battleship/room.php?public_id={re.obr.1}
+        @onlinegames_battleship_room_en path_regexp obre ^/en/services/onlinegames/battleship/([A-Z0-9]{6})/?$
+        rewrite @onlinegames_battleship_room_en /services/onlinegames/battleship/room.php?public_id={re.obre.1}
         rewrite /services/onlinegames /services/onlinegames/index.php
         rewrite /en/services/onlinegames /services/onlinegames/index.php
         @aim_play_trainer {

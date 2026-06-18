@@ -9,11 +9,14 @@ try {
 
 require_once __DIR__ . '/../../includes/user_bootstrap.php';
 require_once __DIR__ . '/../../includes/checkers_helpers.php';
+require_once __DIR__ . '/../../includes/battleship_helpers.php';
 require_once __DIR__ . '/../../includes/onlinegames_helpers.php';
 
 $meta = onlinegames_meta($lang);
 $checkersMeta = checkers_meta($lang);
+$battleshipMeta = battleship_meta($lang);
 $checkersHref = checkers_build_lobby_href($lang);
+$battleshipHref = battleship_build_lobby_href($lang);
 $homeHref = onlinegames_build_home_href($lang);
 $playLabel = $lang === 'en' ? 'Play' : 'Играть';
 
@@ -67,6 +70,29 @@ require __DIR__ . '/../../includes/site_header.php';
                             <span class="online-game-card__badge" data-checkers-i18n="multiplayerBadge"><?php echo htmlspecialchars($checkersMeta['badge'], ENT_QUOTES, 'UTF-8'); ?></span>
                         </div>
                     </a>
+                    <a href="<?php echo htmlspecialchars($battleshipHref, ENT_QUOTES, 'UTF-8'); ?>" class="online-game-card online-game-card--battleship">
+                        <i class="fas <?php echo htmlspecialchars($battleshipMeta['icon'], ENT_QUOTES, 'UTF-8'); ?> online-game-card__watermark" aria-hidden="true"></i>
+                        <div class="online-game-card__visual">
+                            <div class="online-game-card__board online-game-card__board--battleship" aria-hidden="true">
+                                <?php for ($row = 0; $row < 10; $row++): ?>
+                                    <?php for ($col = 0; $col < 10; $col++): ?>
+                                        <span class="online-game-card__cell<?php echo ($row + $col) % 2 ? ' online-game-card__cell--dark' : ''; ?>"></span>
+                                    <?php endfor; ?>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="online-game-card__body">
+                            <h3 class="online-game-card__title" data-battleship-i18n="cardTitle"><?php echo htmlspecialchars($battleshipMeta['title'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                            <p class="online-game-card__desc" data-battleship-i18n="cardDesc"><?php echo htmlspecialchars($battleshipMeta['desc'], ENT_QUOTES, 'UTF-8'); ?></p>
+                        </div>
+                        <div class="online-game-card__footer">
+                            <span class="online-game-card__action">
+                                <span data-battleship-i18n="playOnline"><?php echo htmlspecialchars($playLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                            </span>
+                            <span class="online-game-card__badge" data-battleship-i18n="multiplayerBadge"><?php echo htmlspecialchars($battleshipMeta['badge'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        </div>
+                    </a>
                 </div>
             </section>
         </main>
@@ -78,6 +104,7 @@ require __DIR__ . '/../../includes/site_header.php';
         window.ABS_LANG = <?php echo json_encode($lang); ?>;
     </script>
     <script src="/js/services/onlinegames/checkers/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/onlinegames/battleship/i18n.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/onlinegames/hub.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
 </body>
 </html>

@@ -71,6 +71,7 @@ $pages = [
     abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings', abs_sitemap_lastmod_from_file('/services/aim/ratings.php')),
     abs_sitemap_page('/services/onlinegames', '/en/services/onlinegames', abs_sitemap_lastmod_from_file('/services/onlinegames/index.php')),
     abs_sitemap_page('/services/onlinegames/checkers', '/en/services/onlinegames/checkers', abs_sitemap_lastmod_from_file('/services/onlinegames/checkers/index.php')),
+    abs_sitemap_page('/services/onlinegames/battleship', '/en/services/onlinegames/battleship', abs_sitemap_lastmod_from_file('/services/onlinegames/battleship/index.php')),
     abs_sitemap_page('/services/mods', '/en/services/mods', abs_sitemap_lastmod_from_file('/services/mods/index.php')),
 ];
 

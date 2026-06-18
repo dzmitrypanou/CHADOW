@@ -394,20 +394,38 @@
 
     async function switchCheckersLanguage(lang) {
         if (lang !== 'ru' && lang !== 'en') return false;
-        if (window.ABS_CHECKERS_LANG === lang && window.ABS_LANG === lang) return true;
+        if (window.ABS_CHECKERS_LANG === lang && window.ABS_LANG === lang
+            && !document.body.classList.contains('page-battleship')) return true;
+        if (window.ABS_BATTLESHIP_LANG === lang && window.ABS_LANG === lang
+            && document.body.classList.contains('page-battleship')) return true;
 
         if (!window.AbsCheckersI18n || typeof window.AbsCheckersI18n.switchLanguage !== 'function') {
-            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
-            return true;
+            if (window.AbsBattleshipI18n && typeof window.AbsBattleshipI18n.switchLanguage === 'function') {
+                window.AbsBattleshipI18n.switchLanguage(lang);
+            } else {
+                window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
+                return true;
+            }
+        } else {
+            window.AbsCheckersI18n.switchLanguage(lang);
         }
 
-        window.AbsCheckersI18n.switchLanguage(lang);
+        if (window.AbsBattleshipI18n && typeof window.AbsBattleshipI18n.switchLanguage === 'function'
+            && window.AbsCheckersI18n && typeof window.AbsCheckersI18n.switchLanguage === 'function') {
+            window.AbsBattleshipI18n.switchLanguage(lang);
+        }
 
         if (window.AbsCheckersRoom && typeof window.AbsCheckersRoom.relocalizeView === 'function') {
             window.AbsCheckersRoom.relocalizeView();
         }
         if (window.AbsCheckersLobby && typeof window.AbsCheckersLobby.relocalizeView === 'function') {
             window.AbsCheckersLobby.relocalizeView();
+        }
+        if (window.AbsBattleshipRoom && typeof window.AbsBattleshipRoom.relocalizeView === 'function') {
+            window.AbsBattleshipRoom.relocalizeView();
+        }
+        if (window.AbsBattleshipLobby && typeof window.AbsBattleshipLobby.relocalizeView === 'function') {
+            window.AbsBattleshipLobby.relocalizeView();
         }
         if (window.AbsOnlinegamesHub && typeof window.AbsOnlinegamesHub.relocalizeView === 'function') {
             window.AbsOnlinegamesHub.relocalizeView();
