@@ -162,13 +162,7 @@
             this.cursorsLayerEl = null;
             this.pingsLayerEl = null;
             this.cellFlashesLayerEl = null;
-            this.cursorSendTimer = null;
-            this.cursorRaf = null;
             this.pendingCursorPayload = null;
-            this.lastCursorSendAt = 0;
-            this.remoteCursorAnimRaf = 0;
-            this.remoteCursorLoopActive = false;
-            this.remoteCursorLastTickAt = 0;
             this.lastCursorPayload = null;
             this.pingHoldActive = false;
             this.pingHoldTimer = null;
@@ -355,8 +349,6 @@
 
         static REMOTE_CURSOR_HOTSPOT_X = 2;
         static REMOTE_CURSOR_HOTSPOT_Y = 2;
-        static CURSOR_SEND_INTERVAL_MS = 16;
-        static REMOTE_CURSOR_SMOOTH_MS = 50;
 
         static remoteCursorPointerSvg() {
             return '<svg class="tactics-remote-cursor__svg" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">'
@@ -1634,46 +1626,27 @@
 
             if (hideNow) {
                 this.pendingCursorPayload = null;
-                clearTimeout(this.cursorSendTimer);
-                this.cursorSendTimer = null;
-                if (this.cursorRaf) {
-                    cancelAnimationFrame(this.cursorRaf);
-                    this.cursorRaf = null;
-                }
                 this.flushCursorSend(payload);
                 return;
             }
 
             this.pendingCursorPayload = payload;
-            const key = `${payload.slideId}:${payload.x.toFixed(5)}:${payload.y.toFixed(5)}:${payload.visible}:${payload.nickname}`;
+            const key = `${payload.slideId}:${payload.x}:${payload.y}:${payload.visible}:${payload.nickname}`;
             if (key === this.lastCursorPayload) return;
-
-            const now = performance.now();
-            const elapsed = now - (this.lastCursorSendAt || 0);
-            if (elapsed >= TacticsCanvas.CURSOR_SEND_INTERVAL_MS) {
-                this.flushCursorSend();
-                return;
-            }
-
-            if (this.cursorSendTimer) return;
-            this.cursorSendTimer = setTimeout(() => {
-                this.cursorSendTimer = null;
-                this.flushCursorSend();
-            }, TacticsCanvas.CURSOR_SEND_INTERVAL_MS - elapsed);
+            this.flushCursorSend();
         }
 
         flushCursorSend(payloadOverride) {
             const payload = payloadOverride || this.pendingCursorPayload;
             if (!payload) return;
 
-            const key = `${payload.slideId}:${payload.x.toFixed(5)}:${payload.y.toFixed(5)}:${payload.visible}:${payload.nickname}`;
+            const key = `${payload.slideId}:${payload.x}:${payload.y}:${payload.visible}:${payload.nickname}`;
             if (key === this.lastCursorPayload) {
                 this.pendingCursorPayload = null;
                 return;
             }
 
             this.lastCursorPayload = key;
-            this.lastCursorSendAt = performance.now();
             this.pendingCursorPayload = null;
             this.onCursorMove(payload);
         }
@@ -1694,7 +1667,6 @@
             if (!this.showRemoteCursors && this.cursorsLayerEl) {
                 this.cursorsLayerEl.innerHTML = '';
                 this.remoteCursors.clear();
-                this.stopRemoteCursorLoop();
             } else {
                 this.remoteCursors.forEach((entry) => {
                     if (entry.el) entry.el.hidden = false;
@@ -1789,38 +1761,6 @@
             if (!entry) return;
             entry.el?.remove();
             this.remoteCursors.delete(clientId);
-            if (!this.remoteCursors.size) {
-                this.stopRemoteCursorLoop();
-            }
-        }
-
-        stopRemoteCursorLoop() {
-            if (this.remoteCursorAnimRaf) {
-                cancelAnimationFrame(this.remoteCursorAnimRaf);
-                this.remoteCursorAnimRaf = 0;
-            }
-            this.remoteCursorLoopActive = false;
-        }
-
-        ensureRemoteCursorLoop() {
-            if (this.remoteCursorLoopActive) return;
-            if (!this.showRemoteCursors || !this.remoteCursors.size) return;
-
-            this.remoteCursorLoopActive = true;
-            this.remoteCursorLastTickAt = performance.now();
-
-            const step = (now) => {
-                if (!this.showRemoteCursors || !this.remoteCursors.size) {
-                    this.stopRemoteCursorLoop();
-                    return;
-                }
-                this.remoteCursorAnimRaf = requestAnimationFrame(step);
-                const dt = Math.min(48, Math.max(1, now - this.remoteCursorLastTickAt));
-                this.remoteCursorLastTickAt = now;
-                this.tickRemoteCursors(dt);
-            };
-
-            this.remoteCursorAnimRaf = requestAnimationFrame(step);
         }
 
         syncRemoteCursorsPresence(participants) {
@@ -1890,9 +1830,6 @@
                     labelEl: label,
                     x: 0,
                     y: 0,
-                    displayX: 0,
-                    displayY: 0,
-                    initialized: false,
                     nickname: '',
                 };
                 this.remoteCursors.set(clientId, entry);
@@ -1900,36 +1837,12 @@
 
             entry.x = Math.max(0, Math.min(1, Number(msg.x) || 0));
             entry.y = Math.max(0, Math.min(1, Number(msg.y) || 0));
-            if (!entry.initialized) {
-                entry.displayX = entry.x;
-                entry.displayY = entry.y;
-                entry.initialized = true;
-            }
             const nick = String(msg.nickname || entry.nickname || '').trim();
             if (nick) {
                 entry.nickname = nick;
             }
             entry.labelEl.textContent = entry.nickname || '?';
-            this.ensureRemoteCursorLoop();
-        }
-
-        tickRemoteCursors(dt) {
-            if (!this.showRemoteCursors || !this.remoteCursors.size) return;
-
-            const alpha = 1 - Math.exp(-dt / TacticsCanvas.REMOTE_CURSOR_SMOOTH_MS);
-
-            this.remoteCursors.forEach((entry) => {
-                const dx = entry.x - entry.displayX;
-                const dy = entry.y - entry.displayY;
-                if (Math.abs(dx) > 0.00002 || Math.abs(dy) > 0.00002) {
-                    entry.displayX += dx * alpha;
-                    entry.displayY += dy * alpha;
-                } else {
-                    entry.displayX = entry.x;
-                    entry.displayY = entry.y;
-                }
-                this.positionRemoteCursor(entry);
-            });
+            this.positionRemoteCursor(entry);
         }
 
         hideRemoteCursor(clientId) {
@@ -1938,9 +1851,7 @@
 
         positionRemoteCursor(entry) {
             if (!entry?.el) return;
-            const nx = Number.isFinite(entry.displayX) ? entry.displayX : entry.x;
-            const ny = Number.isFinite(entry.displayY) ? entry.displayY : entry.y;
-            const point = this.normalizedMapPointToOverlay(nx, ny);
+            const point = this.normalizedMapPointToOverlay(entry.x, entry.y);
             const px = point.x - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_X;
             const py = point.y - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_Y;
             entry.el.style.transform = `translate3d(${px}px, ${py}px, 0)`;
@@ -1948,7 +1859,6 @@
 
         repositionRemoteCursors() {
             this.remoteCursors.forEach((entry) => {
-                if (!entry.initialized) return;
                 this.positionRemoteCursor(entry);
             });
         }
