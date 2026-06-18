@@ -13,6 +13,8 @@
         let boardSize = 10;
         let myRole = 'host';
         let placementOverlay = null;
+        let layoutMode = 'dual';
+        let resizeObserver = null;
 
         function neighbors(r, c) {
             const out = [];
@@ -29,16 +31,81 @@
             return out;
         }
 
-        function maxCellPx(size) {
-            if (size <= 10) return 32;
-            if (size <= 20) return 18;
-            return 10;
+        function cellLimits(size) {
+            if (size <= 10) return { min: 18, max: 36 };
+            if (size <= 20) return { min: 6, max: 22 };
+            return { min: 4, max: 14 };
+        }
+
+        function applyCellSize(el, cellPx) {
+            if (!el) return;
+            el.style.setProperty('--bs-cell-size', `${cellPx}px`);
+        }
+
+        function fitBoardInWrap(boardEl, wrapEl, size) {
+            if (!boardEl || !wrapEl || size <= 0) return;
+            const rect = wrapEl.getBoundingClientRect();
+            const limits = cellLimits(size);
+            const availW = Math.max(0, rect.width - 8);
+            const availH = Math.max(0, rect.height - 8);
+            if (availW < 8 || availH < 8) return;
+
+            const fromW = availW / size;
+            const fromH = availH / size;
+            const cellPx = Math.max(
+                limits.min,
+                Math.min(limits.max, Math.floor(Math.min(fromW, fromH)))
+            );
+            applyCellSize(boardEl, cellPx);
+        }
+
+        function getVisibleBoardBlocks() {
+            const blocks = [];
+            document.querySelectorAll('.battleship-board-block').forEach((block) => {
+                if (block.hidden || block.offsetParent === null) return;
+                if (layoutMode === 'tabs' && !block.classList.contains('is-active')) return;
+                blocks.push(block);
+            });
+            return blocks;
+        }
+
+        function resize() {
+            if (layoutMode === 'placement') {
+                const ownBlock = ownEl && ownEl.closest('.battleship-board-block');
+                const ownWrap = ownBlock && ownBlock.querySelector('.battleship-board-wrap');
+                fitBoardInWrap(ownEl, ownWrap, boardSize);
+                return;
+            }
+
+            getVisibleBoardBlocks().forEach((block) => {
+                const board = block.querySelector('.battleship-board');
+                const wrap = block.querySelector('.battleship-board-wrap');
+                if (board && wrap) {
+                    fitBoardInWrap(board, wrap, boardSize);
+                }
+            });
+        }
+
+        function bindResizeObserver() {
+            if (resizeObserver) return;
+            const root = document.querySelector('.battleship-room-main');
+            if (!root || typeof ResizeObserver === 'undefined') return;
+
+            resizeObserver = new ResizeObserver(() => {
+                window.requestAnimationFrame(() => resize());
+            });
+            resizeObserver.observe(root);
+            const playLayout = root.querySelector('.battleship-play-layout');
+            if (playLayout) resizeObserver.observe(playLayout);
+        }
+
+        function setLayoutMode(mode) {
+            layoutMode = mode || 'dual';
+            window.requestAnimationFrame(() => resize());
         }
 
         function buildGrid(el, size) {
             if (!el) return;
-            const cellPx = maxCellPx(size);
-            el.style.setProperty('--bs-cell-size', `${cellPx}px`);
             el.style.setProperty('--bs-board-size', String(size));
             el.dataset.size = String(size);
             el.innerHTML = '';
@@ -191,6 +258,7 @@
             boardSize = Number(size) || 10;
             buildGrid(ownEl, boardSize);
             buildGrid(enemyEl, boardSize);
+            bindResizeObserver();
 
             if (enemyEl) {
                 enemyEl.onclick = (event) => {
@@ -201,6 +269,8 @@
                     onShoot(r, c);
                 };
             }
+
+            resize();
         }
 
         function update(state) {
@@ -210,6 +280,7 @@
             }
             paintOwnBoard(state);
             paintEnemyBoard(state);
+            resize();
         }
 
         function setPlacementOverlay(overlay) {
@@ -239,6 +310,8 @@
             mount,
             update,
             setPlacementOverlay,
+            setLayoutMode,
+            resize,
             getBoardSize,
             getOwnEl,
             cellFromPoint,

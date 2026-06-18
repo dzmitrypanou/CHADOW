@@ -193,10 +193,59 @@
         return state.status === 'placement' || state.status === 'waiting';
     }
 
+    function resolveLayoutMode(state) {
+        const size = Number(state && state.boardSize) || 10;
+        if (canPlaceShips(state)) return 'placement';
+        if (size >= 50 && state && (state.status === 'playing' || state.status === 'finished')) {
+            return 'tabs';
+        }
+        if (size >= 20) return 'stacked';
+        return 'dual';
+    }
+
+    function setActiveBoardTab(tab) {
+        const ownBlock = document.querySelector('.battleship-board-block--own');
+        const enemyBlock = document.querySelector('.battleship-board-block--enemy');
+        const tabOwn = document.getElementById('battleshipTabOwn');
+        const tabEnemy = document.getElementById('battleshipTabEnemy');
+        const nextTab = tab === 'own' ? 'own' : 'enemy';
+
+        if (ownBlock) ownBlock.classList.toggle('is-active', nextTab === 'own');
+        if (enemyBlock) enemyBlock.classList.toggle('is-active', nextTab === 'enemy');
+        if (tabOwn) tabOwn.classList.toggle('is-active', nextTab === 'own');
+        if (tabEnemy) tabEnemy.classList.toggle('is-active', nextTab === 'enemy');
+
+        if (boardRenderer && boardRenderer.resize) {
+            boardRenderer.resize();
+        }
+    }
+
+    function updateLayoutMode(state) {
+        const panel = document.getElementById('battleshipBoardPanel');
+        const tabs = document.getElementById('battleshipBoardTabs');
+        if (!panel || !state) return;
+
+        const size = Number(state.boardSize) || 10;
+        const layout = resolveLayoutMode(state);
+        panel.dataset.bsSize = String(size);
+        panel.dataset.bsLayout = layout;
+
+        if (tabs) {
+            const showTabs = layout === 'tabs';
+            tabs.hidden = !showTabs;
+            if (showTabs && state.status === 'playing' && state.turn === state.you) {
+                setActiveBoardTab('enemy');
+            }
+        }
+
+        if (boardRenderer && boardRenderer.setLayoutMode) {
+            boardRenderer.setLayoutMode(layout);
+        }
+    }
+
     function renderPlacement(state) {
         const bar = document.getElementById('battleshipPlacementBar');
         const hint = document.getElementById('battleshipPlacementHint');
-        const subhint = document.getElementById('battleshipPlacementSubhint');
         const autoBtn = document.getElementById('battleshipAutoPlaceBtn');
         if (!bar) return;
 
@@ -211,9 +260,6 @@
 
         if (hint) {
             hint.textContent = ownReady ? i18n().t('placementReady') : i18n().t('placementHint');
-        }
-        if (subhint) {
-            subhint.hidden = ownReady;
         }
         if (autoBtn) {
             autoBtn.disabled = ownReady;
@@ -351,6 +397,17 @@
         updateChatEmptyState();
     }
 
+    function bindBoardTabs() {
+        const tabs = document.getElementById('battleshipBoardTabs');
+        if (!tabs) return;
+        tabs.querySelectorAll('.battleship-board-tab').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const tab = btn.getAttribute('data-tab');
+                if (tab) setActiveBoardTab(tab);
+            });
+        });
+    }
+
     function bindChatForm() {
         const form = document.getElementById('battleshipChatForm');
         const input = document.getElementById('battleshipChatInput');
@@ -369,6 +426,7 @@
     function handleState(state) {
         latestState = state;
         updateBoardBadge(state.boardSize);
+        updateLayoutMode(state);
         renderPlayers(state);
         renderStatus(state);
         renderPlacement(state);
@@ -506,6 +564,11 @@
         placementController = window.AbsBattleshipPlacement.createPlacementController({
             boardRenderer,
             dockEl: document.getElementById('battleshipShipDock'),
+            dockRowEl: document.getElementById('battleshipPlacementDockRow'),
+            dockCountEl: document.getElementById('battleshipDockCount'),
+            formatDockCount(count) {
+                return i18n().t('dockShipsLeft', { count });
+            },
             confirmBtn: document.getElementById('battleshipConfirmPlacementBtn'),
             onRepaint() {
                 if (latestState && boardRenderer) {
@@ -549,6 +612,7 @@
         bindChatForm();
         updateChatEmptyState();
         bindNicknameGate();
+        bindBoardTabs();
 
         const nickInput = document.getElementById('battleshipRoomNicknameInput');
         const preferred = storage().getPreferredNickname();
@@ -575,6 +639,7 @@
         setConnection(connectionState);
         if (latestState) {
             updateBoardBadge(latestState.boardSize);
+            updateLayoutMode(latestState);
             renderPlayers(latestState);
             renderStatus(latestState);
             renderPlacement(latestState);

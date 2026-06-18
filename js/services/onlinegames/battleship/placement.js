@@ -61,7 +61,10 @@
     function createPlacementController(options) {
         const boardRenderer = options.boardRenderer;
         const dockEl = options.dockEl;
+        const dockRowEl = options.dockRowEl;
+        const dockCountEl = options.dockCountEl;
         const confirmBtn = options.confirmBtn;
+        const formatDockCount = options.formatDockCount || ((count) => String(count));
         const onPlaceShips = options.onPlaceShips || (() => {});
         const onChange = options.onChange || (() => {});
 
@@ -109,11 +112,14 @@
             if (!dockEl) return;
             const showDock = active && dock.length > 0;
             dockEl.innerHTML = '';
+            if (dockRowEl) dockRowEl.hidden = !showDock;
             if (!showDock) {
-                dockEl.hidden = true;
+                if (dockCountEl) dockCountEl.textContent = '';
                 return;
             }
-            dockEl.hidden = false;
+            if (dockCountEl) {
+                dockCountEl.textContent = formatDockCount(dock.length);
+            }
             dock.forEach((item, index) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
@@ -382,9 +388,9 @@
             dragging = null;
             preview = null;
             endDrag();
+            if (dockRowEl) dockRowEl.hidden = true;
             if (dockEl) {
                 dockEl.innerHTML = '';
-                dockEl.hidden = true;
             }
             if (confirmBtn) {
                 confirmBtn.hidden = true;

@@ -17730,16 +17730,17 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .online-games-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 320px));
-    gap: 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
 }
 
 .online-game-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 320px;
-    padding: 18px 18px 16px;
+    min-height: 0;
+    height: 100%;
+    padding: 14px 14px 12px;
     border: 1px solid rgba(113, 163, 230, 0.28);
     background: linear-gradient(165deg, rgba(24, 36, 68, 0.92) 0%, rgba(12, 20, 38, 0.88) 52%, rgba(8, 14, 28, 0.94) 100%);
     color: inherit;
@@ -17757,9 +17758,9 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .online-game-card__watermark {
     position: absolute;
-    right: -10px;
-    bottom: -18px;
-    font-size: 6.5rem;
+    right: -8px;
+    bottom: -14px;
+    font-size: 4.5rem;
     line-height: 1;
     color: rgba(142, 203, 255, 0.06);
     pointer-events: none;
@@ -17783,17 +17784,17 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 .online-game-card__visual {
     display: flex;
     justify-content: center;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .online-game-card__board {
-    width: min(100%, 168px);
+    width: min(100%, 120px);
     aspect-ratio: 1;
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    border: 3px solid rgba(30, 40, 62, 0.95);
+    border: 2px solid rgba(30, 40, 62, 0.95);
     box-shadow:
-        0 10px 24px rgba(0, 0, 0, 0.35),
+        0 8px 18px rgba(0, 0, 0, 0.32),
         inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
@@ -17821,14 +17822,15 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 .online-game-card__body {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     flex: 1 1 auto;
+    min-width: 0;
 }
 
 .online-game-card__title {
     margin: 0;
     color: #edf4ff;
-    font-size: 1.12rem;
+    font-size: 0.98rem;
     font-weight: 700;
     line-height: 1.25;
 }
@@ -17836,28 +17838,33 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 .online-game-card__desc {
     margin: 0;
     color: rgba(188, 210, 236, 0.82);
-    font-size: 0.88rem;
-    line-height: 1.45;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
 }
 
 .online-game-card__footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-top: 16px;
-    padding-top: 12px;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
     border-top: 1px solid rgba(113, 163, 230, 0.18);
 }
 
 .online-game-card__action {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: #8ecbff;
-    font-size: 0.92rem;
+    font-size: 0.82rem;
     font-weight: 600;
     transition: color 0.2s ease, gap 0.2s ease;
+    min-width: 0;
 }
 
 .online-game-card:hover .online-game-card__action {
@@ -17946,16 +17953,24 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .onlinegames-list-section {
-    padding: 20px 24px;
+    padding: 16px 18px;
+}
+
+@media (max-width: 1180px) {
+    .online-games-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .online-games-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 720px) {
     .online-games-grid {
         grid-template-columns: 1fr;
-    }
-
-    .online-game-card {
-        min-height: 0;
     }
 }
 
@@ -21650,13 +21665,49 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-board-panel {
     position: relative;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.page-battleship-room .checkers-room-bar.checkers-panel {
+    padding: 12px 16px;
 }
 
 .battleship-placement-bar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
+}
+
+.battleship-placement-bar__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.battleship-placement-dock-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.battleship-placement-dock-row[hidden] {
+    display: none !important;
+}
+
+.battleship-dock-count {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgba(175, 200, 228, 0.75);
+    white-space: nowrap;
 }
 
 .battleship-placement-subhint {
@@ -21668,8 +21719,9 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 .battleship-placement-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
+    flex: 0 0 auto;
 }
 
 .battleship-auto-place {
@@ -21678,12 +21730,18 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-ship-dock {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 12px;
-    border: 1px dashed rgba(113, 163, 230, 0.35);
-    border-radius: 8px;
-    background: rgba(8, 14, 28, 0.45);
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 6px 8px;
+    border: 1px dashed rgba(113, 163, 230, 0.28);
+    border-radius: 6px;
+    background: rgba(8, 14, 28, 0.35);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: 42px;
+    scrollbar-width: thin;
 }
 
 .battleship-ship-dock[hidden] {
@@ -21694,13 +21752,21 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 48px;
-    min-height: 34px;
-    padding: 6px 10px;
-    border: 1px solid rgba(100, 181, 246, 0.45);
+    flex: 0 0 auto;
+    min-width: 36px;
+    min-height: 28px;
+    padding: 4px 6px;
+    border: 1px solid rgba(100, 181, 246, 0.4);
     background: rgba(36, 74, 122, 0.55);
     cursor: grab;
     touch-action: none;
+}
+
+.battleship-board-panel[data-bs-size="20"] .battleship-dock-ship,
+.battleship-board-panel[data-bs-size="50"] .battleship-dock-ship {
+    min-width: 30px;
+    min-height: 24px;
+    padding: 3px 5px;
 }
 
 .battleship-dock-ship:active {
@@ -21709,11 +21775,17 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-dock-ship__bar {
     display: block;
-    width: calc(var(--ship-len, 3) * 14px);
-    height: 12px;
-    border-radius: 3px;
+    width: calc(var(--ship-len, 3) * 12px);
+    height: 10px;
+    border-radius: 2px;
     background: linear-gradient(180deg, #7eb6e8 0%, #3d6f9c 100%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.battleship-board-panel[data-bs-size="20"] .battleship-dock-ship__bar,
+.battleship-board-panel[data-bs-size="50"] .battleship-dock-ship__bar {
+    width: calc(var(--ship-len, 3) * 8px);
+    height: 8px;
 }
 
 body.battleship-dragging {
@@ -21738,60 +21810,112 @@ body.battleship-dragging .battleship-board[data-board="own"] {
 .battleship-cell--around::after {
     content: '';
     position: absolute;
-    inset: 22%;
+    inset: 28%;
     border-radius: 50%;
     background: rgba(176, 190, 197, 0.72);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
+.battleship-board-panel[data-bs-size="50"] .battleship-cell--miss::after,
+.battleship-board-panel[data-bs-size="50"] .battleship-cell--hit::after,
+.battleship-board-panel[data-bs-size="50"] .battleship-cell--sunk::after,
+.battleship-board-panel[data-bs-size="50"] .battleship-cell--around::after {
+    inset: 32%;
+}
+
 .battleship-placement-hint {
     margin: 0;
     color: rgba(175, 200, 228, 0.88);
-    font-size: 0.92rem;
+    font-size: 0.86rem;
+    flex: 1 1 220px;
+    min-width: 0;
 }
 
-.battleship-fleet-list {
+.battleship-board-tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex: 0 0 auto;
 }
 
-.battleship-fleet-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: rgba(12, 20, 38, 0.72);
+.battleship-board-tabs[hidden] {
+    display: none !important;
+}
+
+.battleship-board-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 12px;
     border: 1px solid rgba(113, 163, 230, 0.28);
-    color: rgba(200, 220, 245, 0.9);
-    font-size: 0.8rem;
+    background: rgba(8, 14, 28, 0.35);
+    color: rgba(198, 214, 238, 0.82);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.battleship-board-tab.is-active {
+    border-color: rgba(100, 181, 246, 0.55);
+    background: rgba(36, 74, 122, 0.55);
+    color: #e8f1ff;
 }
 
 .battleship-play-layout {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-    align-items: start;
+    gap: 12px;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.battleship-board-panel[data-bs-layout="placement"] .battleship-play-layout,
+.battleship-board-panel[data-bs-layout="tabs"] .battleship-play-layout,
+.battleship-board-panel[data-bs-layout="stacked"] .battleship-play-layout {
+    grid-template-columns: 1fr;
+}
+
+.battleship-board-panel[data-bs-layout="placement"] .battleship-board-block--enemy,
+.battleship-board-panel[data-bs-layout="tabs"] .battleship-board-block {
+    display: none;
+}
+
+.battleship-board-panel[data-bs-layout="tabs"] .battleship-board-block.is-active,
+.battleship-board-panel[data-bs-layout="placement"] .battleship-board-block--own {
+    display: flex;
+}
+
+.battleship-board-panel[data-bs-layout="placement"] .battleship-board-title,
+.battleship-board-panel[data-bs-layout="tabs"] .battleship-board-title {
+    display: none;
 }
 
 .battleship-board-block {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
+    min-height: 0;
 }
 
 .battleship-board-title {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     font-weight: 600;
-    color: rgba(220, 236, 255, 0.95);
+    color: rgba(220, 236, 255, 0.9);
+    flex: 0 0 auto;
 }
 
 .battleship-board-wrap {
-    overflow: auto;
+    overflow: hidden;
     max-width: 100%;
-    padding: 4px;
+    padding: 2px;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .battleship-board {
@@ -21803,6 +21927,7 @@ body.battleship-dragging .battleship-board[data-board="own"] {
     border: 1px solid rgba(113, 163, 230, 0.35);
     width: max-content;
     max-width: 100%;
+    flex: 0 0 auto;
 }
 
 .battleship-cell {
@@ -21885,15 +22010,17 @@ body.battleship-dragging .battleship-board[data-board="own"] {
 }
 
 .battleship-board-panel .battleship-room-layout {
-    min-height: clamp(420px, 62vh, 740px);
+    flex: 1 1 auto;
+    min-height: clamp(300px, calc(100vh - 240px), 860px);
 }
 
 .battleship-room-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(380px, 34vw, 480px);
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 30vw, 420px);
     gap: 14px;
     align-items: stretch;
     width: 100%;
+    min-height: 0;
 }
 
 .battleship-room-main {
@@ -21978,7 +22105,7 @@ body.battleship-dragging .battleship-board[data-board="own"] {
 
 .battleship-card-scene {
     position: relative;
-    width: min(100%, 168px);
+    width: min(100%, 120px);
     aspect-ratio: 1;
     border-radius: 8px;
     overflow: hidden;
@@ -22117,13 +22244,22 @@ body.battleship-dragging .battleship-board[data-board="own"] {
         min-height: 0;
     }
 
+    .battleship-board-panel .battleship-room-layout {
+        min-height: clamp(280px, calc(100vh - 280px), 720px);
+    }
+
     .battleship-sidebar.checkers-sidebar {
-        min-height: 360px;
+        min-height: 300px;
+        max-height: 42vh;
     }
 }
 
 @media (max-width: 960px) {
     .battleship-play-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .battleship-board-panel[data-bs-layout="dual"] .battleship-play-layout {
         grid-template-columns: 1fr;
     }
 }

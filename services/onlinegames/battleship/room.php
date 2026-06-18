@@ -100,33 +100,46 @@ require __DIR__ . '/../../../includes/site_header.php';
                 </div>
             </div>
 
-            <section class="checkers-panel battleship-board-panel">
+            <section class="checkers-panel battleship-board-panel" id="battleshipBoardPanel">
                 <div class="battleship-placement-bar" id="battleshipPlacementBar" hidden>
-                    <p class="battleship-placement-hint" id="battleshipPlacementHint"></p>
-                    <p class="battleship-placement-subhint" id="battleshipPlacementSubhint" data-battleship-i18n="placementDragHint"><?php echo $lang === 'en' ? 'Mouse wheel — rotate ship' : 'Колесо мыши — поворот корабля'; ?></p>
-                    <div class="battleship-ship-dock" id="battleshipShipDock" hidden></div>
-                    <div class="battleship-placement-actions">
-                        <button type="button" class="checkers-submit-btn" id="battleshipConfirmPlacementBtn" hidden>
-                            <i class="fas fa-check" aria-hidden="true"></i>
-                            <span data-battleship-i18n="confirmPlacement"><?php echo $lang === 'en' ? 'Ready — start battle' : 'Готово — начать бой'; ?></span>
-                        </button>
-                        <button type="button" class="checkers-back-link battleship-auto-place" id="battleshipAutoPlaceBtn">
-                            <i class="fas fa-random" aria-hidden="true"></i>
-                            <span data-battleship-i18n="autoPlace"><?php echo $lang === 'en' ? 'Random placement' : 'Случайная расстановка'; ?></span>
-                        </button>
+                    <div class="battleship-placement-bar__row">
+                        <p class="battleship-placement-hint" id="battleshipPlacementHint"></p>
+                        <div class="battleship-placement-actions">
+                            <button type="button" class="checkers-submit-btn" id="battleshipConfirmPlacementBtn" hidden>
+                                <i class="fas fa-check" aria-hidden="true"></i>
+                                <span data-battleship-i18n="confirmPlacement"><?php echo $lang === 'en' ? 'Ready — start battle' : 'Готово — начать бой'; ?></span>
+                            </button>
+                            <button type="button" class="checkers-back-link battleship-auto-place" id="battleshipAutoPlaceBtn">
+                                <i class="fas fa-random" aria-hidden="true"></i>
+                                <span data-battleship-i18n="autoPlace"><?php echo $lang === 'en' ? 'Random placement' : 'Случайная расстановка'; ?></span>
+                            </button>
+                        </div>
                     </div>
+                    <div class="battleship-placement-dock-row" id="battleshipPlacementDockRow" hidden>
+                        <span class="battleship-dock-count" id="battleshipDockCount"></span>
+                        <div class="battleship-ship-dock" id="battleshipShipDock"></div>
+                    </div>
+                </div>
+
+                <div class="battleship-board-tabs" id="battleshipBoardTabs" hidden>
+                    <button type="button" class="battleship-board-tab is-active" data-tab="enemy" id="battleshipTabEnemy">
+                        <?php echo $lang === 'en' ? 'Enemy waters' : 'Поле соперника'; ?>
+                    </button>
+                    <button type="button" class="battleship-board-tab" data-tab="own" id="battleshipTabOwn">
+                        <?php echo $lang === 'en' ? 'Your fleet' : 'Ваш флот'; ?>
+                    </button>
                 </div>
 
                 <div class="battleship-room-layout">
                     <div class="battleship-room-main">
-                        <div class="battleship-play-layout">
-                            <div class="battleship-board-block">
+                        <div class="battleship-play-layout" id="battleshipPlayLayout">
+                            <div class="battleship-board-block battleship-board-block--own" data-board-block="own">
                                 <h3 class="battleship-board-title" data-battleship-i18n="ownBoard"><?php echo $lang === 'en' ? 'Your fleet' : 'Ваш флот'; ?></h3>
                                 <div class="battleship-board-wrap">
                                     <div class="battleship-board" id="battleshipOwnBoard" data-board="own"></div>
                                 </div>
                             </div>
-                            <div class="battleship-board-block">
+                            <div class="battleship-board-block battleship-board-block--enemy is-active" data-board-block="enemy">
                                 <h3 class="battleship-board-title" data-battleship-i18n="enemyBoard"><?php echo $lang === 'en' ? 'Enemy waters' : 'Поле соперника'; ?></h3>
                                 <div class="battleship-board-wrap">
                                     <div class="battleship-board" id="battleshipEnemyBoard" data-board="enemy"></div>
