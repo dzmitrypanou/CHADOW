@@ -125,11 +125,31 @@ if (!$needsPassword && $mapUrls !== []) {
         . '.page-tactics-room .tactics-editor.is-ready{opacity:1;transition:opacity .12s ease}'
         . '</style>';
 }
+if ($needsPassword) {
+    $extraHeadHtml .= '<style>'
+        . 'html.tactics-auth-pending #tacticsPasswordGate{display:none!important}'
+        . 'html.tactics-auth-pending #tacticsAuthGate{display:flex!important}'
+        . 'html.tactics-auth-pending .tactics-room-layout--locked{min-height:100dvh;height:100dvh;margin:0}'
+        . '.tactics-auth-gate{display:none;align-items:center;justify-content:center;min-height:100dvh;width:100%;background:#0a1022}'
+        . '.tactics-auth-gate__inner{display:flex;flex-direction:column;align-items:center;gap:16px;color:rgba(200,220,245,.92);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}'
+        . '.tactics-auth-gate .spinner{width:22px;height:22px;border:2px solid rgba(126,196,255,.25);border-top-color:#8ecbff;border-right-color:#8ecbff;border-radius:50%;animation:tacticsAuthSpin .85s linear infinite}'
+        . '@keyframes tacticsAuthSpin{to{transform:rotate(360deg)}}'
+        . '</style>'
+        . '<script>(function(){var pid='
+        . json_encode($publicId)
+        . ';var key="abs_tactics_token_"+pid;try{var raw=localStorage.getItem(key);if(!raw)return;var data=JSON.parse(raw);if(!data||!data.access_token)return;document.documentElement.classList.add("tactics-auth-pending");}catch(e){}})();</script>';
+}
 
 require __DIR__ . '/../../includes/site_header.php';
 ?>
 
         <main class="tactics-service tactics-room-layout<?php echo $needsPassword ? ' tactics-room-layout--locked' : ''; ?>">
+            <div id="tacticsAuthGate" class="tactics-auth-gate" hidden>
+                <div class="tactics-auth-gate__inner">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p class="tactics-auth-gate__text" data-tactics-i18n="authChecking"><?php echo $lang === 'en' ? 'Verifying access…' : 'Проверка аутентификации…'; ?></p>
+                </div>
+            </div>
             <div id="tacticsPasswordGate" class="tactics-password-gate"<?php echo $needsPassword ? '' : ' hidden'; ?>>
                 <section class="tactics-panel tactics-password-panel">
                     <h3 class="tactics-panel-title" data-tactics-i18n="closedRoom"><?php echo $lang === 'en' ? 'Closed room' : 'Закрытая комната'; ?></h3>

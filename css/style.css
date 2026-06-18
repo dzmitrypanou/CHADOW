@@ -10300,6 +10300,61 @@ button.tactics-back-link {
     box-sizing: border-box;
 }
 
+.tactics-auth-gate {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--tactics-editor-bg, #0a1022);
+}
+
+.tactics-auth-gate__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+}
+
+.tactics-auth-gate__text {
+    margin: 0;
+    color: rgba(200, 220, 245, 0.92);
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+.tactics-auth-gate .spinner {
+    width: 22px;
+    height: 22px;
+    border: 2px solid rgba(126, 196, 255, 0.25);
+    border-top-color: #8ecbff;
+    border-right-color: #8ecbff;
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+    flex-shrink: 0;
+}
+
+html.tactics-auth-pending #tacticsPasswordGate {
+    display: none !important;
+}
+
+html.tactics-auth-pending #tacticsAuthGate {
+    display: flex !important;
+}
+
+html.tactics-auth-pending #tacticsAuthGate[hidden] {
+    display: flex !important;
+}
+
+html.tactics-auth-pending .tactics-room-layout--locked {
+    min-height: 100dvh;
+    height: 100dvh;
+    margin: 0;
+}
+
 .page-tactics-room-locked .tactics-password-panel.tactics-panel {
     padding: 28px 24px 24px;
     border-radius: 0;

@@ -2673,7 +2673,33 @@
         document.body.style.overflow = 'hidden';
     }
 
+    function isAuthPending() {
+        return document.documentElement.classList.contains('tactics-auth-pending');
+    }
+
+    function showAuthGate() {
+        document.documentElement.classList.add('tactics-auth-pending');
+        document.getElementById('tacticsPasswordGate')?.setAttribute('hidden', '');
+        document.getElementById('tacticsAuthGate')?.removeAttribute('hidden');
+        enterRoomShell();
+    }
+
+    function showPasswordGate() {
+        document.documentElement.classList.remove('tactics-auth-pending');
+        document.getElementById('tacticsAuthGate')?.setAttribute('hidden', '');
+        document.getElementById('tacticsPasswordGate')?.removeAttribute('hidden');
+        document.body.classList.add('page-tactics-room-locked');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+
+    function clearAuthGate() {
+        document.documentElement.classList.remove('tactics-auth-pending');
+        document.getElementById('tacticsAuthGate')?.setAttribute('hidden', '');
+    }
+
     function revealWorkspace() {
+        clearAuthGate();
         document.getElementById('tacticsPasswordGate')?.setAttribute('hidden', '');
         const workspace = document.getElementById('tacticsRoomWorkspace');
         workspace?.removeAttribute('hidden');
@@ -3537,10 +3563,12 @@
         accessToken = null;
         wsToken = null;
         saveRoomSessionSnapshot();
+        showAuthGate();
 
         try {
             const payload = await refreshSession(password);
             if (!payload) {
+                showPasswordGate();
                 const serverError = lastJoinError || '';
                 showJoinError(serverError || i18n().t('wrongPassword'));
                 return;
@@ -3548,6 +3576,7 @@
             await applySession(payload);
         } catch (err) {
             console.error('[tactics] password join failed', err);
+            showPasswordGate();
             showJoinError(i18n().t('wrongPassword'));
         } finally {
             if (submitBtn) submitBtn.disabled = false;
@@ -3577,10 +3606,15 @@
             wsToken = null;
             const gateStored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
             if (gateStored?.access_token) {
+                showAuthGate();
                 const payload = await refreshSession('');
                 if (payload) {
                     await applySession(payload);
+                } else {
+                    showPasswordGate();
                 }
+            } else {
+                clearAuthGate();
             }
             return;
         }
@@ -3646,6 +3680,7 @@
     async function relocalizeView() {
         if (nicknameEditing) return;
 
+        i18n().relocalizeDom(document.getElementById('tacticsAuthGate') || document);
         i18n().relocalizeDom(document.getElementById('tacticsPasswordGate') || document);
         i18n().relocalizeDom(document.getElementById('tacticsRoomWorkspace') || document);
         i18n().relocalizeDom(document.querySelector('.tactics-room-gone') || document);
