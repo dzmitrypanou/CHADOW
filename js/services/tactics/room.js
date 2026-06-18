@@ -41,6 +41,10 @@
     let nicknameLockedByUser = false;
     let nicknameLockedBeforeEdit = false;
     let nicknameEditing = false;
+    let nicknameColor = '';
+    let nicknameColorPickerOpen = false;
+    let nickColorPickerDocBound = false;
+    const NICK_COLOR_STORAGE_KEY = 'abs_tactics_nick_color';
     let wsAuthRefreshing = false;
     let wsAuthFailures = 0;
     const WS_AUTH_MAX_RETRIES = 3;
@@ -51,9 +55,12 @@
     let drawSettingsSaveInFlight = false;
     let presentationToggleInFlight = false;
     const PRESENTATION_INACTIVITY_MS = 60000;
+    const PRESENTATION_INACTIVITY_SHOW_IDLE_MS = 12000;
     let presentationInactivityTimer = null;
+    let presentationCountdownInterval = null;
     let presentationLastActivityAt = 0;
-    let serverPresentationSnapshot = { mode: false, hostId: '' };
+    let presentationStopInactivityInFlight = false;
+    let serverPresentationSnapshot = { mode: false, hostId: '', hostNickname: '' };
     let save403Attempts = 0;
     const SAVE_403_MAX_ATTEMPTS = 2;
 
@@ -65,11 +72,58 @@
         return String(roomState?.public_id || window.ABS_TACTICS_PUBLIC_ID || '');
     }
 
+    function nickColorStorageKey() {
+        return NICK_COLOR_STORAGE_KEY + '_' + String(clientId || '');
+    }
+
+    function normalizeNickColor(color) {
+        const raw = String(color || '').trim();
+        if (!/^#[0-9a-fA-F]{6}$/.test(raw)) return '';
+        return raw.toLowerCase();
+    }
+
+    function loadNicknameColor() {
+        try {
+            const raw = localStorage.getItem(nickColorStorageKey());
+            return normalizeNickColor(raw);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function saveNicknameColorLocal(color) {
+        const normalized = normalizeNickColor(color);
+        if (!normalized) return;
+        try {
+            localStorage.setItem(nickColorStorageKey(), normalized);
+        } catch (e) {  }
+    }
+
+    function defaultNickColorForClient(cid) {
+        const colors = window.TacticsCanvas?.CURSOR_COLORS || ['#b388ff'];
+        let colorIdx = 0;
+        const id = String(cid || '');
+        for (let i = 0; i < id.length; i += 1) {
+            colorIdx = (colorIdx + id.charCodeAt(i)) % colors.length;
+        }
+        return colors[colorIdx] || '#b388ff';
+    }
+
+    function resolveParticipantNickColor(participant, cid) {
+        const custom = normalizeNickColor(participant?.nickColor || participant?.nick_color || '');
+        if (custom) return custom;
+        if (String(cid) === String(clientId || '') && nicknameColor) {
+            return nicknameColor;
+        }
+        return defaultNickColorForClient(cid);
+    }
+
     function saveRoomSessionSnapshot() {
         store().saveRoomSession(roomPublicId(), {
             access_token: accessToken,
             ws_token: wsToken,
             nickname,
+            nick_color: nicknameColor,
             nickname_locked: nicknameLockedByUser,
             client_id: clientId,
         });
@@ -80,10 +134,20 @@
         let items = normalizeParticipants(list);
         if (!selfId) return items;
         items = items.map((p) => (
-            p.clientId === selfId ? { ...p, nickname: String(nickname || '') } : p
+            p.clientId === selfId
+                ? {
+                    ...p,
+                    nickname: String(nickname || ''),
+                    nickColor: nicknameColor || p.nickColor || '',
+                }
+                : p
         ));
         if (!items.some((p) => p.clientId === selfId)) {
-            items.push({ clientId: selfId, nickname: String(nickname || '') });
+            items.push({
+                clientId: selfId,
+                nickname: String(nickname || ''),
+                nickColor: nicknameColor || '',
+            });
         }
         return items;
     }
@@ -702,6 +766,111 @@
         ));
     }
 
+    function updateLocalParticipantNickColor(nextColor) {
+        const selfId = String(clientId || '');
+        const normalized = normalizeNickColor(nextColor);
+        if (!normalized) return;
+        participantsList = participantsList.map((p) => (
+            p.clientId === selfId ? { ...p, nickColor: normalized } : p
+        ));
+    }
+
+    async function saveNicknameColor(color) {
+        const normalized = normalizeNickColor(color);
+        if (!normalized) return;
+        nicknameColor = normalized;
+        saveNicknameColorLocal(normalized);
+        updateLocalParticipantNickColor(normalized);
+        saveRoomSessionSnapshot();
+        renderParticipants(participantsList);
+        wsClient?.updateNickColor(normalized);
+        if (wsToken && window.ABS_TACTICS_EVENT_API) {
+            await store().postJson(window.ABS_TACTICS_EVENT_API, {
+                public_id: roomState?.public_id || roomPublicId(),
+                event_type: 'nick_color',
+                payload: { color: normalized },
+                ws_token: wsToken,
+            });
+        }
+    }
+
+    function closeNicknameColorPicker() {
+        const popup = document.getElementById('tacticsNickColorPicker');
+        if (popup) popup.hidden = true;
+        nicknameColorPickerOpen = false;
+    }
+
+    function toggleNicknameColorPicker(anchorBtn) {
+        const popup = document.getElementById('tacticsNickColorPicker');
+        if (!popup) return;
+        if (nicknameColorPickerOpen) {
+            closeNicknameColorPicker();
+            return;
+        }
+        const rect = anchorBtn.getBoundingClientRect();
+        popup.style.left = Math.round(rect.left) + 'px';
+        popup.style.top = Math.round(rect.bottom + 4) + 'px';
+        popup.hidden = false;
+        nicknameColorPickerOpen = true;
+    }
+
+    function bindNicknameColorPickers() {
+        const palette = window.TacticsCanvas?.CURSOR_COLORS || [];
+        let popup = document.getElementById('tacticsNickColorPicker');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'tacticsNickColorPicker';
+            popup.className = 'tactics-nick-color-picker';
+            popup.hidden = true;
+            popup.innerHTML = palette.map((c) => (
+                '<button type="button" class="tactics-nick-color-picker__swatch"'
+                + ' data-color="' + escapeHtml(c) + '" style="background:' + escapeHtml(c) + '"'
+                + ' title="' + escapeHtml(c) + '" aria-label="' + escapeHtml(c) + '"></button>'
+            )).join('');
+            document.body.appendChild(popup);
+            popup.addEventListener('click', (ev) => {
+                const btn = ev.target.closest('[data-color]');
+                if (!btn) return;
+                ev.stopPropagation();
+                void saveNicknameColor(btn.getAttribute('data-color'));
+                closeNicknameColorPicker();
+            });
+        }
+        popup.querySelectorAll('[data-color]').forEach((btn) => {
+            const color = btn.getAttribute('data-color');
+            const selected = normalizeNickColor(color) === nicknameColor;
+            btn.classList.toggle('is-selected', selected);
+        });
+        document.querySelectorAll('.tactics-participant-color-btn').forEach((btn) => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                toggleNicknameColorPicker(btn);
+            });
+        });
+        if (!nickColorPickerDocBound) {
+            nickColorPickerDocBound = true;
+            document.addEventListener('click', (ev) => {
+                if (!nicknameColorPickerOpen) return;
+                const picker = document.getElementById('tacticsNickColorPicker');
+                if (picker && !picker.contains(ev.target) && !ev.target.closest('.tactics-participant-color-btn')) {
+                    closeNicknameColorPicker();
+                }
+            });
+        }
+    }
+
+    function buildNickColorBtn(cid, isSelf) {
+        if (!isSelf) return '';
+        const title = escapeHtml(i18n().t('chooseNickColor'));
+        const color = resolveParticipantNickColor({ nickColor: nicknameColor, clientId: cid }, cid);
+        return '<button type="button" class="tactics-participant-color-btn"'
+            + ' title="' + title + '" aria-label="' + title + '">'
+            + '<span class="tactics-participant-color-btn__swatch" style="background:'
+            + escapeHtml(color) + '"></span></button>';
+    }
+
     function canEditNickname() {
         if (!window.ABS_TACTICS_IS_LOGGED_IN) return true;
         return !canManage;
@@ -929,11 +1098,20 @@
         serverPresentationSnapshot = {
             mode: settings.presentation_mode === true,
             hostId: String(settings.presentation_host_id || '').trim(),
+            hostNickname: String(settings.presentation_host_nickname || '').trim(),
         };
     }
 
     function getPresentationHostId() {
         return String(getDrawSettings().presentation_host_id || '').trim();
+    }
+
+    function isPresentationHostOnline() {
+        const hostId = getPresentationHostId();
+        const selfId = String(clientId || '');
+        if (!hostId) return false;
+        if (hostId === selfId) return true;
+        return participantsList.some((p) => p.clientId === hostId && p.online !== false);
     }
 
     function touchPresentationActivity(fromClientId) {
@@ -944,6 +1122,79 @@
         if (sourceId !== hostId) return;
         presentationLastActivityAt = Date.now();
         schedulePresentationInactivityCheck();
+        updatePresentationCountdownUi();
+    }
+
+    function getPresentationInactivityRemainingMs() {
+        if (!isPresentationMode()) return 0;
+        const lastAt = presentationLastActivityAt || Date.now();
+        return Math.max(0, PRESENTATION_INACTIVITY_MS - (Date.now() - lastAt));
+    }
+
+    function formatPresentationCountdown(ms) {
+        const totalSec = Math.max(0, Math.ceil(ms / 1000));
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function updatePresentationCountdownUi() {
+        if (!isPresentationMode()) {
+            stopPresentationCountdownUi();
+            return;
+        }
+
+        const hostId = getPresentationHostId();
+        if (!hostId) return;
+
+        const timerEl = document.querySelector(
+            '#tacticsParticipants .tactics-participant-present-timer[data-client-id="'
+            + hostId.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]',
+        );
+        if (!timerEl) return;
+
+        const idleMs = Date.now() - (presentationLastActivityAt || Date.now());
+        const remaining = getPresentationInactivityRemainingMs();
+
+        if (idleMs < PRESENTATION_INACTIVITY_SHOW_IDLE_MS) {
+            timerEl.classList.remove('is-visible', 'is-warning', 'is-critical');
+            return;
+        }
+
+        timerEl.textContent = formatPresentationCountdown(remaining);
+        timerEl.classList.add('is-visible');
+        timerEl.classList.toggle('is-warning', remaining <= 30000);
+        timerEl.classList.toggle('is-critical', remaining <= 10000);
+
+        if (remaining <= 0 && idleMs >= PRESENTATION_INACTIVITY_MS - 250) {
+            if (!isPresentationHostOnline()) {
+                void stopPresentationWhenHostDisconnected();
+            } else {
+                void stopPresentationDueToInactivity();
+            }
+        }
+    }
+
+    function startPresentationCountdownUi() {
+        if (!isPresentationMode()) {
+            stopPresentationCountdownUi();
+            return;
+        }
+        updatePresentationCountdownUi();
+        if (!presentationCountdownInterval) {
+            presentationCountdownInterval = setInterval(updatePresentationCountdownUi, 250);
+        }
+    }
+
+    function stopPresentationCountdownUi() {
+        if (presentationCountdownInterval) {
+            clearInterval(presentationCountdownInterval);
+            presentationCountdownInterval = null;
+        }
+        document.querySelectorAll('.tactics-participant-present-timer').forEach((el) => {
+            el.classList.remove('is-visible', 'is-warning', 'is-critical');
+            el.textContent = '';
+        });
     }
 
     function clearPresentationInactivityTimer() {
@@ -956,18 +1207,22 @@
     function schedulePresentationInactivityCheck() {
         clearPresentationInactivityTimer();
         if (!isPresentationMode()) return;
+        const lastAt = presentationLastActivityAt || Date.now();
+        const delay = Math.max(250, lastAt + PRESENTATION_INACTIVITY_MS - Date.now());
         presentationInactivityTimer = setTimeout(() => {
             presentationInactivityTimer = null;
             void stopPresentationDueToInactivity();
-        }, PRESENTATION_INACTIVITY_MS);
+        }, delay);
     }
 
     function onPresentationModeChanged(wasActive) {
         if (isPresentationMode()) {
             presentationLastActivityAt = Date.now();
             schedulePresentationInactivityCheck();
+            startPresentationCountdownUi();
         } else {
             clearPresentationInactivityTimer();
+            stopPresentationCountdownUi();
             if (wasActive) {
                 presentationLastActivityAt = 0;
             }
@@ -979,6 +1234,33 @@
         if (!settings) return;
         settings.presentation_mode = false;
         delete settings.presentation_host_id;
+        delete settings.presentation_host_nickname;
+    }
+
+    function getPresentationHostNickname() {
+        return String(getDrawSettings().presentation_host_nickname || '').trim();
+    }
+
+    function mergeParticipantsWithPresentationHost(list) {
+        let items = mergeParticipantsWithLocalSelf(list).map((p) => ({ ...p, online: true }));
+        const hostId = isPresentationMode() ? getPresentationHostId() : '';
+        if (!hostId) return items;
+
+        const hostOnline = items.find((p) => p.clientId === hostId);
+        if (hostOnline) {
+            const hostNick = String(hostOnline.nickname || '').trim();
+            if (hostNick) {
+                getDrawSettings().presentation_host_nickname = hostNick;
+            }
+            return items;
+        }
+
+        items.push({
+            clientId: hostId,
+            nickname: getPresentationHostNickname() || hostId,
+            online: false,
+        });
+        return items;
     }
 
     async function ensureSaveAuthReady() {
@@ -992,18 +1274,31 @@
     function sanitizeStalePresentation() {
         if (!isPresentationMode() || !roomState) return;
         if (presentationToggleInFlight || drawSettingsSaveInFlight) return;
-        const canForceStop = canManage || (isPresentationOrphaned() && computeHasDrawRights());
-        if (!canForceStop) return;
 
         const hostId = getPresentationHostId();
         if (!hostId) {
-            void stopPresentationMode(true);
+            if (canManage || computeHasDrawRights()) {
+                void stopPresentationMode(true);
+            }
             return;
         }
 
-        const presenterOnline = participantsList.some((p) => String(p.clientId || '') === hostId);
-        if (!presenterOnline) {
-            void stopPresentationMode(true);
+        if (!isPresentationHostOnline()) {
+            void stopPresentationWhenHostDisconnected();
+        }
+    }
+
+    async function stopPresentationWhenHostDisconnected() {
+        if (!isPresentationMode() || presentationStopInactivityInFlight) return;
+        const hostId = getPresentationHostId();
+        if (!hostId || isPresentationHostOnline()) return;
+        if (!canManage && !computeHasDrawRights()) return;
+
+        presentationStopInactivityInFlight = true;
+        try {
+            await stopPresentationMode(true);
+        } finally {
+            presentationStopInactivityInFlight = false;
         }
     }
 
@@ -1026,6 +1321,11 @@
             copy.settings.presentation_host_id = serverPresentationSnapshot.hostId;
         } else {
             delete copy.settings.presentation_host_id;
+        }
+        if (serverPresentationSnapshot.hostNickname) {
+            copy.settings.presentation_host_nickname = serverPresentationSnapshot.hostNickname;
+        } else {
+            delete copy.settings.presentation_host_nickname;
         }
         return copy;
     }
@@ -1053,6 +1353,10 @@
             const hostId = String(settings.presentation_host_id || clientId || '').trim();
             if (hostId) {
                 payload.presentation_host_id = hostId;
+            }
+            const hostNickname = String(settings.presentation_host_nickname || nickname || '').trim();
+            if (hostNickname) {
+                payload.presentation_host_nickname = hostNickname;
             }
             const activeId = roomState.room_data.active_slide_id
                 || slidesCtrl?.getActiveSlideId?.()
@@ -1149,18 +1453,34 @@
     }
 
     async function stopPresentationDueToInactivity() {
-        if (!isPresentationMode()) return;
+        if (!isPresentationMode() || presentationStopInactivityInFlight) return;
+
+        if (!isPresentationHostOnline()) {
+            await stopPresentationWhenHostDisconnected();
+            return;
+        }
+
         const hostId = getPresentationHostId();
         const selfId = String(clientId || '');
-        const canStop = canManage
-            || (hostId && hostId === selfId)
-            || (isPresentationOrphaned() && computeHasDrawRights());
-        if (!canStop) return;
-        if (Date.now() - presentationLastActivityAt < PRESENTATION_INACTIVITY_MS - 250) {
+        const idleMs = Date.now() - (presentationLastActivityAt || Date.now());
+        const inactivityExpired = idleMs >= PRESENTATION_INACTIVITY_MS - 250;
+
+        if (!inactivityExpired || idleMs < PRESENTATION_INACTIVITY_SHOW_IDLE_MS) {
             schedulePresentationInactivityCheck();
             return;
         }
-        await stopPresentationMode(true);
+
+        const canStopAsHost = !!(hostId && hostId === selfId);
+        const canStopAsOwner = canManage && hostId && inactivityExpired;
+        const canStopOrphaned = isPresentationOrphaned() && (canManage || computeHasDrawRights());
+        if (!canStopAsHost && !canStopAsOwner && !canStopOrphaned) return;
+
+        presentationStopInactivityInFlight = true;
+        try {
+            await stopPresentationMode(true);
+        } finally {
+            presentationStopInactivityInFlight = false;
+        }
     }
 
     function syncViewerToPresentationSlide() {
@@ -1301,10 +1621,12 @@
         if (isPresentationMode()) {
             if (!presentationLastActivityAt) {
                 presentationLastActivityAt = Date.now();
+                schedulePresentationInactivityCheck();
             }
-            schedulePresentationInactivityCheck();
+            startPresentationCountdownUi();
         } else {
             clearPresentationInactivityTimer();
+            stopPresentationCountdownUi();
         }
     }
 
@@ -1635,6 +1957,7 @@
                     });
                 }
                 settings.presentation_host_id = String(clientId || '');
+                settings.presentation_host_nickname = String(nickname || '').trim();
             }
             settings.presentation_mode = true;
             touchPresentationActivity();
@@ -2039,6 +2362,12 @@
             delete local.presentation_host_id;
         }
 
+        if (typeof settings.presentation_host_nickname === 'string' && settings.presentation_host_nickname) {
+            local.presentation_host_nickname = settings.presentation_host_nickname;
+        } else if (settings.presentation_mode === false) {
+            delete local.presentation_host_nickname;
+        }
+
         if (typeof settings.active_slide_id === 'string' && settings.active_slide_id) {
             roomState.room_data.active_slide_id = settings.active_slide_id;
         }
@@ -2059,6 +2388,7 @@
             .map((p) => ({
                 clientId: String(p?.clientId || '').trim(),
                 nickname: String(p?.nickname || '').trim(),
+                nickColor: String(p?.nickColor || p?.nick_color || '').trim(),
             }))
             .filter((p) => p.clientId !== '');
     }
@@ -2067,11 +2397,12 @@
         const el = document.getElementById('tacticsParticipants');
         if (!el) return;
 
-        participantsList = mergeParticipantsWithLocalSelf(list);
+        participantsList = mergeParticipantsWithPresentationHost(list);
         const selfId = String(clientId || '');
         const countEl = document.getElementById('tacticsUsersCount');
         if (countEl) {
-            countEl.textContent = '(' + participantsList.length + ')';
+            const onlineCount = participantsList.filter((p) => p.online !== false).length;
+            countEl.textContent = '(' + onlineCount + ')';
         }
         if (nicknameEditing && getNicknameEditInput()) {
             return;
@@ -2081,30 +2412,45 @@
         const drawOpen = settings.draw_mode === 'open';
         const presentHostId = isPresentationMode() ? getPresentationHostId() : '';
 
-        const buildPresenterIcon = (cid) => {
+        const buildPresenterIcon = (cid, isOffline) => {
             if (!presentHostId || String(cid) !== presentHostId) return '';
             const title = escapeHtml(i18n().t('presentStreaming'));
-            return '<span class="tactics-participant-present" title="' + title + '">'
+            const offlineClass = isOffline ? ' is-offline' : '';
+            return '<span class="tactics-participant-present' + offlineClass + '" title="' + title + '">'
                 + '<i class="fas fa-video" aria-hidden="true"></i></span>';
+        };
+
+        const buildOfflineBadge = (isOffline) => {
+            if (!isOffline) return '';
+            const label = escapeHtml(i18n().t('participantOffline'));
+            return '<span class="tactics-participant-offline" title="' + label + '">' + label + '</span>';
+        };
+
+        const buildPresenterTimer = (cid) => {
+            if (!presentHostId || String(cid) !== presentHostId) return '';
+            const title = escapeHtml(i18n().t('presentInactivityTimer'));
+            return '<span class="tactics-participant-present-timer" data-client-id="'
+                + escapeHtml(cid) + '" title="' + title + '" aria-live="polite"></span>';
         };
 
         el.innerHTML = participantsList.map((p) => {
             const cid = String(p.clientId || '');
             const isSelf = cid === selfId;
             const displayName = isSelf ? nickname : (p.nickname || cid || '?');
-            const colors = window.TacticsCanvas?.CURSOR_COLORS || ['#b388ff'];
-            let colorIdx = 0;
-            for (let i = 0; i < cid.length; i += 1) {
-                colorIdx = (colorIdx + cid.charCodeAt(i)) % colors.length;
-            }
-            const nickColor = colors[colorIdx] || '#b388ff';
-            const presenterIcon = buildPresenterIcon(cid);
-            const name = '<span style="color:' + nickColor + '">' + escapeHtml(displayName) + '</span>';
+            const nickColor = resolveParticipantNickColor(p, cid);
+            const isOffline = p.online === false;
+            const offlineClass = isOffline ? ' tactics-participant--offline' : '';
+            const presenterIcon = buildPresenterIcon(cid, isOffline);
+            const offlineBadge = buildOfflineBadge(isOffline);
+            const presenterTimer = buildPresenterTimer(cid);
+            const name = '<span class="tactics-participant-nick' + (isOffline ? ' is-offline' : '') + '" style="color:'
+                + nickColor + '">' + escapeHtml(displayName) + '</span>';
             const self = isSelf ? ' tactics-participant-self' : '';
             const editingClass = isSelf && nicknameEditing && !usesTopbarNicknameEditUi()
                 ? ' tactics-participant--editing-nick'
                 : '';
             let actionBtn = '';
+            const colorBtn = buildNickColorBtn(cid, isSelf);
 
             if (isSelf) {
                 if (canEditNickname() && nicknameEditing && !usesTopbarNicknameEditUi()) {
@@ -2112,10 +2458,14 @@
                     actionBtn = '<button type="button" class="tactics-participant-nick-btn is-save"'
                         + ' title="' + escapeHtml(editTitle) + '" aria-label="' + escapeHtml(editTitle) + '">'
                         + '<i class="fas fa-check" aria-hidden="true"></i></button>';
-                    return '<li class="tactics-participant' + self + editingClass + '">'
+                    return '<li class="tactics-participant' + self + editingClass + offlineClass + '" data-client-id="'
+                        + escapeHtml(cid) + '">'
                         + presenterIcon
                         + '<input type="text" class="tactics-participant-name-input" maxlength="32"'
                         + ' value="' + escapeHtml(displayName) + '" autocomplete="nickname">'
+                        + offlineBadge
+                        + presenterTimer
+                        + colorBtn
                         + actionBtn
                         + '</li>';
                 }
@@ -2126,7 +2476,7 @@
                         + ' title="' + escapeHtml(editTitle) + '" aria-label="' + escapeHtml(editTitle) + '">'
                         + '<i class="fas fa-pen" aria-hidden="true"></i></button>';
                 }
-            } else if (canManage && cid && !drawOpen) {
+            } else if (canManage && cid && !drawOpen && !isOffline) {
                 const isEditor = editors.has(cid);
                 const activeClass = isEditor ? ' is-active' : '';
                 const title = i18n().t(isEditor ? 'revokeDraw' : 'grantDraw');
@@ -2136,8 +2486,11 @@
                     + '"><i class="fas fa-crown" aria-hidden="true"></i></button>';
             }
 
-            return '<li class="tactics-participant' + self + editingClass + '">'
-                + '<span class="tactics-participant-name">' + presenterIcon + name + '</span>'
+            return '<li class="tactics-participant' + self + editingClass + offlineClass + '" data-client-id="'
+                + escapeHtml(cid) + '">'
+                + '<span class="tactics-participant-name">'
+                + presenterIcon + name + offlineBadge + presenterTimer + '</span>'
+                + colorBtn
                 + actionBtn
                 + '</li>';
         }).join('');
@@ -2153,6 +2506,7 @@
                 toggleParticipantEditor(btn.getAttribute('data-client-id'));
             });
         });
+        bindNicknameColorPickers();
 
         if (slidesCtrl && (slidesCtrl.savedListScrollTop > 0 || slidesCtrl.savedListScrollLeft > 0)) {
             const scrollState = {
@@ -2161,6 +2515,10 @@
             };
             slidesCtrl.restoreScrollState(scrollState);
             requestAnimationFrame(() => slidesCtrl.restoreScrollState(scrollState));
+        }
+
+        if (isPresentationMode()) {
+            updatePresentationCountdownUi();
         }
     }
 
@@ -3296,6 +3654,9 @@
         if (options.nicknameChange) {
             body.nickname_change = true;
         }
+        if (nicknameColor) {
+            body.nick_color = nicknameColor;
+        }
         if (explicitPassword) {
             body.password = explicitPassword;
         } else {
@@ -3335,6 +3696,13 @@
         wsUrl = payload.ws_url;
         if (payload.nickname && (!nicknameLockedByUser || options.nicknameChange)) {
             nickname = payload.nickname;
+        }
+        if (payload.nick_color) {
+            const resolvedColor = normalizeNickColor(payload.nick_color);
+            if (resolvedColor) {
+                nicknameColor = resolvedColor;
+                saveNicknameColorLocal(resolvedColor);
+            }
         }
         canManage = !!payload.can_manage;
         if (payload.room) {
@@ -3377,6 +3745,13 @@
         }
         if (payload.nickname && !nicknameLockedByUser) {
             nickname = payload.nickname;
+        }
+        if (payload.nick_color) {
+            const resolvedColor = normalizeNickColor(payload.nick_color);
+            if (resolvedColor) {
+                nicknameColor = resolvedColor;
+                saveNicknameColorLocal(resolvedColor);
+            }
         }
         if (payload.room) {
             roomState = payload.room;
@@ -3459,10 +3834,10 @@
             wsToken,
             clientId,
             nickname,
+            nickColor: nicknameColor,
             wsUrl,
             onPresence: (list) => {
-                renderParticipants(list);
-                canvasCtrl?.syncRemoteCursorsPresence(participantsList);
+                applyPresenceList(list, false);
             },
             onCursor: (msg) => {
                 const fromId = String(msg.from || '');
@@ -3850,6 +4225,7 @@
         try {
         clientId = store().getClientId();
         nickname = window.ABS_TACTICS_DEFAULT_NICK || 'Guest';
+        nicknameColor = loadNicknameColor();
         const stored = store().loadRoomSession(window.ABS_TACTICS_PUBLIC_ID);
         if (stored?.nickname) {
             if (window.ABS_TACTICS_IS_LOGGED_IN && isGuestNickname(stored.nickname)) {
@@ -3860,6 +4236,9 @@
         }
         if (stored?.nickname_locked || (stored?.nickname && !isGuestNickname(stored.nickname))) {
             nicknameLockedByUser = true;
+        }
+        if (!nicknameColor && stored?.nick_color) {
+            nicknameColor = normalizeNickColor(stored.nick_color);
         }
 
         document.getElementById('tacticsRoomJoinForm')?.addEventListener('submit', handlePasswordJoin);

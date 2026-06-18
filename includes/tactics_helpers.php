@@ -276,6 +276,60 @@ function tactics_sanitize_nickname(string $nickname): string {
     return substr($nickname, 0, TACTICS_NICKNAME_MAX_LEN);
 }
 
+function tactics_nick_color_palette(): array {
+    return [
+        '#b388ff', '#ff8a80', '#82b1ff', '#69f0ae', '#ffd180',
+        '#ea80fc', '#84ffff', '#f48fb1', '#a7ffeb', '#ffe57f',
+        '#8c9eff', '#ff9e80', '#80d8ff', '#ccff90', '#ea80fc',
+        '#38bdf8', '#f472b6', '#34d399', '#fbbf24', '#818cf8',
+    ];
+}
+
+function tactics_default_nick_color(string $clientId): string {
+    $colors = tactics_nick_color_palette();
+    $hash = 0;
+    $len = strlen($clientId);
+    for ($i = 0; $i < $len; $i++) {
+        $hash = (($hash << 5) - $hash) + ord($clientId[$i]);
+        $hash = $hash & 0xFFFFFFFF;
+        if ($hash > 0x7FFFFFFF) {
+            $hash -= 0x100000000;
+        }
+    }
+
+    return $colors[abs($hash) % count($colors)];
+}
+
+function tactics_sanitize_nick_color(string $color): ?string {
+    $color = trim($color);
+    if (!preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color, $matches)) {
+        return null;
+    }
+    $hex = strtolower($matches[1]);
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+
+    return '#' . $hex;
+}
+
+function tactics_fetch_presence_nick_color($db, string $publicId, string $clientId): ?string {
+    ensure_tactics_realtime_tables($db);
+    $stmt = $db->getConnection()->prepare(
+        'SELECT nick_color FROM tactics_room_presence
+         WHERE public_id = ? AND client_id = ?
+         LIMIT 1'
+    );
+    $stmt->execute([$publicId, $clientId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return null;
+    }
+    $color = tactics_sanitize_nick_color((string) ($row['nick_color'] ?? ''));
+
+    return $color;
+}
+
 function tactics_sanitize_map_code(string $mapCode): string {
     $mapCode = trim(strtolower($mapCode));
     if ($mapCode === '' || !preg_match('/^[a-z0-9_\-]{1,64}$/', $mapCode)) {
@@ -531,8 +585,14 @@ function tactics_normalize_draw_settings(array $settings): array {
         } else {
             unset($settings['presentation_host_id']);
         }
+        $hostNick = trim((string) ($settings['presentation_host_nickname'] ?? ''));
+        if ($hostNick !== '') {
+            $settings['presentation_host_nickname'] = mb_substr($hostNick, 0, 32);
+        } else {
+            unset($settings['presentation_host_nickname']);
+        }
     } else {
-        unset($settings['presentation_mode'], $settings['presentation_host_id']);
+        unset($settings['presentation_mode'], $settings['presentation_host_id'], $settings['presentation_host_nickname']);
     }
 
     if (array_key_exists('show_grid', $settings)) {
@@ -2140,19 +2200,34 @@ function tactics_presence_ttl_sec(): int {
     return 45;
 }
 
-function tactics_upsert_presence($db, string $publicId, string $clientId, string $nickname): void {
+function tactics_upsert_presence($db, string $publicId, string $clientId, string $nickname, ?string $nickColor = null): void {
     if (!tactics_public_id_valid($publicId) || $clientId === '') {
         return;
     }
 
     ensure_tactics_realtime_tables($db);
     $nickname = tactics_sanitize_nickname($nickname);
+    $color = $nickColor !== null ? tactics_sanitize_nick_color($nickColor) : null;
+    if ($color !== null) {
+        $stmt = $db->getConnection()->prepare(
+            'INSERT INTO tactics_room_presence (public_id, client_id, nickname, nick_color, last_seen_at)
+             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), nick_color = VALUES(nick_color), last_seen_at = CURRENT_TIMESTAMP'
+        );
+        $stmt->execute([$publicId, $clientId, $nickname, $color]);
+
+        return;
+    }
     $stmt = $db->getConnection()->prepare(
         'INSERT INTO tactics_room_presence (public_id, client_id, nickname, last_seen_at)
          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
          ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), last_seen_at = CURRENT_TIMESTAMP'
     );
     $stmt->execute([$publicId, $clientId, $nickname]);
+}
+
+function tactics_update_presence_nick_color($db, string $publicId, string $clientId, string $nickname, string $nickColor): void {
+    tactics_upsert_presence($db, $publicId, $clientId, $nickname, $nickColor);
 }
 
 function tactics_update_presence_cursor(
@@ -2213,7 +2288,7 @@ function tactics_fetch_presence_participants($db, string $publicId): array {
     ensure_tactics_realtime_tables($db);
     $ttl = tactics_presence_ttl_sec();
     $stmt = $db->getConnection()->prepare(
-        'SELECT client_id, nickname, cursor_slide_id, cursor_payload, cursor_updated_at
+        'SELECT client_id, nickname, nick_color, cursor_slide_id, cursor_payload, cursor_updated_at
          FROM tactics_room_presence
          WHERE public_id = ?
            AND last_seen_at >= (CURRENT_TIMESTAMP - INTERVAL ? SECOND)
@@ -2238,6 +2313,10 @@ function tactics_fetch_presence_participants($db, string $publicId): array {
             'clientId' => $clientId,
             'nickname' => trim((string) ($row['nickname'] ?? '')),
         ];
+        $storedNickColor = tactics_sanitize_nick_color((string) ($row['nick_color'] ?? ''));
+        if ($storedNickColor !== null) {
+            $item['nickColor'] = $storedNickColor;
+        }
         $cursorUpdatedAt = $row['cursor_updated_at'] ?? null;
         $cursorPayload = json_decode((string) ($row['cursor_payload'] ?? ''), true);
         if ($cursorUpdatedAt && is_array($cursorPayload) && !empty($cursorPayload['visible'])) {

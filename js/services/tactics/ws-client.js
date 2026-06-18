@@ -7,6 +7,7 @@
             this.wsToken = options.wsToken;
             this.clientId = options.clientId;
             this.nickname = options.nickname;
+            this.nickColor = options.nickColor || '';
             this.wsUrl = options.wsUrl;
             this.onOp = options.onOp || (() => {});
             this.onSettings = options.onSettings || (() => {});
@@ -50,6 +51,7 @@
                     publicId: this.publicId,
                     clientId: this.clientId,
                     nickname: this.nickname,
+                    nickColor: this.nickColor || undefined,
                 });
                 this.onConnection('connected');
             });
@@ -208,6 +210,24 @@
                 publicId: this.publicId,
                 clientId: this.clientId,
                 nickname: this.nickname,
+                nickColor: this.nickColor || undefined,
+            });
+        }
+
+        updateNickColor(nickColor) {
+            this.nickColor = String(nickColor || '');
+            if (this.send({
+                type: 'nick_color',
+                color: this.nickColor,
+            })) {
+                return true;
+            }
+            return this.send({
+                type: 'join',
+                publicId: this.publicId,
+                clientId: this.clientId,
+                nickname: this.nickname,
+                nickColor: this.nickColor || undefined,
             });
         }
 

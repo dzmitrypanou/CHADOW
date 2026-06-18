@@ -88,9 +88,14 @@ try {
         }
     }
 
+    $nickColor = tactics_sanitize_nick_color((string) ($input['nick_color'] ?? ''));
+    if ($nickColor === null) {
+        $nickColor = tactics_fetch_presence_nick_color($userDb, $publicId, $clientId);
+    }
+
     echo json_encode([
         'success' => true,
-        'data' => tactics_format_response($row, $userDb, $clientId, $nickname, $isOwner),
+        'data' => tactics_format_response($row, $userDb, $clientId, $nickname, $isOwner, $nickColor),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     tactics_json_error('Ошибка сервера', 500);

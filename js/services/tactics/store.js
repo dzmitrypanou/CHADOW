@@ -19,6 +19,7 @@
             access_token: payload.access_token || '',
             ws_token: payload.ws_token || '',
             nickname: payload.nickname || '',
+            nick_color: payload.nick_color || '',
             nickname_locked: !!payload.nickname_locked,
             client_id: payload.client_id || getClientId(),
             saved_at: Date.now(),

@@ -70,6 +70,16 @@ try {
         exit();
     }
 
+    if ($eventType === 'nick_color') {
+        $color = tactics_sanitize_nick_color((string) ($payload['color'] ?? ''));
+        if ($color === null) {
+            tactics_json_error($lang === 'en' ? 'Invalid color' : 'Некорректный цвет');
+        }
+        tactics_update_presence_nick_color($userDb, $publicId, $clientId, $nickname, $color);
+        echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
     tactics_json_error($lang === 'en' ? 'Unsupported event' : 'Неподдерживаемое событие');
 } catch (Throwable $e) {
     tactics_json_error('Ошибка сервера', 500);

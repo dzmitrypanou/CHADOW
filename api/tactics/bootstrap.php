@@ -50,7 +50,7 @@ function tactics_resolve_access_token(array $input): ?string {
     return $token !== '' ? $token : null;
 }
 
-function tactics_format_response(array $row, $db, string $clientId, string $nickname, bool $isOwner): array {
+function tactics_format_response(array $row, $db, string $clientId, string $nickname, bool $isOwner, ?string $nickColor = null): array {
     $publicId = (string) ($row['public_id'] ?? '');
     $accessToken = tactics_issue_access_token($db, $publicId, $clientId, $nickname, $isOwner, $row);
     $wsToken = tactics_issue_ws_token($db, $publicId, $clientId, $nickname, $isOwner ? 'owner' : 'guest', $row);
@@ -59,7 +59,9 @@ function tactics_format_response(array $row, $db, string $clientId, string $nick
     $roomItem['map_urls'] = tactics_build_slide_map_urls($roomData, $publicId);
     $canDraw = tactics_user_can_draw($roomData, $clientId, $isOwner);
 
-    tactics_upsert_presence($db, $publicId, $clientId, $nickname);
+    tactics_upsert_presence($db, $publicId, $clientId, $nickname, $nickColor);
+    $resolvedNickColor = tactics_fetch_presence_nick_color($db, $publicId, $clientId)
+        ?? tactics_default_nick_color($clientId);
 
     return [
         'room' => $roomItem,
@@ -68,6 +70,7 @@ function tactics_format_response(array $row, $db, string $clientId, string $nick
         'ws_url' => tactics_ws_public_url(),
         'room_href' => tactics_build_href(abs_detect_lang(), $publicId),
         'nickname' => $nickname,
+        'nick_color' => $resolvedNickColor,
         'can_manage' => $isOwner,
         'can_draw' => $canDraw,
     ];

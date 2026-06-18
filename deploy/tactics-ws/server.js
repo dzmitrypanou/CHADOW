@@ -45,13 +45,31 @@ function verifyToken(token) {
 
 const rooms = new Map();
 
+function sanitizeNickColor(color) {
+    if (!color || typeof color !== 'string') return null;
+    const trimmed = color.trim();
+    const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(trimmed);
+    if (!match) return null;
+    let hex = match[1].toLowerCase();
+    if (hex.length === 3) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    return '#' + hex;
+}
+
 function getRoomParticipants(publicId) {
     const room = rooms.get(publicId);
     if (!room) return [];
-    return Array.from(room.entries()).map(([clientId, entry]) => ({
-        clientId,
-        nickname: entry.nickname,
-    }));
+    return Array.from(room.entries()).map(([clientId, entry]) => {
+        const item = {
+            clientId,
+            nickname: entry.nickname,
+        };
+        if (entry.nickColor) {
+            item.nickColor = entry.nickColor;
+        }
+        return item;
+    });
 }
 
 function broadcast(publicId, message, exceptWs) {
@@ -114,7 +132,7 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    room.set(clientId, { ws, nickname });
+    room.set(clientId, { ws, nickname, nickColor: null });
 
     ws.send(JSON.stringify({
         type: 'joined',
@@ -140,12 +158,33 @@ wss.on('connection', (ws, req) => {
 
         if (msg.type === 'join') {
             const entry = room.get(clientId);
-            if (entry && msg.nickname) {
-                entry.nickname = String(msg.nickname).slice(0, 32);
+            if (entry) {
+                if (msg.nickname) {
+                    entry.nickname = String(msg.nickname).slice(0, 32);
+                }
+                if (msg.nickColor) {
+                    const color = sanitizeNickColor(String(msg.nickColor));
+                    if (color) {
+                        entry.nickColor = color;
+                    }
+                }
             }
             const participants = getRoomParticipants(publicId);
             ws.send(JSON.stringify({ type: 'presence', participants }));
             broadcast(publicId, { type: 'presence', participants }, ws);
+            return;
+        }
+
+        if (msg.type === 'nick_color') {
+            const entry = room.get(clientId);
+            if (entry && msg.color) {
+                const color = sanitizeNickColor(String(msg.color));
+                if (color) {
+                    entry.nickColor = color;
+                    const participants = getRoomParticipants(publicId);
+                    broadcast(publicId, { type: 'presence', participants });
+                }
+            }
             return;
         }
 

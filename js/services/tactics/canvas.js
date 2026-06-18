@@ -164,6 +164,9 @@
             this.cellFlashesLayerEl = null;
             this.cursorSendTimer = null;
             this.cursorRaf = null;
+            this.pendingCursorPayload = null;
+            this.lastCursorSendAt = 0;
+            this.remoteCursorAnimRaf = 0;
             this.lastCursorPayload = null;
             this.pingHoldActive = false;
             this.pingHoldTimer = null;
@@ -350,6 +353,8 @@
 
         static REMOTE_CURSOR_HOTSPOT_X = 2;
         static REMOTE_CURSOR_HOTSPOT_Y = 2;
+        static CURSOR_SEND_INTERVAL_MS = 40;
+        static REMOTE_CURSOR_SMOOTH = 0.3;
 
         static remoteCursorPointerSvg() {
             return '<svg class="tactics-remote-cursor__svg" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">'
@@ -1623,30 +1628,52 @@
                 visible: broadcastVisible,
                 nickname: String(this.getNickname() || '').trim(),
             };
-            const key = `${payload.slideId}:${payload.x.toFixed(4)}:${payload.y.toFixed(4)}:${payload.visible}:${payload.nickname}`;
             const hideNow = !broadcastVisible;
 
-            if (!hideNow && key === this.lastCursorPayload) return;
-            this.lastCursorPayload = key;
-
-            clearTimeout(this.cursorSendTimer);
-            this.cursorSendTimer = null;
-            if (this.cursorRaf) {
-                cancelAnimationFrame(this.cursorRaf);
-                this.cursorRaf = null;
-            }
-
-            const send = () => {
-                this.cursorRaf = null;
-                this.onCursorMove(payload);
-            };
-
             if (hideNow) {
-                send();
+                this.pendingCursorPayload = null;
+                clearTimeout(this.cursorSendTimer);
+                this.cursorSendTimer = null;
+                if (this.cursorRaf) {
+                    cancelAnimationFrame(this.cursorRaf);
+                    this.cursorRaf = null;
+                }
+                this.flushCursorSend(payload);
                 return;
             }
 
-            this.cursorRaf = requestAnimationFrame(send);
+            this.pendingCursorPayload = payload;
+            const key = `${payload.slideId}:${payload.x.toFixed(4)}:${payload.y.toFixed(4)}:${payload.visible}:${payload.nickname}`;
+            if (key === this.lastCursorPayload) return;
+
+            const now = performance.now();
+            const elapsed = now - (this.lastCursorSendAt || 0);
+            if (elapsed >= TacticsCanvas.CURSOR_SEND_INTERVAL_MS) {
+                this.flushCursorSend();
+                return;
+            }
+
+            if (this.cursorSendTimer) return;
+            this.cursorSendTimer = setTimeout(() => {
+                this.cursorSendTimer = null;
+                this.flushCursorSend();
+            }, TacticsCanvas.CURSOR_SEND_INTERVAL_MS - elapsed);
+        }
+
+        flushCursorSend(payloadOverride) {
+            const payload = payloadOverride || this.pendingCursorPayload;
+            if (!payload) return;
+
+            const key = `${payload.slideId}:${payload.x.toFixed(4)}:${payload.y.toFixed(4)}:${payload.visible}:${payload.nickname}`;
+            if (key === this.lastCursorPayload) {
+                this.pendingCursorPayload = null;
+                return;
+            }
+
+            this.lastCursorPayload = key;
+            this.lastCursorSendAt = performance.now();
+            this.pendingCursorPayload = null;
+            this.onCursorMove(payload);
         }
 
         cursorColorForClient(clientId) {
@@ -1665,6 +1692,10 @@
             if (!this.showRemoteCursors && this.cursorsLayerEl) {
                 this.cursorsLayerEl.innerHTML = '';
                 this.remoteCursors.clear();
+                if (this.remoteCursorAnimRaf) {
+                    cancelAnimationFrame(this.remoteCursorAnimRaf);
+                    this.remoteCursorAnimRaf = 0;
+                }
             } else {
                 this.remoteCursors.forEach((entry) => {
                     if (entry.el) entry.el.hidden = false;
@@ -1823,18 +1854,63 @@
                 const color = this.cursorColorForClient(clientId);
                 pointer.style.color = color;
                 label.style.background = color;
-                entry = { el, labelEl: label, x: 0, y: 0, nickname: '' };
+                entry = {
+                    el,
+                    labelEl: label,
+                    x: 0,
+                    y: 0,
+                    displayX: 0,
+                    displayY: 0,
+                    initialized: false,
+                    nickname: '',
+                };
                 this.remoteCursors.set(clientId, entry);
             }
 
             entry.x = Math.max(0, Math.min(1, Number(msg.x) || 0));
             entry.y = Math.max(0, Math.min(1, Number(msg.y) || 0));
+            if (!entry.initialized) {
+                entry.displayX = entry.x;
+                entry.displayY = entry.y;
+                entry.initialized = true;
+            }
             const nick = String(msg.nickname || entry.nickname || '').trim();
             if (nick) {
                 entry.nickname = nick;
             }
             entry.labelEl.textContent = entry.nickname || '?';
-            this.positionRemoteCursor(entry);
+            this.scheduleRemoteCursorAnimation();
+        }
+
+        scheduleRemoteCursorAnimation() {
+            if (this.remoteCursorAnimRaf) return;
+            this.remoteCursorAnimRaf = requestAnimationFrame(() => this.tickRemoteCursors());
+        }
+
+        tickRemoteCursors() {
+            this.remoteCursorAnimRaf = 0;
+            if (!this.showRemoteCursors || !this.remoteCursors.size) return;
+
+            const smooth = TacticsCanvas.REMOTE_CURSOR_SMOOTH;
+            let animating = false;
+
+            this.remoteCursors.forEach((entry) => {
+                const dx = entry.x - entry.displayX;
+                const dy = entry.y - entry.displayY;
+                if (Math.abs(dx) > 0.00004 || Math.abs(dy) > 0.00004) {
+                    entry.displayX += dx * smooth;
+                    entry.displayY += dy * smooth;
+                    animating = true;
+                } else {
+                    entry.displayX = entry.x;
+                    entry.displayY = entry.y;
+                }
+                this.positionRemoteCursor(entry);
+            });
+
+            if (animating) {
+                this.scheduleRemoteCursorAnimation();
+            }
         }
 
         hideRemoteCursor(clientId) {
@@ -1843,14 +1919,19 @@
 
         positionRemoteCursor(entry) {
             if (!entry?.el) return;
-            const point = this.normalizedMapPointToOverlay(entry.x, entry.y);
-            const px = Math.round(point.x - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_X);
-            const py = Math.round(point.y - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_Y);
+            const nx = Number.isFinite(entry.displayX) ? entry.displayX : entry.x;
+            const ny = Number.isFinite(entry.displayY) ? entry.displayY : entry.y;
+            const point = this.normalizedMapPointToOverlay(nx, ny);
+            const px = point.x - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_X;
+            const py = point.y - TacticsCanvas.REMOTE_CURSOR_HOTSPOT_Y;
             entry.el.style.transform = `translate3d(${px}px, ${py}px, 0)`;
         }
 
         repositionRemoteCursors() {
-            this.remoteCursors.forEach((entry) => this.positionRemoteCursor(entry));
+            this.remoteCursors.forEach((entry) => {
+                if (!entry.initialized) return;
+                this.positionRemoteCursor(entry);
+            });
         }
 
         guardObjectTransform(e) {

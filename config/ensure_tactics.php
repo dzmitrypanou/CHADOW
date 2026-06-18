@@ -103,4 +103,15 @@ function ensure_tactics_realtime_tables($db) {
             INDEX idx_room_chat_created (public_id, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+
+    try {
+        $columns = $pdo->query('SHOW COLUMNS FROM tactics_room_presence LIKE \'nick_color\'')->fetchAll();
+        if (!$columns) {
+            $pdo->exec(
+                'ALTER TABLE tactics_room_presence ADD COLUMN nick_color VARCHAR(7) NULL AFTER nickname'
+            );
+        }
+    } catch (Throwable $e) {
+        // ignore migration race
+    }
 }
