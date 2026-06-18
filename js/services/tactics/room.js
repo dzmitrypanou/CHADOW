@@ -1192,24 +1192,32 @@
         const hostId = getPresentationHostId();
         if (!hostId) return;
 
-        const timerEl = document.querySelector(
+        const hostIdEsc = hostId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const timerEls = document.querySelectorAll(
             '#tacticsParticipants .tactics-participant-present-timer[data-client-id="'
-            + hostId.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]',
+            + hostIdEsc + '"]',
         );
-        if (!timerEl) return;
+        if (!timerEls.length) return;
 
         const idleMs = Date.now() - (presentationLastActivityAt || Date.now());
         const remaining = getPresentationInactivityRemainingMs();
 
+        timerEls.forEach((timerEl) => {
+            if (idleMs < PRESENTATION_INACTIVITY_SHOW_IDLE_MS) {
+                timerEl.classList.remove('is-visible', 'is-warning', 'is-critical');
+                timerEl.textContent = '';
+                return;
+            }
+
+            timerEl.textContent = formatPresentationCountdown(remaining);
+            timerEl.classList.add('is-visible');
+            timerEl.classList.toggle('is-warning', remaining <= 30000);
+            timerEl.classList.toggle('is-critical', remaining <= 10000);
+        });
+
         if (idleMs < PRESENTATION_INACTIVITY_SHOW_IDLE_MS) {
-            timerEl.classList.remove('is-visible', 'is-warning', 'is-critical');
             return;
         }
-
-        timerEl.textContent = formatPresentationCountdown(remaining);
-        timerEl.classList.add('is-visible');
-        timerEl.classList.toggle('is-warning', remaining <= 30000);
-        timerEl.classList.toggle('is-critical', remaining <= 10000);
 
         if (remaining <= 0 && idleMs >= PRESENTATION_INACTIVITY_MS - 250) {
             if (!isPresentationHostOnline()) {
@@ -1288,20 +1296,28 @@
 
     function mergeParticipantsWithPresentationHost(list) {
         const selfId = String(clientId || '');
-        const presenceIds = lastPresenceClientIds.size > 0
-            ? lastPresenceClientIds
-            : new Set(normalizeParticipants(list).map((p) => p.clientId));
+        const presenceIds = lastPresenceClientIds;
 
         let items = mergeParticipantsWithLocalSelf(list)
             .filter((p) => presenceIds.has(p.clientId) || p.clientId === selfId)
             .map((p) => ({ ...p, online: presenceIds.has(p.clientId) }));
 
+        const byClientId = new Map();
+        items.forEach((p) => {
+            const cid = String(p.clientId || '');
+            if (!cid) return;
+            byClientId.set(cid, p);
+        });
+        items = Array.from(byClientId.values());
+
         const hostId = isPresentationMode() ? getPresentationHostId() : '';
         if (!hostId) return items;
 
-        const hostOnline = items.find((p) => p.clientId === hostId && p.online !== false);
+        const hostEntry = items.find((p) => p.clientId === hostId);
+        const hostOnline = hostEntry && hostEntry.online !== false;
+
         if (hostOnline) {
-            const hostNick = String(hostOnline.nickname || '').trim();
+            const hostNick = String(hostEntry.nickname || '').trim();
             if (hostNick) {
                 getDrawSettings().presentation_host_nickname = hostNick;
             }
@@ -1309,6 +1325,17 @@
         }
 
         const prevHost = participantsList.find((p) => p.clientId === hostId);
+        if (hostEntry) {
+            hostEntry.online = false;
+            if (!String(hostEntry.nickname || '').trim()) {
+                hostEntry.nickname = getPresentationHostNickname() || hostId;
+            }
+            if (!normalizeNickColor(hostEntry.nickColor) && prevHost?.nickColor) {
+                hostEntry.nickColor = prevHost.nickColor;
+            }
+            return items;
+        }
+
         items.push({
             clientId: hostId,
             nickname: getPresentationHostNickname() || hostId,
@@ -4237,6 +4264,9 @@
         bindRoomTitleEdit();
         updateSettingsPanel();
         syncVisibilityUi(roomState?.visibility);
+        if (clientId) {
+            lastPresenceClientIds = new Set([String(clientId)]);
+        }
         renderParticipants([{ clientId: String(clientId || ''), nickname: String(nickname || '') }]);
 
         const slideLoadPromise = (async () => {

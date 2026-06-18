@@ -167,6 +167,8 @@
             this.pendingCursorPayload = null;
             this.lastCursorSendAt = 0;
             this.remoteCursorAnimRaf = 0;
+            this.remoteCursorLoopActive = false;
+            this.remoteCursorLastTickAt = 0;
             this.lastCursorPayload = null;
             this.pingHoldActive = false;
             this.pingHoldTimer = null;
@@ -353,8 +355,8 @@
 
         static REMOTE_CURSOR_HOTSPOT_X = 2;
         static REMOTE_CURSOR_HOTSPOT_Y = 2;
-        static CURSOR_SEND_INTERVAL_MS = 40;
-        static REMOTE_CURSOR_SMOOTH = 0.3;
+        static CURSOR_SEND_INTERVAL_MS = 16;
+        static REMOTE_CURSOR_SMOOTH_MS = 50;
 
         static remoteCursorPointerSvg() {
             return '<svg class="tactics-remote-cursor__svg" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">'
@@ -1643,7 +1645,7 @@
             }
 
             this.pendingCursorPayload = payload;
-            const key = `${payload.slideId}:${payload.x.toFixed(4)}:${payload.y.toFixed(4)}:${payload.visible}:${payload.nickname}`;
+            const key = `${payload.slideId}:${payload.x.toFixed(5)}:${payload.y.toFixed(5)}:${payload.visible}:${payload.nickname}`;
             if (key === this.lastCursorPayload) return;
 
             const now = performance.now();
@@ -1664,7 +1666,7 @@
             const payload = payloadOverride || this.pendingCursorPayload;
             if (!payload) return;
 
-            const key = `${payload.slideId}:${payload.x.toFixed(4)}:${payload.y.toFixed(4)}:${payload.visible}:${payload.nickname}`;
+            const key = `${payload.slideId}:${payload.x.toFixed(5)}:${payload.y.toFixed(5)}:${payload.visible}:${payload.nickname}`;
             if (key === this.lastCursorPayload) {
                 this.pendingCursorPayload = null;
                 return;
@@ -1692,10 +1694,7 @@
             if (!this.showRemoteCursors && this.cursorsLayerEl) {
                 this.cursorsLayerEl.innerHTML = '';
                 this.remoteCursors.clear();
-                if (this.remoteCursorAnimRaf) {
-                    cancelAnimationFrame(this.remoteCursorAnimRaf);
-                    this.remoteCursorAnimRaf = 0;
-                }
+                this.stopRemoteCursorLoop();
             } else {
                 this.remoteCursors.forEach((entry) => {
                     if (entry.el) entry.el.hidden = false;
@@ -1790,6 +1789,38 @@
             if (!entry) return;
             entry.el?.remove();
             this.remoteCursors.delete(clientId);
+            if (!this.remoteCursors.size) {
+                this.stopRemoteCursorLoop();
+            }
+        }
+
+        stopRemoteCursorLoop() {
+            if (this.remoteCursorAnimRaf) {
+                cancelAnimationFrame(this.remoteCursorAnimRaf);
+                this.remoteCursorAnimRaf = 0;
+            }
+            this.remoteCursorLoopActive = false;
+        }
+
+        ensureRemoteCursorLoop() {
+            if (this.remoteCursorLoopActive) return;
+            if (!this.showRemoteCursors || !this.remoteCursors.size) return;
+
+            this.remoteCursorLoopActive = true;
+            this.remoteCursorLastTickAt = performance.now();
+
+            const step = (now) => {
+                if (!this.showRemoteCursors || !this.remoteCursors.size) {
+                    this.stopRemoteCursorLoop();
+                    return;
+                }
+                this.remoteCursorAnimRaf = requestAnimationFrame(step);
+                const dt = Math.min(48, Math.max(1, now - this.remoteCursorLastTickAt));
+                this.remoteCursorLastTickAt = now;
+                this.tickRemoteCursors(dt);
+            };
+
+            this.remoteCursorAnimRaf = requestAnimationFrame(step);
         }
 
         syncRemoteCursorsPresence(participants) {
@@ -1879,38 +1910,26 @@
                 entry.nickname = nick;
             }
             entry.labelEl.textContent = entry.nickname || '?';
-            this.scheduleRemoteCursorAnimation();
+            this.ensureRemoteCursorLoop();
         }
 
-        scheduleRemoteCursorAnimation() {
-            if (this.remoteCursorAnimRaf) return;
-            this.remoteCursorAnimRaf = requestAnimationFrame(() => this.tickRemoteCursors());
-        }
-
-        tickRemoteCursors() {
-            this.remoteCursorAnimRaf = 0;
+        tickRemoteCursors(dt) {
             if (!this.showRemoteCursors || !this.remoteCursors.size) return;
 
-            const smooth = TacticsCanvas.REMOTE_CURSOR_SMOOTH;
-            let animating = false;
+            const alpha = 1 - Math.exp(-dt / TacticsCanvas.REMOTE_CURSOR_SMOOTH_MS);
 
             this.remoteCursors.forEach((entry) => {
                 const dx = entry.x - entry.displayX;
                 const dy = entry.y - entry.displayY;
-                if (Math.abs(dx) > 0.00004 || Math.abs(dy) > 0.00004) {
-                    entry.displayX += dx * smooth;
-                    entry.displayY += dy * smooth;
-                    animating = true;
+                if (Math.abs(dx) > 0.00002 || Math.abs(dy) > 0.00002) {
+                    entry.displayX += dx * alpha;
+                    entry.displayY += dy * alpha;
                 } else {
                     entry.displayX = entry.x;
                     entry.displayY = entry.y;
                 }
                 this.positionRemoteCursor(entry);
             });
-
-            if (animating) {
-                this.scheduleRemoteCursorAnimation();
-            }
         }
 
         hideRemoteCursor(clientId) {
