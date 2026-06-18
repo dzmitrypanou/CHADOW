@@ -126,7 +126,7 @@
         editingRuleId = 0;
         updateUrlLinkId(linkId);
         resetWorkspaceForLinkSwitch();
-        await Promise.all([loadCatalog(), loadRules()]);
+        await loadCatalog();
     }
 
     function csrfHeaders() {
@@ -153,16 +153,82 @@
         });
     }
 
+    function getUserTimezone() {
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (tz) return tz;
+        } catch (e) { /* ignore */ }
+        return 'Europe/Moscow';
+    }
+
+    function parseLogTimestamp(ts) {
+        if (!ts) return null;
+        const n = Number(ts);
+        if (Number.isFinite(n) && n > 1e9) {
+            return new Date(n * 1000);
+        }
+        const raw = String(ts).trim();
+        if (!raw) return null;
+        let normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+        if (!/Z$|[+-]\d{2}:?\d{2}$/.test(normalized)) {
+            normalized += 'Z';
+        }
+        const parsed = Date.parse(normalized);
+        return Number.isFinite(parsed) ? new Date(parsed) : null;
+    }
+
+    function formatLogTs(ts) {
+        const d = parseLogTimestamp(ts);
+        if (!d) return ts ? String(ts) : '—';
+        const parts = Object.fromEntries(
+            new Intl.DateTimeFormat('en-GB', {
+                timeZone: getUserTimezone(),
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            }).formatToParts(d).map((part) => [part.type, part.value])
+        );
+        return parts.day + '.' + parts.month + ' ' + parts.hour + ':' + parts.minute;
+    }
+
+    function logTableWrap(tableHtml) {
+        return '<div class="bracket-profile-wrap"><table class="bracket-profile-table bracket-profile-table--reserves bracket-profile-table--reserves-log">'
+            + tableHtml
+            + '</table></div>';
+    }
+
     function statusLabel(status) {
         if (status === 'active') return i18n().t('statusActive');
-        if (status === 'ready') return i18n().t('statusReady');
-        return i18n().t('statusUnavailable');
+        return i18n().t('statusInactive');
     }
 
     function statusBadgeClass(status) {
         if (status === 'active') return 'reserves-status-badge--active';
-        if (status === 'ready') return 'reserves-status-badge--ready';
-        return 'reserves-status-badge--unavailable';
+        return 'reserves-status-badge--inactive';
+    }
+
+    function reserveIconUrl(item) {
+        const type = String(item?.type || '').trim();
+        const localByType = {
+            additionalBriefing: '/assets/icons/reserves/additional-briefing.png',
+            battlePayments: '/assets/icons/reserves/battle-payments.png',
+            militaryManeuvers: '/assets/icons/reserves/military-maneuvers.png',
+            tacticalTraining: '/assets/icons/reserves/tactical-training.png',
+        };
+        if (type && localByType[type]) {
+            return localByType[type];
+        }
+        return normalizeIconUrl(item?.icon || '');
+    }
+
+    function normalizeIconUrl(icon) {
+        let url = String(icon || '').trim();
+        if (!url) return '';
+        if (url.startsWith('//')) url = 'https:' + url;
+        if (url.startsWith('http://')) url = 'https://' + url.slice(7);
+        return url;
     }
 
     function escAttr(value) {
@@ -179,6 +245,46 @@
             .replace(/>/g, '&gt;');
     }
 
+    function localizeCatalogItem(item) {
+        const labels = i18n().translateReserve(item.type, item);
+        return {
+            ...item,
+            name: labels.name,
+            description: labels.description,
+            bonus_type: labels.description,
+        };
+    }
+
+    function localizedCatalogItems() {
+        return catalogItems.map(localizeCatalogItem);
+    }
+
+    function reserveNameByType(type, fallback = '') {
+        return i18n().translateReserve(type, { name: fallback }).name;
+    }
+
+    function refreshCatalogView() {
+        if (!window.ABS_RESERVES_CAN_USE) {
+            const root = document.getElementById('reservesCatalog');
+            if (root) {
+                root.innerHTML = '<p class="bracket-section-hint">' + escHtml(i18n().t('linkRequired')) + '</p>';
+            }
+            return;
+        }
+
+        if (catalogItems.length) {
+            const items = localizedCatalogItems();
+            renderCatalog(items);
+            fillRuleSelects(items);
+        } else if (!lastCatalogErrorCode) {
+            renderCatalog([]);
+            fillRuleSelects([]);
+        }
+
+        renderRules(rulesCache);
+        renderLog(logCache);
+    }
+
     function tableWrap(tableHtml) {
         return '<div class="bracket-profile-wrap"><table class="bracket-profile-table bracket-profile-table--reserves">'
             + tableHtml
@@ -192,11 +298,15 @@
     }
 
     function reserveCellHtml(item) {
+        const iconUrl = reserveIconUrl(item);
+        const description = String(item.description || item.bonus_type || '').trim();
         return '<div class="reserves-reserve-cell">'
-            + (item.icon ? '<img class="reserves-reserve-cell__icon" src="' + escAttr(item.icon) + '" alt="" loading="lazy">' : '')
+            + (iconUrl
+                ? '<img class="reserves-reserve-cell__icon" src="' + escAttr(iconUrl) + '" alt="" loading="lazy" width="32" height="32" decoding="async">'
+                : '<span class="reserves-reserve-cell__icon reserves-reserve-cell__icon--placeholder" aria-hidden="true"><i class="fas fa-box"></i></span>')
             + '<div class="reserves-reserve-cell__text">'
-            + '<span class="reserves-reserve-cell__name">' + escHtml(item.name || item.type) + '</span>'
-            + (item.bonus_type ? '<span class="reserves-reserve-cell__sub">' + escHtml(item.bonus_type) + '</span>' : '')
+            + '<span class="reserves-reserve-cell__name" title="' + escAttr(item.name || item.type) + '">' + escHtml(item.name || item.type) + '</span>'
+            + (description ? '<span class="reserves-reserve-cell__sub" title="' + escAttr(description) + '">' + escHtml(description) + '</span>' : '')
             + '</div></div>';
     }
 
@@ -212,9 +322,7 @@
         items.forEach((item) => {
             (item.levels || []).forEach((lv) => {
                 const canActivate = lv.status === 'ready';
-                const meta = [];
-                if (lv.amount > 0) meta.push(i18n().t('amountLabel', { amount: lv.amount }));
-                if (lv.active_till) meta.push(i18n().t('activeTill', { time: formatTs(lv.active_till) }));
+                const amount = Number(lv.amount) || 0;
 
                 const action = canActivate
                     ? '<button type="button" class="tactics-icon-btn reserves-activate-btn reserves-table-btn"'
@@ -225,21 +333,26 @@
 
                 rows.push('<tr>'
                     + '<td>' + reserveCellHtml(item) + '</td>'
-                    + '<td>' + escHtml(i18n().t('levelLabel', { level: lv.level })) + '</td>'
+                    + '<td class="reserves-table-level">' + escHtml(String(lv.level)) + '</td>'
                     + '<td>' + statusBadgeHtml(lv.status) + '</td>'
-                    + '<td>' + escHtml(meta.join(' · ') || '—') + '</td>'
+                    + '<td class="reserves-table-amount">' + escHtml(amount > 0 ? String(amount) : '—') + '</td>'
                     + '<td class="reserves-table-actions">' + action + '</td>'
                     + '</tr>');
             });
         });
+
+        if (!rows.length) {
+            root.innerHTML = '<p class="bracket-section-hint">' + escHtml(i18n().t('catalogEmpty')) + '</p>';
+            return;
+        }
 
         root.innerHTML = tableWrap(
             '<thead><tr>'
             + '<th>' + escHtml(i18n().t('colReserve')) + '</th>'
             + '<th>' + escHtml(i18n().t('colLevel')) + '</th>'
             + '<th>' + escHtml(i18n().t('colStatus')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colDetails')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colAction')) + '</th>'
+            + '<th>' + escHtml(i18n().t('colAmount')) + '</th>'
+            + '<th>' + escHtml(i18n().t('colActivation')) + '</th>'
             + '</tr></thead><tbody>' + rows.join('') + '</tbody>'
         );
 
@@ -302,21 +415,25 @@
         if (loading) loading.hidden = false;
         clearCatalogError();
 
-        const res = await fetchJson(window.ABS_RESERVES_CATALOG_API + activeLinkQuery());
-        if (seq !== catalogLoadSeq) return;
+        try {
+            const res = await fetchJson(window.ABS_RESERVES_CATALOG_API + activeLinkQuery());
+            if (seq !== catalogLoadSeq) return;
 
-        if (loading) loading.hidden = true;
+            if (!res.ok || !res.data?.success) {
+                const code = res.data?.error_code || (res.status === 409 ? 'no_clan' : 'api_error');
+                showCatalogError(code, res.status);
+                return;
+            }
 
-        if (!res.ok || !res.data?.success) {
-            const code = res.data?.error_code || (res.status === 409 ? 'no_clan' : 'api_error');
-            showCatalogError(code, res.status);
-            return;
+            clearCatalogError();
+            catalogItems = res.data.data?.items || [];
+            await loadRules();
+            refreshCatalogView();
+        } finally {
+            if (seq === catalogLoadSeq && loading) {
+                loading.hidden = true;
+            }
         }
-
-        clearCatalogError();
-        catalogItems = res.data.data?.items || [];
-        renderCatalog(catalogItems);
-        fillRuleSelects(catalogItems);
     }
 
     async function activateReserve(type, level, btn) {
@@ -349,7 +466,7 @@
         }
 
         toast(res.data.message || i18n().t('activated'), 'success');
-        await Promise.all([loadCatalog(), loadRules()]);
+        await loadCatalog();
     }
 
     function formatRuleDays(rule) {
@@ -359,7 +476,93 @@
         };
         const days = Array.isArray(rule.days) ? rule.days : [];
         if (!days.length) return '—';
+        if (days.length === 7) return i18n().t('ruleEveryDay');
         return days.map((d) => i18n().t(dayKeys[d] || d)).join(', ');
+    }
+
+    function weekdayKeyInTimezone(date, timezone) {
+        const weekday = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            weekday: 'short',
+        }).format(date);
+        const map = {
+            Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri', Sat: 'sat', Sun: 'sun',
+        };
+        return map[weekday] || '';
+    }
+
+    function minutesInTimezone(date, timezone) {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).formatToParts(date);
+        const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+        const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+        return hour * 60 + minute;
+    }
+
+    function formatRuleSchedule(rule) {
+        const dayKeys = {
+            mon: 'dayMonShort', tue: 'dayTueShort', wed: 'dayWedShort', thu: 'dayThuShort',
+            fri: 'dayFriShort', sat: 'daySatShort', sun: 'daySunShort',
+        };
+        const days = Array.isArray(rule.days) ? rule.days : [];
+        const time = rule.time_local || '—';
+        if (!days.length) return '—';
+
+        let daysPart;
+        if (days.length === 7) {
+            daysPart = i18n().t('ruleEveryDay');
+        } else {
+            daysPart = days.map((d) => i18n().t(dayKeys[d] || d)).join(', ');
+        }
+
+        return i18n().t('ruleScheduleAt', { days: daysPart, time });
+    }
+
+    function formatNextActivationDate(date, timezone) {
+        const lang = i18n().getLang() === 'en' ? 'en-GB' : 'ru-RU';
+        return new Intl.DateTimeFormat(lang, {
+            timeZone: timezone,
+            day: 'numeric',
+            month: 'long',
+        }).format(date);
+    }
+
+    function ruleIsActive(rule) {
+        if (rule.active === false) return false;
+        if (rule.paused_no_stock) return false;
+        return rule.enabled !== false;
+    }
+
+    function getNextActivationDate(rule) {
+        if (!ruleIsActive(rule)) return null;
+
+        const days = Array.isArray(rule.days) ? rule.days : [];
+        const timeLocal = String(rule.time_local || '').trim();
+        const timezone = String(rule.timezone || 'Europe/Moscow').trim() || 'Europe/Moscow';
+        if (!days.length || !/^\d{1,2}:\d{2}$/.test(timeLocal)) return null;
+
+        const daySet = new Set(days);
+        const [targetHour, targetMinute] = timeLocal.split(':').map(Number);
+        const targetMinutes = targetHour * 60 + targetMinute;
+        const now = Date.now();
+
+        for (let offset = 0; offset < 14; offset += 1) {
+            const probe = new Date(now + offset * 86400000);
+            const weekday = weekdayKeyInTimezone(probe, timezone);
+            if (!daySet.has(weekday)) continue;
+
+            if (offset === 0 && minutesInTimezone(probe, timezone) >= targetMinutes) {
+                continue;
+            }
+
+            return formatNextActivationDate(probe, timezone);
+        }
+
+        return null;
     }
 
     function renderRules(rules) {
@@ -370,41 +573,36 @@
             return;
         }
 
-        const rows = rules.map((rule) => {
-            const item = catalogItems.find((it) => it.type === rule.reserve_type);
-            const name = item?.name || rule.reserve_type;
-            const enabledBadge = rule.enabled
-                ? '<span class="reserves-status-badge reserves-status-badge--ready">' + escHtml(i18n().t('enabled')) + '</span>'
-                : '<span class="reserves-status-badge reserves-status-badge--unavailable">' + escHtml(i18n().t('disabled')) + '</span>';
-            const lastRun = rule.last_status
-                ? '<span class="reserves-table-muted">' + escHtml(rule.last_status) + '</span>'
-                : '—';
+        root.innerHTML = '<div class="reserves-rule-list">'
+            + rules.map((rule) => {
+                const item = catalogItems.find((it) => it.type === rule.reserve_type);
+                const name = reserveNameByType(rule.reserve_type, item?.name || rule.reserve_type);
+                const schedule = formatRuleSchedule(rule);
+                const paused = !!rule.paused_no_stock;
+                const nextDate = getNextActivationDate(rule);
+                const rowClass = paused ? ' reserves-rule-row--paused' : '';
 
-            return '<tr>'
-                + '<td>' + escHtml(name) + '</td>'
-                + '<td>' + escHtml(i18n().t('levelLabel', { level: rule.reserve_level })) + '</td>'
-                + '<td>' + escHtml(rule.time_local || '—') + '</td>'
-                + '<td>' + escHtml(formatRuleDays(rule)) + '</td>'
-                + '<td>' + enabledBadge + '</td>'
-                + '<td>' + lastRun + '</td>'
-                + '<td class="reserves-table-actions">'
-                + '<button type="button" class="bracket-profile-delete reserves-rule-delete" data-id="' + rule.id + '">'
-                + escHtml(i18n().t('deleteRule')) + '</button>'
-                + '</td>'
-                + '</tr>';
-        }).join('');
-
-        root.innerHTML = tableWrap(
-            '<thead><tr>'
-            + '<th>' + escHtml(i18n().t('colReserve')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colLevel')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colTime')) + '</th>'
-            + '<th>' + escHtml(i18n().t('ruleDays')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colStatus')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colLastRun')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colAction')) + '</th>'
-            + '</tr></thead><tbody>' + rows + '</tbody>'
-        );
+                return '<article class="reserves-rule-row' + rowClass + '">'
+                    + '<div class="reserves-rule-row__info">'
+                    + '<strong class="reserves-rule-row__title">' + escHtml(name) + '</strong>'
+                    + '<span class="reserves-rule-row__schedule">' + escHtml(schedule) + '</span>'
+                    + (paused
+                        ? '<span class="reserves-rule-row__paused">' + escHtml(i18n().t('rulePausedHint')) + '</span>'
+                        : '')
+                    + '</div>'
+                    + '<div class="reserves-rule-row__next">'
+                    + '<span class="reserves-rule-row__next-label">' + escHtml(i18n().t('ruleNextActivation')) + '</span>'
+                    + (paused
+                        ? '<span class="reserves-rule-row__next-paused">' + escHtml(i18n().t('rulePausedNoStock')) + '</span>'
+                        : '<strong class="reserves-rule-row__next-date">' + escHtml(nextDate || '—') + '</strong>')
+                    + '</div>'
+                    + '<button type="button" class="bracket-profile-delete reserves-rule-delete" data-id="' + rule.id + '"'
+                    + ' title="' + escAttr(i18n().t('deleteRule')) + '" aria-label="' + escAttr(i18n().t('deleteRule')) + '">'
+                    + escHtml(i18n().t('deleteRule'))
+                    + '</button>'
+                    + '</article>';
+            }).join('')
+            + '</div>';
 
         root.querySelectorAll('.reserves-rule-delete').forEach((btn) => {
             btn.addEventListener('click', () => deleteRule(Number(btn.dataset.id)));
@@ -421,35 +619,59 @@
 
         const rows = entries.map((row) => {
             const ok = row.status === 'success';
-            const trigger = row.trigger_type === 'schedule' ? i18n().t('triggerSchedule') : i18n().t('triggerManual');
-            const when = formatTs(row.activated_at || row.created_at);
+            const trigger = row.trigger_type === 'schedule'
+                ? i18n().t('triggerScheduleShort')
+                : i18n().t('triggerManualShort');
+            const when = formatLogTs(row.activated_at || row.created_at);
             const item = catalogItems.find((it) => it.type === row.reserve_type);
-            const name = item?.name || row.reserve_type;
+            const name = reserveNameByType(row.reserve_type, item?.name || row.reserve_type);
+            const reserveLabel = name + ' · ' + i18n().t('levelLabelShort', { level: row.reserve_level });
+            const errorText = row.error_message
+                ? i18n().translateLogError(row.error_message)
+                : '';
             const resultBadge = ok
                 ? '<span class="reserves-status-badge reserves-status-badge--active">' + escHtml(i18n().t('logSuccess')) + '</span>'
-                : '<span class="reserves-status-badge reserves-status-badge--error">' + escHtml(i18n().t('logError')) + '</span>';
-            const err = row.error_message
-                ? '<span class="reserves-table-muted">' + escHtml(row.error_message) + '</span>'
-                : '—';
+                : '<span class="reserves-status-badge reserves-status-badge--error reserves-log-status"'
+                    + (errorText ? ' title="' + escAttr(errorText) + '"' : '')
+                    + '>' + escHtml(i18n().t('logError')) + '</span>';
 
             return '<tr>'
-                + '<td>' + escHtml(when) + '</td>'
-                + '<td>' + escHtml(trigger) + '</td>'
-                + '<td>' + escHtml(name + ' · ' + i18n().t('levelLabel', { level: row.reserve_level })) + '</td>'
-                + '<td>' + resultBadge + '</td>'
-                + '<td>' + err + '</td>'
+                + '<td class="reserves-log-time">' + escHtml(when) + '</td>'
+                + '<td class="reserves-log-trigger">' + escHtml(trigger) + '</td>'
+                + '<td><span class="reserves-log-reserve" title="' + escAttr(reserveLabel) + '">' + escHtml(reserveLabel) + '</span></td>'
+                + '<td class="reserves-log-result">' + resultBadge + '</td>'
                 + '</tr>';
         }).join('');
 
-        root.innerHTML = tableWrap(
+        root.innerHTML = logTableWrap(
             '<thead><tr>'
             + '<th>' + escHtml(i18n().t('colTime')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colTrigger')) + '</th>'
+            + '<th>' + escHtml(i18n().t('logColTrigger')) + '</th>'
             + '<th>' + escHtml(i18n().t('colReserve')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colResult')) + '</th>'
-            + '<th>' + escHtml(i18n().t('colError')) + '</th>'
+            + '<th>' + escHtml(i18n().t('logColResult')) + '</th>'
             + '</tr></thead><tbody>' + rows + '</tbody>'
         );
+    }
+
+    function normalizeTimeLocal(value) {
+        const raw = String(value || '').trim();
+        const match = raw.match(/^(\d{1,2}):(\d{2})/);
+        if (!match) return '';
+        return String(match[1]).padStart(2, '0') + ':' + match[2];
+    }
+
+    function readScheduleForm() {
+        const typeSel = document.getElementById('reservesRuleType');
+        const levelSel = document.getElementById('reservesRuleLevel');
+        const timeInput = document.getElementById('reservesRuleTime');
+        const days = [...document.querySelectorAll('#reservesRuleForm input[name="day"]:checked')].map((el) => el.value);
+
+        return {
+            reserve_type: typeSel?.value || '',
+            reserve_level: Number(levelSel?.value || 0),
+            time_local: normalizeTimeLocal(timeInput?.value || ''),
+            days,
+        };
     }
 
     async function loadRules() {
@@ -465,7 +687,10 @@
         if (seq !== rulesLoadSeq) return;
 
         if (loading) loading.hidden = true;
-        if (!res.ok || !res.data?.success) return;
+        if (!res.ok || !res.data?.success) {
+            toast(res.data?.error || i18n().t('rulesLoadError'), 'error');
+            return;
+        }
         rulesCache = res.data.data?.rules || [];
         logCache = res.data.data?.log || [];
         renderRules(rulesCache);
@@ -474,18 +699,28 @@
 
     async function saveRule(ev) {
         ev.preventDefault();
-        const typeSel = document.getElementById('reservesRuleType');
-        const levelSel = document.getElementById('reservesRuleLevel');
-        const timeInput = document.getElementById('reservesRuleTime');
-        const days = [...document.querySelectorAll('#reservesRuleForm input[name="day"]:checked')].map((el) => el.value);
+
+        const saveBtn = document.getElementById('reservesRuleSaveBtn');
+        const payload = readScheduleForm();
+
+        if (!payload.reserve_type || payload.reserve_level <= 0) {
+            toast(i18n().t('ruleValidationTypeLevel'), 'error');
+            return;
+        }
+        if (!payload.time_local) {
+            toast(i18n().t('ruleValidationTime'), 'error');
+            return;
+        }
+
+        if (saveBtn) saveBtn.disabled = true;
 
         const body = activeLinkBody({
             csrf_token: window.ABS_RESERVES_CSRF,
             id: editingRuleId || undefined,
-            reserve_type: typeSel?.value || '',
-            reserve_level: Number(levelSel?.value || 0),
-            time_local: timeInput?.value || '',
-            days,
+            reserve_type: payload.reserve_type,
+            reserve_level: payload.reserve_level,
+            time_local: payload.time_local,
+            days: payload.days,
             enabled: true,
         });
 
@@ -495,8 +730,10 @@
             body: JSON.stringify(body),
         });
 
+        if (saveBtn) saveBtn.disabled = false;
+
         if (!res.ok || !res.data?.success) {
-            toast(res.data?.error || 'Error', 'error');
+            toast(res.data?.error || i18n().t('ruleSaveError'), 'error');
             return;
         }
 
@@ -520,6 +757,44 @@
         await loadRules();
     }
 
+    async function confirmClearLog() {
+        const message = i18n().t('clearLogConfirm');
+        const options = {
+            title: i18n().t('dialogConfirmTitle'),
+            confirmText: i18n().t('dialogConfirm'),
+            cancelText: i18n().t('dialogCancel'),
+        };
+        if (window.AbsTacticsConfirm?.confirm) {
+            return window.AbsTacticsConfirm.confirm(message, options);
+        }
+        return window.confirm(message);
+    }
+
+    async function clearLog() {
+        if (!window.ABS_RESERVES_CAN_USE) return;
+        if (!(await confirmClearLog())) return;
+
+        const btn = document.getElementById('reservesLogClearBtn');
+        if (btn) btn.disabled = true;
+
+        const res = await fetchJson(window.ABS_RESERVES_LOG_API, {
+            method: 'DELETE',
+            headers: csrfHeaders(),
+            body: JSON.stringify(activeLinkBody({ csrf_token: window.ABS_RESERVES_CSRF })),
+        });
+
+        if (btn) btn.disabled = false;
+
+        if (!res.ok || !res.data?.success) {
+            toast(res.data?.error || i18n().t('logClearError'), 'error');
+            return;
+        }
+
+        logCache = [];
+        renderLog(logCache);
+        toast(res.data.message || i18n().t('logCleared'), 'success');
+    }
+
     function relocalizeView() {
         i18n().relocalizeDom(document);
         updateCatalogErrorText();
@@ -532,15 +807,8 @@
             return;
         }
 
-        if (catalogItems.length) {
-            renderCatalog(catalogItems);
-            fillRuleSelects(catalogItems);
-        } else if (!lastCatalogErrorCode) {
-            renderCatalog([]);
-        }
-
+        refreshCatalogView();
         renderRules(rulesCache);
-        renderLog(logCache);
     }
 
     window.AbsReserves = { relocalizeView };
@@ -571,11 +839,11 @@
             setActiveLink(activeLink.link_id);
         }
         document.getElementById('reservesRefreshBtn')?.addEventListener('click', () => loadCatalog());
+        document.getElementById('reservesLogClearBtn')?.addEventListener('click', clearLog);
         document.getElementById('reservesRuleForm')?.addEventListener('submit', saveRule);
 
         if (window.ABS_RESERVES_CAN_USE) {
             loadCatalog();
-            loadRules();
         } else {
             loadCatalog();
         }

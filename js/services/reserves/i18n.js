@@ -29,6 +29,7 @@
             ruleLevel: 'Уровень',
             ruleTime: 'Время',
             ruleDays: 'Дни',
+            ruleEveryDay: 'Ежедн.',
             dayMon: 'Пн',
             dayTue: 'Вт',
             dayWed: 'Ср',
@@ -36,12 +37,29 @@
             dayFri: 'Пт',
             daySat: 'Сб',
             daySun: 'Вс',
+            dayMonShort: 'пн.',
+            dayTueShort: 'вт.',
+            dayWedShort: 'ср.',
+            dayThuShort: 'чт.',
+            dayFriShort: 'пт.',
+            daySatShort: 'сб.',
+            daySunShort: 'вс.',
+            ruleScheduleAt: 'По {days}, в {time}',
+            ruleNextActivation: 'Ближайшая активация:',
+            rulePausedNoStock: 'Нет в наличии',
+            rulePausedHint: 'Приостановлено — резервы закончились',
             saveRule: 'Сохранить расписание',
             rulesTitle: 'Сохранённые расписания',
             logTitle: 'Журнал активаций',
+            clearLog: 'Очистить журнал',
+            clearLogConfirm: 'Очистить журнал активаций для выбранного аккаунта?',
+            logCleared: 'Журнал активаций очищен.',
+            logClearError: 'Не удалось очистить журнал.',
             colReserve: 'Резерв',
             colLevel: 'Уровень',
             colStatus: 'Статус',
+            colAmount: 'Количество',
+            colActivation: 'Активация',
             colDetails: 'Детали',
             colAction: 'Действие',
             colTime: 'Время',
@@ -50,6 +68,7 @@
             colError: 'Ошибка',
             colLastRun: 'Последний запуск',
             statusActive: 'Активен',
+            statusInactive: 'Неактивен',
             statusReady: 'Можно запустить',
             statusUnavailable: 'Недоступен',
             activate: 'Активировать',
@@ -65,13 +84,25 @@
             enabled: 'Вкл',
             disabled: 'Выкл',
             ruleSaved: 'Расписание сохранено.',
+            ruleSaveError: 'Не удалось сохранить расписание.',
+            rulesLoadError: 'Не удалось загрузить расписания.',
+            ruleValidationTypeLevel: 'Выберите тип и уровень резерва.',
+            ruleValidationTime: 'Укажите время запуска.',
             ruleDeleted: 'Расписание удалено.',
             selectType: 'Выберите тип',
             selectLevel: 'Выберите уровень',
             triggerManual: 'Вручную',
             triggerSchedule: 'По расписанию',
+            triggerManualShort: 'Ручн.',
+            triggerScheduleShort: 'Авто',
+            levelLabelShort: 'ур.{level}',
+            logColTrigger: 'Источ.',
+            logColResult: 'Статус',
             logSuccess: 'Успех',
             logError: 'Ошибка',
+            logErrorToken: 'Не удалось получить access token. Откройте страницу резервов и нажмите «Обновить», затем попробуйте снова.',
+            logErrorTokenDecrypt: 'Не удалось расшифровать токен. Перепривяжите аккаунт.',
+            logErrorLinkMissing: 'Аккаунт не привязан. Перепривяжите доступ.',
             wgApiLinked: 'WG API привязан',
             lestaApiLinked: 'LESTA API привязан',
             linkSlot: 'Привязать {slot}',
@@ -114,6 +145,7 @@
             ruleLevel: 'Level',
             ruleTime: 'Time',
             ruleDays: 'Days',
+            ruleEveryDay: 'Daily',
             dayMon: 'Mon',
             dayTue: 'Tue',
             dayWed: 'Wed',
@@ -121,12 +153,29 @@
             dayFri: 'Fri',
             daySat: 'Sat',
             daySun: 'Sun',
+            dayMonShort: 'Mon',
+            dayTueShort: 'Tue',
+            dayWedShort: 'Wed',
+            dayThuShort: 'Thu',
+            dayFriShort: 'Fri',
+            daySatShort: 'Sat',
+            daySunShort: 'Sun',
+            ruleScheduleAt: 'On {days} at {time}',
+            ruleNextActivation: 'Next activation:',
+            rulePausedNoStock: 'Out of stock',
+            rulePausedHint: 'Paused — reserves depleted',
             saveRule: 'Save schedule',
             rulesTitle: 'Saved schedules',
             logTitle: 'Activation log',
+            clearLog: 'Clear log',
+            clearLogConfirm: 'Clear the activation log for the selected account?',
+            logCleared: 'Activation log cleared.',
+            logClearError: 'Could not clear the log.',
             colReserve: 'Reserve',
             colLevel: 'Level',
             colStatus: 'Status',
+            colAmount: 'Quantity',
+            colActivation: 'Activation',
             colDetails: 'Details',
             colAction: 'Action',
             colTime: 'Time',
@@ -135,6 +184,7 @@
             colError: 'Error',
             colLastRun: 'Last run',
             statusActive: 'Active',
+            statusInactive: 'Inactive',
             statusReady: 'Ready to activate',
             statusUnavailable: 'Unavailable',
             activate: 'Activate',
@@ -150,13 +200,25 @@
             enabled: 'On',
             disabled: 'Off',
             ruleSaved: 'Schedule saved.',
+            ruleSaveError: 'Could not save schedule.',
+            rulesLoadError: 'Could not load schedules.',
+            ruleValidationTypeLevel: 'Select reserve type and level.',
+            ruleValidationTime: 'Enter activation time.',
             ruleDeleted: 'Schedule deleted.',
             selectType: 'Select type',
             selectLevel: 'Select level',
             triggerManual: 'Manual',
             triggerSchedule: 'Scheduled',
+            triggerManualShort: 'Manual',
+            triggerScheduleShort: 'Auto',
+            levelLabelShort: 'Lv{level}',
+            logColTrigger: 'Source',
+            logColResult: 'Status',
             logSuccess: 'Success',
             logError: 'Error',
+            logErrorToken: 'Could not obtain access token. Open the reserves page, click Refresh, then try again.',
+            logErrorTokenDecrypt: 'Could not decrypt token. Re-link the account.',
+            logErrorLinkMissing: 'Account not linked. Re-link access.',
             wgApiLinked: 'WG API linked',
             lestaApiLinked: 'LESTA API linked',
             linkSlot: 'Link {slot}',
@@ -171,6 +233,29 @@
             unlinkConfirm: 'Unlink this account from clan reserves? Your profile link will stay unchanged.',
             unlinkSuccess: 'Unlinked.',
             unlinkError: 'Could not unlink.',
+        },
+    };
+
+    const RESERVE_TYPES = {
+        ru: {
+            additionalBriefing: { name: 'Дополнительный инструктаж', description: 'к опыту экипажа' },
+            battlePayments: { name: 'Боевые выплаты', description: 'к кредитам' },
+            militaryManeuvers: { name: 'Военные манёвры', description: 'к свободному опыту' },
+            tacticalTraining: { name: 'Тактическая подготовка', description: 'к боевому опыту' },
+            highCapacityTransport: { name: 'Усиленный транспорт', description: '' },
+            requisition: { name: 'Реквизиция', description: '' },
+            inspire: { name: 'Вдохновение', description: '' },
+            artilleryStrike: { name: 'Артиллерийский удар', description: '' },
+        },
+        en: {
+            additionalBriefing: { name: 'Additional Briefing', description: 'to Crew Experience earned' },
+            battlePayments: { name: 'Battle Payments', description: 'to credits earned' },
+            militaryManeuvers: { name: 'Military Maneuvers', description: 'to Free Experience earned' },
+            tacticalTraining: { name: 'Tactical Training', description: 'to Combat Experience earned' },
+            highCapacityTransport: { name: 'High-Capacity Transport', description: '' },
+            requisition: { name: 'Requisition', description: '' },
+            inspire: { name: 'Inspire', description: '' },
+            artilleryStrike: { name: 'Artillery Strike', description: '' },
         },
     };
 
@@ -202,15 +287,43 @@
         return text;
     }
 
+    function translateLogError(message) {
+        const code = String(message || '').trim().toUpperCase();
+        if (!code) return '—';
+        if (code === 'ACCESS_TOKEN_NOT_SPECIFIED' || code === 'TOKEN_EMPTY' || code === 'TOKEN_MISSING') {
+            return t('logErrorToken');
+        }
+        if (code === 'TOKEN_DECRYPT_FAILED') {
+            return t('logErrorTokenDecrypt');
+        }
+        if (code === 'LINK_MISSING') {
+            return t('logErrorLinkMissing');
+        }
+        return String(message || '').trim() || '—';
+    }
+
     function translateApiError(data = {}, status = 0) {
         const code = String(data.error_code || '').trim();
         if (code === 'no_clan' || status === 409) {
             return t('errorNoClan');
         }
-        if (code === 'token_expired' || code === 'token_missing') {
+        if (code === 'token_expired' || code === 'token_missing' || code === 'token_decrypt_failed' || code === 'token_empty') {
             return t('relinkRequired');
         }
         return t('catalogLoadError');
+    }
+
+    function translateReserve(type, fallback = {}) {
+        const lang = getLang();
+        const key = String(type || '').trim();
+        const entry = (key && RESERVE_TYPES[lang]?.[key]) || (key && RESERVE_TYPES.ru[key]) || {};
+        const apiName = String(fallback.name || '').trim();
+        const apiDescription = String(fallback.description || fallback.bonus_type || '').trim();
+
+        return {
+            name: entry.name || apiName || key,
+            description: entry.description || apiDescription,
+        };
     }
 
     function relocalizeDom(root) {
@@ -290,10 +403,13 @@
         normalizeLang,
         t,
         translateApiError,
+        translateLogError,
+        translateReserve,
         relocalizeDom,
         updateStaticDom,
         switchLanguage,
         buildReservesReturnPath,
         STRINGS,
+        RESERVE_TYPES,
     };
 })();

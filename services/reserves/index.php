@@ -165,7 +165,14 @@ require __DIR__ . '/../../includes/site_header.php';
                     </section>
 
                     <section class="tactics-panel" id="reservesLogPanel">
-                        <h2 class="bracket-section-title" data-reserves-i18n="logTitle"><?php echo $isEn ? 'Activation log' : 'Журнал активаций'; ?></h2>
+                        <div class="tactics-section-head">
+                            <h2 class="bracket-section-title" data-reserves-i18n="logTitle"><?php echo $isEn ? 'Activation log' : 'Журнал активаций'; ?></h2>
+                            <div class="tactics-section-actions">
+                                <button type="button" class="tactics-icon-btn reserves-action-btn" id="reservesLogClearBtn" data-reserves-i18n="clearLog"<?php echo $canUseReserves ? '' : ' hidden'; ?>>
+                                    <?php echo $isEn ? 'Clear log' : 'Очистить журнал'; ?>
+                                </button>
+                            </div>
+                        </div>
                         <div id="reservesLog"></div>
                     </section>
                 </aside>
@@ -182,6 +189,7 @@ require __DIR__ . '/../../includes/site_header.php';
         window.ABS_RESERVES_CATALOG_API = <?php echo json_encode(user_api_path('/api/reserves/catalog.php')); ?>;
         window.ABS_RESERVES_ACTIVATE_API = <?php echo json_encode(user_api_path('/api/reserves/activate.php')); ?>;
         window.ABS_RESERVES_RULES_API = <?php echo json_encode(user_api_path('/api/reserves/rules.php')); ?>;
+        window.ABS_RESERVES_LOG_API = <?php echo json_encode(user_api_path('/api/reserves/log.php')); ?>;
         window.ABS_RESERVES_UNLINK_API = <?php echo json_encode(user_api_path('/api/reserves/unlink.php')); ?>;
         window.ABS_RESERVES_CLAN_API = <?php echo json_encode(user_api_path('/api/reserves/clan.php')); ?>;
         window.ABS_RESERVES_CLANS_API = <?php echo json_encode(user_api_path('/api/reserves/clans.php')); ?>;

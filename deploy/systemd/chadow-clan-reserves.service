@@ -1,0 +1,21 @@
+[Unit]
+Description=Chadow.ru clan reserve schedule activation loop
+After=network-online.target mysql.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@RUN_USER@
+Group=@RUN_GROUP@
+WorkingDirectory=@CHADOW_ROOT@
+EnvironmentFile=-/etc/chadow/env
+EnvironmentFile=-/etc/chadow/clan-reserves.env
+ExecStart=@PHP_BIN@ @CHADOW_ROOT@/scripts/activate_clan_reserves.php --loop
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chadow-clan-reserves
+
+[Install]
+WantedBy=multi-user.target

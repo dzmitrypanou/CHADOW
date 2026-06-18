@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/bootstrap.php';
+
+header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
@@ -21,8 +22,19 @@ if ($token === '' || !hash_equals($expectedToken, $token)) {
     exit();
 }
 
+require_once __DIR__ . '/../includes/cli_env.php';
+chadow_load_cli_env();
+
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/ensure_clan_reserves.php';
+require_once __DIR__ . '/../includes/clan_reserve_helpers.php';
+require_once __DIR__ . '/../includes/clan_reserve_service.php';
+
 try {
-    $service = new ClanReserveService($userDb);
+    $db = Database::getInstance();
+    ensure_clan_reserves_tables($db);
+    chadow_sync_reserves_cli_env($db);
+    $service = new ClanReserveService($db);
     $summary = $service->runDueRules(new DateTimeImmutable('now', new DateTimeZone('UTC')));
 
     echo json_encode([

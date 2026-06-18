@@ -48,6 +48,7 @@ function ensure_clan_reserves_tables($db): void {
             days_mask TINYINT UNSIGNED NOT NULL DEFAULT 127,
             timezone VARCHAR(64) NOT NULL DEFAULT \'Europe/Moscow\',
             enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
+            paused_no_stock TINYINT UNSIGNED NOT NULL DEFAULT 0,
             last_run_at TIMESTAMP NULL,
             last_status VARCHAR(32) NULL,
             last_error VARCHAR(512) NULL,
@@ -112,6 +113,16 @@ function clan_reserve_migrate_schema(PDO $pdo): void {
         return (int) $stmt->fetchColumn() > 0;
     };
 
+    $indexExists = static function (string $table, string $indexName) use ($pdo): bool {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?'
+        );
+        $stmt->execute([$table, $indexName]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    };
+
     if (!$columnExists('site_user_game_tokens', 'nickname')) {
         try {
             $pdo->exec('ALTER TABLE site_user_game_tokens ADD COLUMN nickname VARCHAR(128) NULL AFTER account_id');
@@ -139,17 +150,31 @@ function clan_reserve_migrate_schema(PDO $pdo): void {
         }
     }
 
-    try {
-        $pdo->exec('ALTER TABLE site_user_game_tokens DROP INDEX uk_user_provider_realm');
-    } catch (Throwable $e) {
-        /* index may not exist on fresh installs */
+    if (!$columnExists('clan_reserve_rules', 'paused_no_stock')) {
+        try {
+            $pdo->exec(
+                'ALTER TABLE clan_reserve_rules ADD COLUMN paused_no_stock TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER enabled'
+            );
+        } catch (Throwable $e) {
+            error_log('clan_reserve_migrate_schema paused_no_stock: ' . $e->getMessage());
+        }
     }
 
-    try {
-        $pdo->exec(
-            'ALTER TABLE site_user_game_tokens ADD UNIQUE KEY uk_user_provider_realm_account (user_id, provider, realm, account_id)'
-        );
-    } catch (Throwable $e) {
-        error_log('clan_reserve_migrate_schema multi account unique: ' . $e->getMessage());
+    if ($indexExists('site_user_game_tokens', 'uk_user_provider_realm')) {
+        try {
+            $pdo->exec('ALTER TABLE site_user_game_tokens DROP INDEX uk_user_provider_realm');
+        } catch (Throwable $e) {
+            error_log('clan_reserve_migrate_schema drop uk_user_provider_realm: ' . $e->getMessage());
+        }
+    }
+
+    if (!$indexExists('site_user_game_tokens', 'uk_user_provider_realm_account')) {
+        try {
+            $pdo->exec(
+                'ALTER TABLE site_user_game_tokens ADD UNIQUE KEY uk_user_provider_realm_account (user_id, provider, realm, account_id)'
+            );
+        } catch (Throwable $e) {
+            error_log('clan_reserve_migrate_schema multi account unique: ' . $e->getMessage());
+        }
     }
 }

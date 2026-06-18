@@ -145,7 +145,9 @@ class WgOpenIdClient
         return [
             'ok' => true,
             'account_id' => $accountId,
-            'access_token' => (string) ($payload['access_token'] ?? $accessToken),
+            'access_token' => trim((string) ($payload['access_token'] ?? '')) !== ''
+                ? trim((string) $payload['access_token'])
+                : $accessToken,
             'expires_at' => (int) ($payload['expires_at'] ?? 0),
         ];
     }

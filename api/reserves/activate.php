@@ -33,13 +33,14 @@ $result = $service->activateForUser(
 );
 
 if (!$result['ok']) {
+    $errorCode = (string) ($result['error'] ?? 'activation_failed');
     $code = (int) ($result['code'] ?? 0);
     if ($code === 409) {
         reserves_json_error($isEn
             ? 'Cannot activate: not in clan, no permission, or wrong reserve.'
             : 'Не удалось активировать: нет клана, прав или выбран неверный резерв.', 409);
     }
-    reserves_json_error((string) ($result['error'] ?? 'activation_failed'), 502);
+    reserves_json_error($errorCode, 502, $errorCode);
 }
 
 echo json_encode([

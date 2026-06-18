@@ -16,6 +16,25 @@ class ClanReserveService
     public function fetchClanReserves(string $accessToken, string $realm, string $lang = 'ru'): array
     {
         $realm = clan_reserve_realm_for_provider('wg', $realm);
+        $preferred = clan_reserve_api_language($realm, $lang);
+        $languages = [$preferred];
+        if ($preferred !== 'en') {
+            $languages[] = 'en';
+        }
+
+        $lastResult = ['ok' => false, 'error' => 'api_error'];
+        foreach ($languages as $apiLang) {
+            $lastResult = $this->fetchClanReservesWithLanguage($accessToken, $realm, $apiLang);
+            if (!empty($lastResult['ok'])) {
+                return $lastResult;
+            }
+        }
+
+        return $lastResult;
+    }
+
+    private function fetchClanReservesWithLanguage(string $accessToken, string $realm, string $apiLang): array
+    {
         $appId = game_api_application_id_for_realm($realm, $this->db);
         if ($appId === '') {
             return ['ok' => false, 'error' => 'application_id missing'];
@@ -25,7 +44,7 @@ class ClanReserveService
         $url = $apiBase . '/wot/stronghold/clanreserves/?' . http_build_query([
             'application_id' => $appId,
             'access_token' => $accessToken,
-            'language' => clan_reserve_api_language($realm, $lang),
+            'language' => $apiLang,
         ]);
 
         $response = $this->httpGet($url);
@@ -46,7 +65,7 @@ class ClanReserveService
 
         return [
             'ok' => true,
-            'items' => $this->normalizeCatalog($items),
+            'items' => $this->normalizeCatalog($items, $realm),
             'raw' => $items,
         ];
     }
@@ -436,6 +455,11 @@ class ClanReserveService
         int $reserveLevel,
         string $lang = 'ru'
     ): array {
+        $accessToken = trim($accessToken);
+        if ($accessToken === '') {
+            return ['ok' => false, 'error' => 'ACCESS_TOKEN_NOT_SPECIFIED', 'code' => 401];
+        }
+
         $realm = clan_reserve_realm_for_provider('wg', $realm);
         $appId = game_api_application_id_for_realm($realm, $this->db);
         if ($appId === '') {
@@ -485,14 +509,65 @@ class ClanReserveService
     ): array {
         $tokenResult = clan_reserve_get_valid_token($this->db, $userId, $linkId);
         if (!$tokenResult['ok']) {
+            if ($triggerType === 'schedule' && $ruleId !== null && $ruleId > 0) {
+                $ruleRow = $this->db->fetchOne(
+                    'SELECT provider, realm FROM clan_reserve_rules WHERE id = ? AND user_id = ? LIMIT 1',
+                    [$ruleId, $userId]
+                );
+                if (is_array($ruleRow)) {
+                    $this->recordScheduleRuleAttempt(
+                        $userId,
+                        $ruleId,
+                        (string) ($ruleRow['provider'] ?? 'wg'),
+                        (string) ($ruleRow['realm'] ?? 'eu'),
+                        $reserveType,
+                        $reserveLevel,
+                        'error',
+                        (string) ($tokenResult['error'] ?? 'token_error')
+                    );
+                }
+            }
+
             return $tokenResult;
         }
 
         $provider = (string) ($tokenResult['provider'] ?? 'wg');
         $realm = (string) ($tokenResult['realm'] ?? 'eu');
+        $accessToken = trim((string) ($tokenResult['access_token'] ?? ''));
+        if ($accessToken === '') {
+            $emptyResult = ['ok' => false, 'needs_relink' => true, 'error' => 'token_empty'];
+            if ($triggerType === 'schedule' && $ruleId !== null && $ruleId > 0) {
+                $this->recordScheduleRuleAttempt(
+                    $userId,
+                    $ruleId,
+                    $provider,
+                    $realm,
+                    $reserveType,
+                    $reserveLevel,
+                    'error',
+                    'token_empty'
+                );
+            } else {
+                clan_reserve_log_activation(
+                    $this->db,
+                    $userId,
+                    $ruleId,
+                    $provider,
+                    $realm,
+                    $reserveType,
+                    $reserveLevel,
+                    $triggerType,
+                    'error',
+                    'token_empty',
+                    null
+                );
+            }
+
+            return $emptyResult;
+        }
 
         $result = $this->activateReserve(
-            (string) $tokenResult['access_token'],
+            $accessToken,
             $realm,
             $reserveType,
             $reserveLevel,
@@ -500,6 +575,52 @@ class ClanReserveService
         );
 
         $status = $result['ok'] ? 'success' : 'error';
+        $errorMessage = $result['ok'] ? null : (string) ($result['error'] ?? 'error');
+
+        if ($triggerType === 'schedule' && $ruleId !== null && $ruleId > 0) {
+            $this->recordScheduleRuleAttempt(
+                $userId,
+                $ruleId,
+                $provider,
+                $realm,
+                $reserveType,
+                $reserveLevel,
+                $status,
+                $errorMessage
+            );
+        } else {
+            clan_reserve_log_activation(
+                $this->db,
+                $userId,
+                $ruleId,
+                $provider,
+                $realm,
+                $reserveType,
+                $reserveLevel,
+                $triggerType,
+                $status,
+                $errorMessage,
+                $result['ok'] ? (string) ($result['activated_at'] ?? gmdate('Y-m-d H:i:s')) : null
+            );
+        }
+
+        return $result;
+    }
+
+    private function recordScheduleRuleAttempt(
+        int $userId,
+        int $ruleId,
+        string $provider,
+        string $realm,
+        string $reserveType,
+        int $reserveLevel,
+        string $status,
+        ?string $errorMessage
+    ): void {
+        if ($userId <= 0 || $ruleId <= 0) {
+            return;
+        }
+
         clan_reserve_log_activation(
             $this->db,
             $userId,
@@ -508,29 +629,67 @@ class ClanReserveService
             $realm,
             $reserveType,
             $reserveLevel,
-            $triggerType,
+            'schedule',
             $status,
-            $result['ok'] ? null : (string) ($result['error'] ?? 'error'),
-            $result['ok'] ? (string) ($result['activated_at'] ?? gmdate('Y-m-d H:i:s')) : null
+            $errorMessage !== null ? mb_substr($errorMessage, 0, 512) : null,
+            $status === 'success' ? gmdate('Y-m-d H:i:s') : null
         );
 
-        if ($ruleId !== null && $ruleId > 0) {
-            $this->db->update(
-                'UPDATE clan_reserve_rules SET last_run_at = NOW(), last_status = ?, last_error = ? WHERE id = ? AND user_id = ?',
-                [
-                    $status,
-                    $result['ok'] ? null : mb_substr((string) ($result['error'] ?? ''), 0, 512),
-                    $ruleId,
-                    $userId,
-                ]
-            );
+        $this->db->update(
+            'UPDATE clan_reserve_rules SET last_run_at = UTC_TIMESTAMP(), last_status = ?, last_error = ? WHERE id = ? AND user_id = ?',
+            [
+                $status,
+                $errorMessage !== null ? mb_substr($errorMessage, 0, 512) : null,
+                $ruleId,
+                $userId,
+            ]
+        );
+    }
+
+    private function parseRuleLastRunAt(?string $lastRunAt, DateTimeZone $timezone): ?DateTimeImmutable {
+        if ($lastRunAt === null || trim($lastRunAt) === '') {
+            return null;
         }
 
-        return $result;
+        try {
+            $lastRun = new DateTimeImmutable(trim($lastRunAt), new DateTimeZone('UTC'));
+
+            return $lastRun->setTimezone($timezone);
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    private function ruleAlreadyRanForScheduleSlot(array $rule, DateTimeImmutable $local): bool {
+        $tzName = (string) ($rule['timezone'] ?? 'Europe/Moscow');
+        try {
+            $tz = new DateTimeZone($tzName);
+        } catch (Throwable $e) {
+            $tz = new DateTimeZone('Europe/Moscow');
+        }
+
+        $lastRunLocal = $this->parseRuleLastRunAt($rule['last_run_at'] ?? null, $tz);
+        if ($lastRunLocal === null) {
+            return false;
+        }
+
+        if ($lastRunLocal->format('Y-m-d') !== $local->format('Y-m-d')) {
+            return false;
+        }
+
+        $timeLocal = substr((string) ($rule['time_local'] ?? '00:00:00'), 0, 5);
+        $parts = explode(':', $timeLocal);
+        $targetMinutes = ((int) ($parts[0] ?? 0)) * 60 + ((int) ($parts[1] ?? 0));
+        $lastMinutes = ((int) $lastRunLocal->format('H')) * 60 + (int) $lastRunLocal->format('i');
+
+        return abs($lastMinutes - $targetMinutes) <= 15;
     }
 
     public function evaluateRuleDue(array $rule, DateTimeInterface $now): bool {
         if ((int) ($rule['enabled'] ?? 0) !== 1) {
+            return false;
+        }
+        if ((int) ($rule['paused_no_stock'] ?? 0) === 1) {
             return false;
         }
 
@@ -542,6 +701,10 @@ class ClanReserveService
         }
 
         $local = DateTimeImmutable::createFromInterface($now)->setTimezone($tz);
+        if ($this->ruleAlreadyRanForScheduleSlot($rule, $local)) {
+            return false;
+        }
+
         $dow = (int) $local->format('N') - 1;
         $dayBit = 1 << $dow;
         if (((int) ($rule['days_mask'] ?? 0) & $dayBit) === 0) {
@@ -554,30 +717,176 @@ class ClanReserveService
         $targetMinute = (int) ($parts[1] ?? 0);
         $currentMinutes = ((int) $local->format('H')) * 60 + (int) $local->format('i');
         $targetMinutes = $targetHour * 60 + $targetMinute;
-        if (abs($currentMinutes - $targetMinutes) > 5) {
-            return false;
+        $minutesDiff = $currentMinutes - $targetMinutes;
+
+        $inWindow = abs($minutesDiff) <= 7;
+        $catchUp = $minutesDiff > 7 && $minutesDiff <= 180;
+
+        return $inWindow || $catchUp;
+    }
+
+    public function syncRulesStockState(
+        int $userId,
+        int $linkId,
+        string $provider,
+        string $realm,
+        array $catalogItems
+    ): array {
+        if ($userId <= 0) {
+            return ['checked' => 0, 'paused' => 0, 'resumed' => 0];
         }
 
-        $lastRunAt = $rule['last_run_at'] ?? null;
-        if ($lastRunAt !== null && $lastRunAt !== '') {
-            try {
-                $lastRun = new DateTimeImmutable((string) $lastRunAt, $tz);
-                if ($lastRun->format('Y-m-d H:i') === $local->format('Y-m-d H:i')) {
-                    return false;
-                }
-            } catch (Throwable $e) {
+        $provider = clan_reserve_normalize_provider($provider);
+        $realm = clan_reserve_realm_for_provider($provider, $realm);
+
+        $params = [$userId, $provider, $realm];
+        $where = 'user_id = ? AND enabled = 1 AND provider = ? AND realm = ?';
+        if ($linkId > 0) {
+            $where .= ' AND (link_id = ? OR link_id IS NULL)';
+            $params[] = $linkId;
+        }
+
+        $rows = $this->db->fetchAll(
+            'SELECT id, reserve_type, reserve_level, paused_no_stock FROM clan_reserve_rules WHERE ' . $where,
+            $params
+        );
+
+        $summary = ['checked' => 0, 'paused' => 0, 'resumed' => 0];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $summary['checked'] += 1;
+            $ruleId = (int) ($row['id'] ?? 0);
+            if ($ruleId <= 0) {
+                continue;
+            }
+
+            $ready = clan_reserve_catalog_level_ready(
+                $catalogItems,
+                (string) ($row['reserve_type'] ?? ''),
+                (int) ($row['reserve_level'] ?? 0)
+            );
+            $shouldPause = !$ready;
+            $isPaused = (int) ($row['paused_no_stock'] ?? 0) === 1;
+            if ($shouldPause === $isPaused) {
+                continue;
+            }
+
+            $this->updateRulePausedNoStock($ruleId, $userId, $shouldPause);
+            if ($shouldPause) {
+                $summary['paused'] += 1;
+            } else {
+                $summary['resumed'] += 1;
             }
         }
 
-        return true;
+        return $summary;
+    }
+
+    public function syncAllEnabledRulesStock(): array {
+        $rows = $this->db->fetchAll(
+            'SELECT DISTINCT user_id, link_id, provider, realm
+             FROM clan_reserve_rules
+             WHERE enabled = 1
+             ORDER BY user_id ASC, link_id ASC'
+        );
+
+        $summary = ['groups' => 0, 'checked' => 0, 'paused' => 0, 'resumed' => 0, 'errors' => []];
+        $seen = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $userId = (int) ($row['user_id'] ?? 0);
+            $linkId = (int) ($row['link_id'] ?? 0);
+            $provider = clan_reserve_normalize_provider((string) ($row['provider'] ?? 'wg'));
+            $realm = clan_reserve_realm_for_provider($provider, (string) ($row['realm'] ?? 'eu'));
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $groupKey = $userId . ':' . $linkId . ':' . $provider . ':' . $realm;
+            if (isset($seen[$groupKey])) {
+                continue;
+            }
+            $seen[$groupKey] = true;
+            $summary['groups'] += 1;
+
+            $tokenResult = ['ok' => false, 'error' => 'token_missing'];
+            $resolvedLinkId = $linkId;
+            if ($resolvedLinkId <= 0) {
+                $tokenRow = clan_reserve_fetch_token_row($this->db, $userId, $provider, $realm);
+                $resolvedLinkId = (int) ($tokenRow['id'] ?? 0);
+            }
+            if ($resolvedLinkId > 0) {
+                $tokenResult = clan_reserve_get_valid_token($this->db, $userId, $resolvedLinkId);
+            }
+            if (!$tokenResult['ok']) {
+                $summary['errors'][] = [
+                    'user_id' => $userId,
+                    'link_id' => $linkId,
+                    'error' => (string) ($tokenResult['error'] ?? 'token_error'),
+                ];
+                continue;
+            }
+
+            $resolvedLinkId = $linkId > 0 ? $linkId : (int) ($tokenResult['link_id'] ?? $resolvedLinkId);
+            $catalog = $this->fetchClanReserves(
+                (string) ($tokenResult['access_token'] ?? ''),
+                (string) ($tokenResult['realm'] ?? $realm),
+                'ru'
+            );
+            if (empty($catalog['ok'])) {
+                $summary['errors'][] = [
+                    'user_id' => $userId,
+                    'link_id' => $resolvedLinkId,
+                    'error' => (string) ($catalog['error'] ?? 'catalog_error'),
+                ];
+                continue;
+            }
+
+            $groupSummary = $this->syncRulesStockState(
+                $userId,
+                $resolvedLinkId,
+                $provider,
+                $realm,
+                is_array($catalog['items'] ?? null) ? $catalog['items'] : []
+            );
+            $summary['checked'] += (int) ($groupSummary['checked'] ?? 0);
+            $summary['paused'] += (int) ($groupSummary['paused'] ?? 0);
+            $summary['resumed'] += (int) ($groupSummary['resumed'] ?? 0);
+        }
+
+        return $summary;
+    }
+
+    private function updateRulePausedNoStock(int $ruleId, int $userId, bool $paused): void {
+        if ($ruleId <= 0 || $userId <= 0) {
+            return;
+        }
+
+        $this->db->update(
+            'UPDATE clan_reserve_rules SET paused_no_stock = ? WHERE id = ? AND user_id = ? AND enabled = 1',
+            [$paused ? 1 : 0, $ruleId, $userId]
+        );
     }
 
     public function runDueRules(?DateTimeInterface $now = null): array {
+        $stockSummary = $this->syncAllEnabledRulesStock();
         $now = $now ?? new DateTimeImmutable('now', new DateTimeZone('UTC'));
         $rows = $this->db->fetchAll(
-            'SELECT * FROM clan_reserve_rules WHERE enabled = 1 ORDER BY id ASC'
+            'SELECT * FROM clan_reserve_rules WHERE enabled = 1 AND paused_no_stock = 0 ORDER BY id ASC'
         );
-        $summary = ['checked' => 0, 'triggered' => 0, 'success' => 0, 'errors' => []];
+        $summary = [
+            'stock_sync' => $stockSummary,
+            'checked' => 0,
+            'triggered' => 0,
+            'success' => 0,
+            'errors' => [],
+        ];
 
         foreach ($rows as $row) {
             if (!is_array($row)) {
@@ -604,11 +913,21 @@ class ClanReserveService
                     'rule_id' => (int) ($row['id'] ?? 0),
                     'error' => 'link_missing',
                 ];
+                $this->recordScheduleRuleAttempt(
+                    $userId,
+                    (int) ($row['id'] ?? 0),
+                    (string) ($row['provider'] ?? 'wg'),
+                    (string) ($row['realm'] ?? 'eu'),
+                    (string) ($row['reserve_type'] ?? ''),
+                    (int) ($row['reserve_level'] ?? 0),
+                    'error',
+                    'link_missing'
+                );
                 continue;
             }
             $result = $this->activateForUser(
                 $userId,
-                (int) ($row['link_id'] ?? 0),
+                $linkId,
                 (string) ($row['reserve_type'] ?? ''),
                 (int) ($row['reserve_level'] ?? 0),
                 'schedule',
@@ -617,20 +936,26 @@ class ClanReserveService
             );
             if ($result['ok']) {
                 $summary['success'] += 1;
+                $this->updateRulePausedNoStock((int) ($row['id'] ?? 0), $userId, true);
             } else {
+                $error = (string) ($result['error'] ?? 'error');
                 $summary['errors'][] = [
                     'rule_id' => (int) ($row['id'] ?? 0),
-                    'error' => (string) ($result['error'] ?? 'error'),
+                    'error' => $error,
                 ];
+                if (in_array($error, ['token_decrypt_failed', 'token_empty', 'token_missing', 'ACCESS_TOKEN_NOT_SPECIFIED'], true)) {
+                    continue;
+                }
             }
         }
 
         return $summary;
     }
 
-    private function normalizeCatalog(array $items): array {
+    private function normalizeCatalog(array $items, string $realm = 'eu'): array {
         $now = time();
         $normalized = [];
+        $realm = clan_reserve_realm_for_provider('wg', $realm);
 
         foreach ($items as $item) {
             if (!is_array($item)) {
@@ -681,13 +1006,59 @@ class ClanReserveService
                 'type' => $type,
                 'name' => (string) ($item['name'] ?? $type),
                 'bonus_type' => (string) ($item['bonus_type'] ?? ''),
+                'description' => trim((string) ($item['description'] ?? $item['bonus_type'] ?? '')),
                 'disposable' => !empty($item['disposable']),
-                'icon' => (string) ($item['icon'] ?? ''),
+                'icon' => $this->resolveReserveIconUrl(
+                    $type,
+                    (string) ($item['name'] ?? $type),
+                    (string) ($item['icon'] ?? ''),
+                    $realm
+                ),
                 'levels' => $levels,
             ];
         }
 
         return $normalized;
+    }
+
+    private function resolveReserveIconUrl(string $type, string $name, string $apiIcon, string $realm): string
+    {
+        $local = clan_reserve_local_icon_path($type, $name);
+        if ($local !== '') {
+            return $local;
+        }
+
+        return $this->normalizeReserveIconUrl($apiIcon, $realm);
+    }
+
+    private function normalizeReserveIconUrl(string $icon, string $realm): string
+    {
+        $icon = trim($icon);
+        if ($icon === '') {
+            return '';
+        }
+
+        if (str_starts_with($icon, '//')) {
+            return 'https:' . $icon;
+        }
+
+        if (preg_match('#^https?://#i', $icon)) {
+            return preg_replace('#^http://#i', 'https://', $icon);
+        }
+
+        if (str_starts_with($icon, '/')) {
+            $staticHosts = [
+                'ru' => 'https://static-lesta.ru',
+                'eu' => 'https://static-wg.wargaming.net',
+                'na' => 'https://static-wg.wargaming.net',
+                'asia' => 'https://static-wg.wargaming.net',
+            ];
+            $host = $staticHosts[$realm] ?? 'https://static-wg.wargaming.net';
+
+            return rtrim($host, '/') . $icon;
+        }
+
+        return $icon;
     }
 
     private function extractClanIdFromAccountResponse(mixed $data, int $accountId = 0): int

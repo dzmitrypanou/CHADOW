@@ -23,7 +23,11 @@ $token = clan_reserve_get_valid_token(
     (int) ($activeLink['link_id'] ?? 0)
 );
 if (!$token['ok']) {
-    reserves_json_error($isEn ? 'Could not load access token.' : 'Не удалось получить access token.', 403);
+    reserves_json_error(
+        $isEn ? 'Could not load access token.' : 'Не удалось получить access token.',
+        403,
+        (string) ($token['error'] ?? 'token_error')
+    );
 }
 
 $service = new ClanReserveService($userDb);
@@ -39,6 +43,14 @@ if (!$result['ok']) {
     }
     reserves_json_error((string) ($result['error'] ?? 'api_error'), 502, 'api_error');
 }
+
+$service->syncRulesStockState(
+    (int) $profile['id'],
+    (int) ($activeLink['link_id'] ?? 0),
+    $provider,
+    $realm,
+    is_array($result['items'] ?? null) ? $result['items'] : []
+);
 
 echo json_encode([
     'success' => true,

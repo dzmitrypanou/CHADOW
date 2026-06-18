@@ -225,26 +225,21 @@ function clan_reserve_user_links_state($db, int $userId, array $profile): array 
 }
 
 function clan_reserve_api_language(string $realm, string $lang = 'ru'): string {
-    $realm = strtolower(trim($realm));
-    if ($realm === 'ru') {
-        return $lang === 'en' ? 'en' : 'ru';
+    $lang = strtolower(trim($lang));
+    if ($lang === 'en') {
+        return 'en';
+    }
+    if ($lang === 'ru') {
+        return 'ru';
     }
 
-    $wgLangs = ['en', 'de', 'pl', 'fr', 'es', 'cs', 'tr'];
+    $wgLangs = ['de', 'pl', 'fr', 'es', 'cs', 'tr'];
 
     return in_array($lang, $wgLangs, true) ? $lang : 'en';
 }
 
-function clan_reserve_encryption_key($db): ?string {
-    $raw = getenv('GAME_TOKEN_ENC_KEY');
-    if (is_string($raw) && trim($raw) !== '') {
-        $key = base64_decode(trim($raw), true);
-        if ($key !== false && strlen($key) === 32) {
-            return $key;
-        }
-    }
-
-    $seed = game_api_wg_application_id($db) . '|' . game_api_lesta_application_id($db) . '|chadow-reserve-tokens-v1';
+function clan_reserve_legacy_key_from_app_ids(string $wg, string $lesta): ?string {
+    $seed = $wg . '|' . $lesta . '|chadow-reserve-tokens-v1';
     if ($seed === '|chadow-reserve-tokens-v1') {
         return null;
     }
@@ -252,8 +247,124 @@ function clan_reserve_encryption_key($db): ?string {
     return hash('sha256', $seed, true);
 }
 
+function clan_reserve_legacy_key_db_only($db): ?string {
+    ensure_site_settings_table($db);
+    $wg = trim((string) get_site_setting($db, 'wg_application_id', ''));
+    $lesta = trim((string) get_site_setting($db, 'lesta_application_id', ''));
+
+    return clan_reserve_legacy_key_from_app_ids($wg, $lesta);
+}
+
+function clan_reserve_legacy_key_env_seed($db): ?string {
+    return clan_reserve_legacy_key_from_app_ids(
+        game_api_wg_application_id($db),
+        game_api_lesta_application_id($db)
+    );
+}
+
+function clan_reserve_encryption_key_from_env(): ?string {
+    $raw = getenv('GAME_TOKEN_ENC_KEY');
+    if (!is_string($raw) || trim($raw) === '') {
+        return null;
+    }
+    $decoded = base64_decode(trim($raw), true);
+    if ($decoded === false || strlen($decoded) !== 32) {
+        return null;
+    }
+
+    return $decoded;
+}
+
+function clan_reserve_persist_token_key($db, string $key): void {
+    if ($key === '') {
+        return;
+    }
+
+    ensure_site_settings_table($db);
+    $encoded = base64_encode($key);
+    $stored = trim((string) get_site_setting($db, 'clan_reserve_token_key', ''));
+    if ($stored !== $encoded) {
+        set_site_setting($db, 'clan_reserve_token_key', $encoded);
+    }
+}
+
+function clan_reserve_primary_encryption_key($db): ?string {
+    $envKey = clan_reserve_encryption_key_from_env();
+    if ($envKey !== null) {
+        clan_reserve_persist_token_key($db, $envKey);
+
+        return $envKey;
+    }
+
+    ensure_site_settings_table($db);
+    $stored = trim((string) get_site_setting($db, 'clan_reserve_token_key', ''));
+    if ($stored !== '') {
+        $decoded = base64_decode($stored, true);
+        if ($decoded !== false && strlen($decoded) === 32) {
+            return $decoded;
+        }
+    }
+
+    $legacyDb = clan_reserve_legacy_key_db_only($db);
+    if ($legacyDb === null) {
+        return null;
+    }
+
+    clan_reserve_persist_token_key($db, $legacyDb);
+
+    return $legacyDb;
+}
+
+function clan_reserve_encryption_key_variants($db): array {
+    $variants = [];
+    $add = static function (?string $key) use (&$variants): void {
+        if ($key === null) {
+            return;
+        }
+        $hash = bin2hex($key);
+        if (!isset($variants[$hash])) {
+            $variants[$hash] = $key;
+        }
+    };
+
+    $add(clan_reserve_encryption_key_from_env());
+    ensure_site_settings_table($db);
+    $stored = trim((string) get_site_setting($db, 'clan_reserve_token_key', ''));
+    if ($stored !== '') {
+        $decoded = base64_decode($stored, true);
+        if ($decoded !== false && strlen($decoded) === 32) {
+            $add($decoded);
+        }
+    }
+    $add(clan_reserve_primary_encryption_key($db));
+    $add(clan_reserve_legacy_key_db_only($db));
+    $add(clan_reserve_legacy_key_env_seed($db));
+
+    return array_values($variants);
+}
+
+function clan_reserve_encryption_key($db): ?string {
+    return clan_reserve_primary_encryption_key($db);
+}
+
+function clan_reserve_decrypt_token_with_key(string $encoded, string $key): ?string {
+    if ($encoded === '' || $key === '') {
+        return null;
+    }
+    $raw = base64_decode($encoded, true);
+    if ($raw === false || strlen($raw) < 29) {
+        return null;
+    }
+    $iv = substr($raw, 0, 12);
+    $tag = substr($raw, 12, 16);
+    $cipher = substr($raw, 28);
+    $plain = openssl_decrypt($cipher, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+
+    return is_string($plain) && $plain !== '' ? $plain : null;
+}
+
 function clan_reserve_encrypt_token(string $plain, $db): ?string {
-    $key = clan_reserve_encryption_key($db);
+    $key = clan_reserve_primary_encryption_key($db);
     if ($key === null || $plain === '') {
         return null;
     }
@@ -268,20 +379,77 @@ function clan_reserve_encrypt_token(string $plain, $db): ?string {
 }
 
 function clan_reserve_decrypt_token(string $encoded, $db): ?string {
-    $key = clan_reserve_encryption_key($db);
-    if ($key === null || $encoded === '') {
+    if ($encoded === '') {
         return null;
     }
-    $raw = base64_decode($encoded, true);
-    if ($raw === false || strlen($raw) < 29) {
-        return null;
-    }
-    $iv = substr($raw, 0, 12);
-    $tag = substr($raw, 12, 16);
-    $cipher = substr($raw, 28);
-    $plain = openssl_decrypt($cipher, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
 
-    return is_string($plain) && $plain !== '' ? $plain : null;
+    foreach (clan_reserve_encryption_key_variants($db) as $key) {
+        $plain = clan_reserve_decrypt_token_with_key($encoded, $key);
+        if ($plain !== null) {
+            return $plain;
+        }
+    }
+
+    return null;
+}
+
+function clan_reserve_reencrypt_token_if_needed(
+    $db,
+    int $linkId,
+    int $userId,
+    string $plainToken,
+    string $storedEnc = ''
+): void {
+    if ($linkId <= 0 || $userId <= 0 || trim($plainToken) === '') {
+        return;
+    }
+
+    $primary = clan_reserve_primary_encryption_key($db);
+    if ($primary === null) {
+        return;
+    }
+
+    $plainToken = trim($plainToken);
+    if ($storedEnc !== '' && clan_reserve_decrypt_token_with_key($storedEnc, $primary) === $plainToken) {
+        return;
+    }
+
+    $encrypted = clan_reserve_encrypt_token($plainToken, $db);
+    if ($encrypted === null) {
+        return;
+    }
+
+    $db->update(
+        'UPDATE site_user_game_tokens SET access_token_enc = ? WHERE id = ? AND user_id = ?',
+        [$encrypted, $linkId, $userId]
+    );
+}
+
+function chadow_sync_reserves_cli_env($db): void {
+    if (PHP_SAPI !== 'cli') {
+        return;
+    }
+
+    require_once __DIR__ . '/cli_env.php';
+
+    clan_reserve_primary_encryption_key($db);
+
+    ensure_site_settings_table($db);
+    chadow_putenv_if_unset(
+        'WG_APPLICATION_ID',
+        trim((string) get_site_setting($db, 'wg_application_id', ''))
+    );
+    chadow_putenv_if_unset(
+        'LESTA_APPLICATION_ID',
+        trim((string) get_site_setting($db, 'lesta_application_id', ''))
+    );
+
+    if (getenv('GAME_TOKEN_ENC_KEY') === false) {
+        $stored = trim((string) get_site_setting($db, 'clan_reserve_token_key', ''));
+        if ($stored !== '') {
+            chadow_putenv_if_unset('GAME_TOKEN_ENC_KEY', $stored);
+        }
+    }
 }
 
 function clan_reserve_user_link_context(array $profile): ?array {
@@ -330,6 +498,9 @@ function clan_reserve_save_user_token(
     $realm = clan_reserve_realm_for_provider($provider, $realm);
     $encrypted = clan_reserve_encrypt_token(trim($accessToken), $db);
     if ($encrypted === null) {
+        return 0;
+    }
+    if (clan_reserve_decrypt_token($encrypted, $db) !== trim($accessToken)) {
         return 0;
     }
     $nickname = $nickname !== null ? trim($nickname) : null;
@@ -586,6 +757,18 @@ function clan_reserve_get_valid_token($db, int $userId, int $linkId): array {
     if ($accessToken === null) {
         return ['ok' => false, 'needs_relink' => true, 'error' => 'token_decrypt_failed'];
     }
+    $accessToken = trim($accessToken);
+    if ($accessToken === '') {
+        return ['ok' => false, 'needs_relink' => true, 'error' => 'token_empty'];
+    }
+
+    clan_reserve_reencrypt_token_if_needed(
+        $db,
+        $linkId,
+        $userId,
+        $accessToken,
+        (string) ($row['access_token_enc'] ?? '')
+    );
 
     $client = new WgOpenIdClient($db);
     $expiresAt = (int) ($row['expires_at'] ?? 0);
@@ -594,7 +777,11 @@ function clan_reserve_get_valid_token($db, int $userId, int $linkId): array {
         if (!$prolong['ok']) {
             return ['ok' => false, 'needs_relink' => true, 'error' => (string) ($prolong['error'] ?? 'prolongate_failed')];
         }
-        $accessToken = (string) ($prolong['access_token'] ?? $accessToken);
+        $prolongToken = trim((string) ($prolong['access_token'] ?? $accessToken));
+        if ($prolongToken === '') {
+            return ['ok' => false, 'needs_relink' => true, 'error' => 'token_empty'];
+        }
+        $accessToken = $prolongToken;
         $expiresAt = (int) ($prolong['expires_at'] ?? $expiresAt);
         clan_reserve_save_user_token(
             $db,
@@ -606,6 +793,11 @@ function clan_reserve_get_valid_token($db, int $userId, int $linkId): array {
             $expiresAt,
             trim((string) ($row['nickname'] ?? '')) ?: null
         );
+    }
+
+    $accessToken = trim($accessToken);
+    if ($accessToken === '') {
+        return ['ok' => false, 'needs_relink' => true, 'error' => 'token_empty'];
     }
 
     return [
@@ -673,6 +865,48 @@ function clan_reserve_find_link_by_id(array $links, int $linkId): ?array {
     return null;
 }
 
+function clan_reserve_build_log_filter(
+    $db,
+    int $userId,
+    int $filterLinkId = 0,
+    string $filterProvider = '',
+    string $filterRealm = ''
+): array {
+    $params = [$userId];
+    $where = 'user_id = ?';
+
+    if ($filterLinkId > 0) {
+        $link = clan_reserve_fetch_token_by_id($db, $userId, $filterLinkId);
+        if (is_array($link)) {
+            $provider = clan_reserve_normalize_provider((string) ($link['provider'] ?? 'wg'));
+            $realm = clan_reserve_realm_for_provider($provider, (string) ($link['realm'] ?? 'eu'));
+            $where .= ' AND provider = ? AND realm = ?';
+            $params[] = $provider;
+            $params[] = $realm;
+        }
+    } elseif ($filterProvider !== '' && $filterRealm !== '') {
+        $provider = clan_reserve_normalize_provider($filterProvider);
+        $realm = clan_reserve_realm_for_provider($provider, $filterRealm);
+        $where .= ' AND provider = ? AND realm = ?';
+        $params[] = $provider;
+        $params[] = $realm;
+    }
+
+    return ['where' => $where, 'params' => $params];
+}
+
+function clan_reserve_clear_activation_log($db, int $userId, array $filter): int {
+    ensure_clan_reserves_tables($db);
+    if ($userId <= 0) {
+        return 0;
+    }
+
+    $where = (string) ($filter['where'] ?? 'user_id = ?');
+    $params = is_array($filter['params'] ?? null) ? $filter['params'] : [$userId];
+
+    return (int) $db->delete('DELETE FROM clan_reserve_activation_log WHERE ' . $where, $params);
+}
+
 function clan_reserve_log_activation(
     $db,
     int $userId,
@@ -707,6 +941,9 @@ function clan_reserve_log_activation(
 }
 
 function clan_reserve_format_rule_row(array $row): array {
+    $enabled = (int) ($row['enabled'] ?? 0) === 1;
+    $pausedNoStock = (int) ($row['paused_no_stock'] ?? 0) === 1;
+
     return [
         'id' => (int) ($row['id'] ?? 0),
         'link_id' => (int) ($row['link_id'] ?? 0),
@@ -716,12 +953,36 @@ function clan_reserve_format_rule_row(array $row): array {
         'reserve_level' => (int) ($row['reserve_level'] ?? 0),
         'time_local' => substr((string) ($row['time_local'] ?? '00:00:00'), 0, 5),
         'days_mask' => (int) ($row['days_mask'] ?? 127),
+        'days' => clan_reserve_days_from_mask((int) ($row['days_mask'] ?? 127)),
         'timezone' => (string) ($row['timezone'] ?? 'Europe/Moscow'),
-        'enabled' => (int) ($row['enabled'] ?? 0) === 1,
+        'enabled' => $enabled,
+        'paused_no_stock' => $pausedNoStock,
+        'active' => $enabled && !$pausedNoStock,
         'last_run_at' => $row['last_run_at'] ?? null,
         'last_status' => $row['last_status'] ?? null,
         'last_error' => $row['last_error'] ?? null,
     ];
+}
+
+function clan_reserve_catalog_level_status(array $items, string $type, int $level): ?string {
+    foreach ($items as $item) {
+        if (!is_array($item) || (string) ($item['type'] ?? '') !== $type) {
+            continue;
+        }
+        foreach (is_array($item['levels'] ?? null) ? $item['levels'] : [] as $levelRow) {
+            if (!is_array($levelRow) || (int) ($levelRow['level'] ?? 0) !== $level) {
+                continue;
+            }
+
+            return (string) ($levelRow['status'] ?? 'unavailable');
+        }
+    }
+
+    return null;
+}
+
+function clan_reserve_catalog_level_ready(array $items, string $type, int $level): bool {
+    return clan_reserve_catalog_level_status($items, $type, $level) === 'ready';
 }
 
 function clan_reserve_days_from_mask(int $mask): array {
@@ -747,4 +1008,52 @@ function clan_reserve_mask_from_days(array $days): int {
     }
 
     return $mask > 0 ? $mask : 127;
+}
+
+function clan_reserve_local_icon_path(string $type, string $name = ''): string {
+    static $byType = [
+        'additionalbriefing' => 'additional-briefing.png',
+        'battlepayments' => 'battle-payments.png',
+        'militarymaneuvers' => 'military-maneuvers.png',
+        'tacticaltraining' => 'tactical-training.png',
+    ];
+
+    static $byName = [
+        'additional briefing' => 'additional-briefing.png',
+        'дополнительный инструктаж' => 'additional-briefing.png',
+        'battle payments' => 'battle-payments.png',
+        'боевые выплаты' => 'battle-payments.png',
+        'military maneuvers' => 'military-maneuvers.png',
+        'military manoeuvres' => 'military-maneuvers.png',
+        'военные маневры' => 'military-maneuvers.png',
+        'военные манёвры' => 'military-maneuvers.png',
+        'tactical training' => 'tactical-training.png',
+        'тактическая подготовка' => 'tactical-training.png',
+    ];
+
+    $typeKey = preg_replace('/[^a-z]/', '', strtolower(trim($type)));
+    if ($typeKey !== '' && isset($byType[$typeKey])) {
+        return clan_reserve_icon_public_path($byType[$typeKey]);
+    }
+
+    $nameKey = mb_strtolower(trim($name));
+    if ($nameKey !== '' && isset($byName[$nameKey])) {
+        return clan_reserve_icon_public_path($byName[$nameKey]);
+    }
+
+    return '';
+}
+
+function clan_reserve_icon_public_path(string $filename): string {
+    $filename = basename(trim($filename));
+    if ($filename === '') {
+        return '';
+    }
+
+    $path = __DIR__ . '/../assets/icons/reserves/' . $filename;
+    if (!is_file($path)) {
+        return '';
+    }
+
+    return '/assets/icons/reserves/' . $filename;
 }

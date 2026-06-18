@@ -9,20 +9,43 @@ if ($method === 'GET') {
     $filterLinkId = (int) ($_GET['link_id'] ?? 0);
     $filterProvider = trim((string) ($_GET['provider'] ?? ''));
     $filterRealm = trim((string) ($_GET['realm'] ?? ''));
-    $params = [$userId];
-    $where = 'user_id = ?';
+
+    $rulesParams = [$userId];
+    $rulesWhere = 'user_id = ?';
+
     if ($filterLinkId > 0) {
-        $where .= ' AND link_id = ?';
-        $params[] = $filterLinkId;
+        $link = clan_reserve_fetch_token_by_id($userDb, $userId, $filterLinkId);
+        if (is_array($link)) {
+            $provider = clan_reserve_normalize_provider((string) ($link['provider'] ?? 'wg'));
+            $realm = clan_reserve_realm_for_provider($provider, (string) ($link['realm'] ?? 'eu'));
+            $rulesWhere .= ' AND (link_id = ? OR (link_id IS NULL AND provider = ? AND realm = ?))';
+            $rulesParams[] = $filterLinkId;
+            $rulesParams[] = $provider;
+            $rulesParams[] = $realm;
+
+        } else {
+            $rulesWhere .= ' AND link_id = ?';
+            $rulesParams[] = $filterLinkId;
+        }
     } elseif ($filterProvider !== '' && $filterRealm !== '') {
-        $where .= ' AND provider = ? AND realm = ?';
-        $params[] = clan_reserve_normalize_provider($filterProvider);
-        $params[] = clan_reserve_realm_for_provider($filterProvider, $filterRealm);
+        $provider = clan_reserve_normalize_provider($filterProvider);
+        $realm = clan_reserve_realm_for_provider($provider, $filterRealm);
+        $rulesWhere .= ' AND provider = ? AND realm = ?';
+        $rulesParams[] = $provider;
+        $rulesParams[] = $realm;
     }
 
+    $logFilter = clan_reserve_build_log_filter(
+        $userDb,
+        $userId,
+        $filterLinkId,
+        $filterProvider,
+        $filterRealm
+    );
+
     $rows = $userDb->fetchAll(
-        'SELECT * FROM clan_reserve_rules WHERE ' . $where . ' ORDER BY id ASC',
-        $params
+        'SELECT * FROM clan_reserve_rules WHERE ' . $rulesWhere . ' ORDER BY id ASC',
+        $rulesParams
     );
     $rules = [];
     foreach ($rows as $row) {
@@ -34,10 +57,10 @@ if ($method === 'GET') {
     $logRows = $userDb->fetchAll(
         'SELECT reserve_type, reserve_level, trigger_type, status, error_message, activated_at, created_at, provider, realm
          FROM clan_reserve_activation_log
-         WHERE ' . $where . '
+         WHERE ' . $logFilter['where'] . '
          ORDER BY id DESC
          LIMIT 20',
-        $params
+        $logFilter['params']
     );
 
     echo json_encode([
@@ -71,7 +94,7 @@ if ($method === 'POST') {
     if ($reserveType === '' || $reserveLevel <= 0) {
         reserves_json_error($isEn ? 'Select reserve type and level.' : 'Выберите тип и уровень резерва.');
     }
-    if (!preg_match('/^\d{1,2}:\d{2}$/', $timeLocal)) {
+    if (!preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $timeLocal)) {
         reserves_json_error($isEn ? 'Invalid time format.' : 'Некорректный формат времени.');
     }
 
@@ -133,6 +156,28 @@ if ($method === 'POST') {
     }
 
     $row = $userDb->fetchOne('SELECT * FROM clan_reserve_rules WHERE id = ? AND user_id = ? LIMIT 1', [$savedId, $userId]);
+
+    if ($linkId > 0) {
+        $service = new ClanReserveService($userDb);
+        $token = clan_reserve_get_valid_token($userDb, $userId, $linkId);
+        if ($token['ok']) {
+            $catalog = $service->fetchClanReserves(
+                (string) ($token['access_token'] ?? ''),
+                $realm,
+                $lang
+            );
+            if (!empty($catalog['ok'])) {
+                $service->syncRulesStockState(
+                    $userId,
+                    $linkId,
+                    $provider,
+                    $realm,
+                    is_array($catalog['items'] ?? null) ? $catalog['items'] : []
+                );
+                $row = $userDb->fetchOne('SELECT * FROM clan_reserve_rules WHERE id = ? AND user_id = ? LIMIT 1', [$savedId, $userId]);
+            }
+        }
+    }
 
     echo json_encode([
         'success' => true,
