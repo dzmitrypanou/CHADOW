@@ -9,6 +9,7 @@
     const POLL_RT_MS = 200;
     const POLL_WS_MS = 2000;
     const PRESENCE_POLL_MS = 2500;
+    const NICK_COLOR_POLL_MS = 3000;
     const SAVE_MS = 1000;
     const SAVE_MODIFY_MS = 300;
     const PASSWORD_MASK = '••••••••';
@@ -23,6 +24,7 @@
     let saveTimer = null;
     let pollTimer = null;
     let presencePollTimer = null;
+    let nickColorPollTimer = null;
     let wsClient = null;
     let chatCtrl = null;
     let slidesCtrl = null;
@@ -36,6 +38,7 @@
     let canManage = false;
     let canDraw = false;
     let participantsList = [];
+    let lastPresenceClientIds = new Set();
     let settingsTimer = null;
     let settingsSaving = false;
     let nicknameLockedByUser = false;
@@ -131,7 +134,25 @@
 
     function mergeParticipantsWithLocalSelf(list) {
         const selfId = String(clientId || '');
+        const prevColorByClient = new Map();
+        participantsList.forEach((p) => {
+            const color = normalizeNickColor(p.nickColor);
+            if (color) {
+                prevColorByClient.set(String(p.clientId || ''), color);
+            }
+        });
         let items = normalizeParticipants(list);
+        items = items.map((p) => {
+            const incomingColor = normalizeNickColor(p.nickColor);
+            if (incomingColor) {
+                return p;
+            }
+            const preserved = prevColorByClient.get(p.clientId);
+            if (preserved) {
+                return { ...p, nickColor: preserved };
+            }
+            return p;
+        });
         if (!selfId) return items;
         items = items.map((p) => (
             p.clientId === selfId
@@ -800,6 +821,33 @@
         nicknameColorPickerOpen = false;
     }
 
+    function positionNickColorPicker(popup, anchorBtn) {
+        const rect = anchorBtn.getBoundingClientRect();
+        const margin = 8;
+        popup.hidden = false;
+        popup.style.visibility = 'hidden';
+        popup.style.left = '0px';
+        popup.style.top = '0px';
+        const popupRect = popup.getBoundingClientRect();
+        let left = rect.right - popupRect.width;
+        let top = rect.bottom + 4;
+        if (left + popupRect.width > window.innerWidth - margin) {
+            left = window.innerWidth - popupRect.width - margin;
+        }
+        if (left < margin) {
+            left = margin;
+        }
+        if (top + popupRect.height > window.innerHeight - margin) {
+            top = rect.top - popupRect.height - 4;
+        }
+        if (top < margin) {
+            top = margin;
+        }
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+        popup.style.visibility = '';
+    }
+
     function toggleNicknameColorPicker(anchorBtn) {
         const popup = document.getElementById('tacticsNickColorPicker');
         if (!popup) return;
@@ -807,10 +855,7 @@
             closeNicknameColorPicker();
             return;
         }
-        const rect = anchorBtn.getBoundingClientRect();
-        popup.style.left = Math.round(rect.left) + 'px';
-        popup.style.top = Math.round(rect.bottom + 4) + 'px';
-        popup.hidden = false;
+        positionNickColorPicker(popup, anchorBtn);
         nicknameColorPickerOpen = true;
     }
 
@@ -1242,11 +1287,19 @@
     }
 
     function mergeParticipantsWithPresentationHost(list) {
-        let items = mergeParticipantsWithLocalSelf(list).map((p) => ({ ...p, online: true }));
+        const selfId = String(clientId || '');
+        const presenceIds = lastPresenceClientIds.size > 0
+            ? lastPresenceClientIds
+            : new Set(normalizeParticipants(list).map((p) => p.clientId));
+
+        let items = mergeParticipantsWithLocalSelf(list)
+            .filter((p) => presenceIds.has(p.clientId) || p.clientId === selfId)
+            .map((p) => ({ ...p, online: presenceIds.has(p.clientId) }));
+
         const hostId = isPresentationMode() ? getPresentationHostId() : '';
         if (!hostId) return items;
 
-        const hostOnline = items.find((p) => p.clientId === hostId);
+        const hostOnline = items.find((p) => p.clientId === hostId && p.online !== false);
         if (hostOnline) {
             const hostNick = String(hostOnline.nickname || '').trim();
             if (hostNick) {
@@ -1255,9 +1308,11 @@
             return items;
         }
 
+        const prevHost = participantsList.find((p) => p.clientId === hostId);
         items.push({
             clientId: hostId,
             nickname: getPresentationHostNickname() || hostId,
+            nickColor: prevHost?.nickColor || '',
             online: false,
         });
         return items;
@@ -1284,7 +1339,7 @@
         }
 
         if (!isPresentationHostOnline()) {
-            void stopPresentationWhenHostDisconnected();
+            startPresentationCountdownUi();
         }
     }
 
@@ -2665,6 +2720,62 @@
         }
     }
 
+    function stopNickColorPolling() {
+        if (nickColorPollTimer) {
+            clearInterval(nickColorPollTimer);
+            nickColorPollTimer = null;
+        }
+    }
+
+    function mergeParticipantNickColors(incomingList) {
+        if (!Array.isArray(incomingList) || incomingList.length === 0) return false;
+
+        const colorMap = new Map();
+        incomingList.forEach((p) => {
+            const cid = String(p?.clientId || '').trim();
+            const color = normalizeNickColor(p?.nickColor || p?.nick_color || '');
+            if (cid && color) {
+                colorMap.set(cid, color);
+            }
+        });
+        if (colorMap.size === 0) return false;
+
+        let changed = false;
+        participantsList = participantsList.map((p) => {
+            const cid = String(p.clientId || '');
+            const incoming = colorMap.get(cid);
+            if (!incoming || incoming === normalizeNickColor(p.nickColor)) {
+                return p;
+            }
+            changed = true;
+            return { ...p, nickColor: incoming };
+        });
+        return changed;
+    }
+
+    async function pollPresenceNickColors() {
+        if (!wsToken || !window.ABS_TACTICS_PRESENCE_API) return;
+
+        const url = window.ABS_TACTICS_PRESENCE_API
+            + '?token=' + encodeURIComponent(wsToken);
+        const res = await store().getJson(url);
+        if (!res.ok || !res.data?.success || !Array.isArray(res.data.participants)) {
+            return;
+        }
+
+        if (mergeParticipantNickColors(res.data.participants)) {
+            renderParticipants(participantsList);
+        }
+    }
+
+    function restartNickColorPolling() {
+        stopNickColorPolling();
+        void pollPresenceNickColors();
+        nickColorPollTimer = setInterval(() => {
+            void pollPresenceNickColors();
+        }, NICK_COLOR_POLL_MS);
+    }
+
     async function pollPresenceFallback() {
         if (!wsToken || !window.ABS_TACTICS_PRESENCE_API) return;
 
@@ -2679,6 +2790,9 @@
     }
 
     function applyPresenceList(list, applyCursors) {
+        lastPresenceClientIds = new Set(
+            normalizeParticipants(list).map((p) => p.clientId),
+        );
         renderParticipants(list);
         sanitizeStalePresentation();
         canvasCtrl?.syncRemoteCursorsPresence(participantsList);
@@ -3822,6 +3936,7 @@
             setSaveStatus('offline');
             startPollingFallback();
             restartPresencePolling();
+            restartNickColorPolling();
             return;
         }
 
@@ -3853,6 +3968,7 @@
                     wsConnected = true;
                     stopPresencePolling();
                     wsClient?.updateNickname(nickname);
+                    restartNickColorPolling();
                     restartPolling();
                     setSaveStatus('connected');
                 } else if (state === 'auth_failed') {
@@ -4153,6 +4269,7 @@
         connectWebSocket();
         startPollingFallback();
         restartPresencePolling();
+        restartNickColorPolling();
 
         if (!chatCtrl && window.TacticsChat) {
             chatCtrl = new window.TacticsChat({

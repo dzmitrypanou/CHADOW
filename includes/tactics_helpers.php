@@ -2335,6 +2335,44 @@ function tactics_fetch_presence_participants($db, string $publicId): array {
     return $participants;
 }
 
+function tactics_merge_presence_nick_colors($db, string $publicId, array $participants): array {
+    if (!tactics_public_id_valid($publicId) || $participants === []) {
+        return $participants;
+    }
+
+    $dbParticipants = tactics_fetch_presence_participants($db, $publicId);
+    $colorByClient = [];
+    foreach ($dbParticipants as $participant) {
+        if (!is_array($participant)) {
+            continue;
+        }
+        $clientId = trim((string) ($participant['clientId'] ?? ''));
+        $nickColor = tactics_sanitize_nick_color((string) ($participant['nickColor'] ?? ''));
+        if ($clientId !== '' && $nickColor !== null) {
+            $colorByClient[$clientId] = $nickColor;
+        }
+    }
+    if ($colorByClient === []) {
+        return $participants;
+    }
+
+    $merged = [];
+    foreach ($participants as $participant) {
+        if (!is_array($participant)) {
+            $merged[] = $participant;
+            continue;
+        }
+        $clientId = trim((string) ($participant['clientId'] ?? ''));
+        $existing = tactics_sanitize_nick_color((string) ($participant['nickColor'] ?? ''));
+        if ($existing === null && $clientId !== '' && isset($colorByClient[$clientId])) {
+            $participant['nickColor'] = $colorByClient[$clientId];
+        }
+        $merged[] = $participant;
+    }
+
+    return $merged;
+}
+
 function tactics_push_room_event(
     $db,
     string $publicId,

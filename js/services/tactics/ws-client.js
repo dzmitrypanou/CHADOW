@@ -216,12 +216,10 @@
 
         updateNickColor(nickColor) {
             this.nickColor = String(nickColor || '');
-            if (this.send({
+            this.send({
                 type: 'nick_color',
                 color: this.nickColor,
-            })) {
-                return true;
-            }
+            });
             return this.send({
                 type: 'join',
                 publicId: this.publicId,

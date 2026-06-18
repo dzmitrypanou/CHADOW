@@ -57,6 +57,8 @@ $source = 'ws';
 if ($participants === null) {
     $participants = tactics_fetch_presence_participants($userDb, $publicId);
     $source = 'db';
+} else {
+    $participants = tactics_merge_presence_nick_colors($userDb, $publicId, $participants);
 }
 
 tactics_purge_room_realtime($userDb);
