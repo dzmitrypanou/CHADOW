@@ -54,9 +54,7 @@ function game_api_ru_publisher_name(string $lang = 'ru'): string {
 }
 
 function game_api_ru_api_label(string $lang = 'ru'): string {
-    $name = game_api_ru_publisher_name($lang);
-
-    return $lang === 'en' ? ($name . ' API') : ('API ' . $name);
+    return 'LESTA API';
 }
 
 function game_api_ru_publisher_badge_span(string $lang = 'ru'): string {
