@@ -177,4 +177,14 @@ function clan_reserve_migrate_schema(PDO $pdo): void {
             error_log('clan_reserve_migrate_schema multi account unique: ' . $e->getMessage());
         }
     }
+
+    if (!$columnExists('site_user_game_tokens', 'application_id')) {
+        try {
+            $pdo->exec(
+                'ALTER TABLE site_user_game_tokens ADD COLUMN application_id VARCHAR(64) NULL AFTER access_token_enc'
+            );
+        } catch (Throwable $e) {
+            error_log('clan_reserve_migrate_schema application_id: ' . $e->getMessage());
+        }
+    }
 }

@@ -34,6 +34,36 @@ function game_api_lesta_application_id($db = null): string {
     return is_string($fromDb) ? trim($fromDb) : '';
 }
 
+function game_api_wg_application_id_from_db($db = null): string {
+    $fromDb = get_site_setting(game_api_db($db), 'wg_application_id', '');
+
+    return is_string($fromDb) ? trim($fromDb) : '';
+}
+
+function game_api_lesta_application_id_from_db($db = null): string {
+    $fromDb = get_site_setting(game_api_db($db), 'lesta_application_id', '');
+
+    return is_string($fromDb) ? trim($fromDb) : '';
+}
+
+function game_api_wg_application_id_resolved($db = null): string {
+    $fromDb = game_api_wg_application_id_from_db($db);
+    if ($fromDb !== '') {
+        return $fromDb;
+    }
+
+    return game_api_wg_application_id($db);
+}
+
+function game_api_lesta_application_id_resolved($db = null): string {
+    $fromDb = game_api_lesta_application_id_from_db($db);
+    if ($fromDb !== '') {
+        return $fromDb;
+    }
+
+    return game_api_lesta_application_id($db);
+}
+
 function game_api_application_id_for_realm(string $realm, $db = null): string {
     require_once __DIR__ . '/tanki_client.php';
     $realm = TankiClient::normalizeRealm($realm);
@@ -43,6 +73,17 @@ function game_api_application_id_for_realm(string $realm, $db = null): string {
     }
 
     return game_api_wg_application_id($db);
+}
+
+function game_api_application_id_for_realm_resolved(string $realm, $db = null): string {
+    require_once __DIR__ . '/tanki_client.php';
+    $realm = TankiClient::normalizeRealm($realm);
+
+    if ($realm === TankiClient::REALM_RU) {
+        return game_api_lesta_application_id_resolved($db);
+    }
+
+    return game_api_wg_application_id_resolved($db);
 }
 
 function game_api_is_configured_for_realm(string $realm, $db = null): bool {

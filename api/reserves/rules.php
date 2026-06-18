@@ -43,6 +43,8 @@ if ($method === 'GET') {
         $filterRealm
     );
 
+    clan_reserve_heal_enabled_rules_links($userDb, $userId);
+
     $rows = $userDb->fetchAll(
         'SELECT * FROM clan_reserve_rules WHERE ' . $rulesWhere . ' ORDER BY id ASC',
         $rulesParams
@@ -85,7 +87,7 @@ if ($method === 'POST') {
     $activeLink = reserves_parse_active_link($profile, $input);
 
     $ruleId = (int) ($input['id'] ?? 0);
-    $reserveType = trim((string) ($input['reserve_type'] ?? ''));
+    $reserveType = clan_reserve_normalize_reserve_type(trim((string) ($input['reserve_type'] ?? '')));
     $reserveLevel = (int) ($input['reserve_level'] ?? 0);
     $timeLocal = trim((string) ($input['time_local'] ?? ''));
     $days = is_array($input['days'] ?? null) ? $input['days'] : [];
@@ -164,7 +166,8 @@ if ($method === 'POST') {
             $catalog = $service->fetchClanReserves(
                 (string) ($token['access_token'] ?? ''),
                 $realm,
-                $lang
+                $lang,
+                trim((string) ($token['application_id'] ?? '')) ?: null
             );
             if (!empty($catalog['ok'])) {
                 $service->syncRulesStockState(

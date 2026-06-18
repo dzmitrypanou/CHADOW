@@ -101,8 +101,12 @@
             logSuccess: 'Успех',
             logError: 'Ошибка',
             logErrorToken: 'Не удалось получить access token. Откройте страницу резервов и нажмите «Обновить», затем попробуйте снова.',
+            logErrorTokenAppId: 'WG API отклонил токен. Перепривяжите аккаунт через «Обновить доступ».',
             logErrorTokenDecrypt: 'Не удалось расшифровать токен. Перепривяжите аккаунт.',
             logErrorLinkMissing: 'Аккаунт не привязан. Перепривяжите доступ.',
+            logErrorNoPermission: 'Нет прав на активацию резерва в клане (нужна роль командира/заместителя).',
+            logErrorAlreadyActive: 'Резерв уже активен или недоступен для активации.',
+            logErrorInvalidLanguage: 'Некорректный язык API. Попробуйте ещё раз.',
             wgApiLinked: 'WG API привязан',
             lestaApiLinked: 'LESTA API привязан',
             linkSlot: 'Привязать {slot}',
@@ -217,8 +221,12 @@
             logSuccess: 'Success',
             logError: 'Error',
             logErrorToken: 'Could not obtain access token. Open the reserves page, click Refresh, then try again.',
+            logErrorTokenAppId: 'WG API rejected the token. Re-link the account via Refresh access.',
             logErrorTokenDecrypt: 'Could not decrypt token. Re-link the account.',
             logErrorLinkMissing: 'Account not linked. Re-link access.',
+            logErrorNoPermission: 'No permission to activate clan reserves (commander or executive officer role required).',
+            logErrorAlreadyActive: 'Reserve is already active or cannot be activated now.',
+            logErrorInvalidLanguage: 'Invalid API language. Please try again.',
             wgApiLinked: 'WG API linked',
             lestaApiLinked: 'LESTA API linked',
             linkSlot: 'Link {slot}',
@@ -293,11 +301,23 @@
         if (code === 'ACCESS_TOKEN_NOT_SPECIFIED' || code === 'TOKEN_EMPTY' || code === 'TOKEN_MISSING') {
             return t('logErrorToken');
         }
+        if (String(message || '').includes('ACCESS_TOKEN_NOT_SPECIFIED')) {
+            return t('logErrorTokenAppId');
+        }
         if (code === 'TOKEN_DECRYPT_FAILED') {
             return t('logErrorTokenDecrypt');
         }
         if (code === 'LINK_MISSING') {
             return t('logErrorLinkMissing');
+        }
+        if (/RESERVE_ACTIVATION_ERROR|NOT_IN_CLAN|WRONG_RESERVE/i.test(code)) {
+            return t('logErrorNoPermission');
+        }
+        if (/INVALID_LANGUAGE/i.test(code) || String(message || '').includes('INVALID_LANGUAGE')) {
+            return t('logErrorInvalidLanguage');
+        }
+        if (/ALREADY|ACTIVE|COOLDOWN/i.test(code)) {
+            return t('logErrorAlreadyActive');
         }
         return String(message || '').trim() || '—';
     }

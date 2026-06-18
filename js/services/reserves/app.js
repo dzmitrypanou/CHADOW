@@ -460,8 +460,17 @@
         }
 
         if (!res.ok || !res.data?.success) {
-            const code = res.data?.error_code || (res.status === 409 ? 'no_clan' : 'api_error');
-            toast(i18n().translateApiError({ error_code: code }, res.status), 'error');
+            const code = String(res.data?.error_code || '').trim();
+            let message;
+            if (code === 'no_clan' || res.status === 409) {
+                message = i18n().t('errorNoClan');
+            } else if (code) {
+                message = i18n().translateLogError(code);
+            } else {
+                message = i18n().t('activateError');
+            }
+            toast(message, 'error');
+            await loadRules();
             return;
         }
 

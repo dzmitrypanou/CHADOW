@@ -13,7 +13,7 @@ class ClanReserveService
         ensure_clan_reserves_tables($db);
     }
 
-    public function fetchClanReserves(string $accessToken, string $realm, string $lang = 'ru'): array
+    public function fetchClanReserves(string $accessToken, string $realm, string $lang = 'ru', ?string $applicationId = null): array
     {
         $realm = clan_reserve_realm_for_provider('wg', $realm);
         $preferred = clan_reserve_api_language($realm, $lang);
@@ -24,7 +24,7 @@ class ClanReserveService
 
         $lastResult = ['ok' => false, 'error' => 'api_error'];
         foreach ($languages as $apiLang) {
-            $lastResult = $this->fetchClanReservesWithLanguage($accessToken, $realm, $apiLang);
+            $lastResult = $this->fetchClanReservesWithLanguage($accessToken, $realm, $apiLang, $applicationId);
             if (!empty($lastResult['ok'])) {
                 return $lastResult;
             }
@@ -33,9 +33,13 @@ class ClanReserveService
         return $lastResult;
     }
 
-    private function fetchClanReservesWithLanguage(string $accessToken, string $realm, string $apiLang): array
+    private function fetchClanReservesWithLanguage(string $accessToken, string $realm, string $apiLang, ?string $applicationId = null): array
     {
-        $appId = game_api_application_id_for_realm($realm, $this->db);
+        $realm = clan_reserve_realm_for_provider('wg', $realm);
+        $appId = trim((string) $applicationId);
+        if ($appId === '') {
+            $appId = game_api_application_id_for_realm_resolved($realm, $this->db);
+        }
         if ($appId === '') {
             return ['ok' => false, 'error' => 'application_id missing'];
         }
@@ -450,24 +454,36 @@ class ClanReserveService
 
     public function activateReserve(
         string $accessToken,
+        string $provider,
         string $realm,
         string $reserveType,
         int $reserveLevel,
-        string $lang = 'ru'
+        string $lang = 'ru',
+        ?string $applicationId = null
     ): array {
         $accessToken = trim($accessToken);
         if ($accessToken === '') {
             return ['ok' => false, 'error' => 'ACCESS_TOKEN_NOT_SPECIFIED', 'code' => 401];
         }
 
-        $realm = clan_reserve_realm_for_provider('wg', $realm);
-        $appId = game_api_application_id_for_realm($realm, $this->db);
+        $provider = clan_reserve_normalize_provider($provider);
+        $realm = clan_reserve_realm_for_provider($provider, $realm);
+        $appId = trim((string) $applicationId);
+        if ($appId === '') {
+            $appId = game_api_application_id_for_realm_resolved($realm, $this->db);
+        }
         if ($appId === '') {
             return ['ok' => false, 'error' => 'application_id missing'];
         }
 
+        $reserveType = clan_reserve_normalize_reserve_type($reserveType);
+        if ($reserveType === '') {
+            return ['ok' => false, 'error' => 'invalid_reserve_type'];
+        }
+
         $apiBase = WgOpenIdClient::apiBaseForRealm($realm);
-        $url = $apiBase . '/wot/stronghold/activateclanreserve/?' . http_build_query([
+        $url = $apiBase . '/wot/stronghold/activateclanreserve/';
+        $postFields = http_build_query([
             'application_id' => $appId,
             'access_token' => $accessToken,
             'reserve_type' => $reserveType,
@@ -475,7 +491,7 @@ class ClanReserveService
             'language' => clan_reserve_api_language($realm, $lang),
         ]);
 
-        $response = $this->httpGet($url);
+        $response = $this->httpPost($url, $postFields);
         if (!$response['ok']) {
             return $response;
         }
@@ -486,6 +502,9 @@ class ClanReserveService
                 ? (string) ($data['error']['message'] ?? 'activation_failed')
                 : (string) ($data['status'] ?? 'activation_failed');
             $code = is_array($data['error'] ?? null) ? (int) ($data['error']['code'] ?? 0) : 0;
+            if ($code > 0) {
+                $message = $message . ' (' . $code . ')';
+            }
 
             return ['ok' => false, 'error' => $message, 'code' => $code];
         }
@@ -507,6 +526,38 @@ class ClanReserveService
         ?int $ruleId,
         string $lang = 'ru'
     ): array {
+        $reserveType = clan_reserve_normalize_reserve_type($reserveType);
+        if ($reserveType === '' || $reserveLevel <= 0) {
+            return ['ok' => false, 'error' => 'invalid_reserve'];
+        }
+
+        if ($ruleId !== null && $ruleId > 0) {
+            $ruleRow = $this->db->fetchOne(
+                'SELECT provider, realm FROM clan_reserve_rules WHERE id = ? AND user_id = ? LIMIT 1',
+                [$ruleId, $userId]
+            );
+            if (is_array($ruleRow)) {
+                $linkId = clan_reserve_resolve_link_id(
+                    $this->db,
+                    $userId,
+                    $linkId,
+                    (string) ($ruleRow['provider'] ?? 'wg'),
+                    (string) ($ruleRow['realm'] ?? 'eu')
+                );
+            }
+        } else {
+            $tokenRow = clan_reserve_fetch_token_by_id($this->db, $userId, $linkId);
+            if (is_array($tokenRow)) {
+                $linkId = clan_reserve_resolve_link_id(
+                    $this->db,
+                    $userId,
+                    $linkId,
+                    (string) ($tokenRow['provider'] ?? 'wg'),
+                    (string) ($tokenRow['realm'] ?? 'eu')
+                );
+            }
+        }
+
         $tokenResult = clan_reserve_get_valid_token($this->db, $userId, $linkId);
         if (!$tokenResult['ok']) {
             if ($triggerType === 'schedule' && $ruleId !== null && $ruleId > 0) {
@@ -568,10 +619,12 @@ class ClanReserveService
 
         $result = $this->activateReserve(
             $accessToken,
+            $provider,
             $realm,
             $reserveType,
             $reserveLevel,
-            $lang
+            $lang,
+            trim((string) ($tokenResult['application_id'] ?? '')) ?: null
         );
 
         $status = $result['ok'] ? 'success' : 'error';
@@ -661,6 +714,10 @@ class ClanReserveService
     }
 
     private function ruleAlreadyRanForScheduleSlot(array $rule, DateTimeImmutable $local): bool {
+        if ((string) ($rule['last_status'] ?? '') !== 'success') {
+            return false;
+        }
+
         $tzName = (string) ($rule['timezone'] ?? 'Europe/Moscow');
         try {
             $tz = new DateTimeZone($tzName);
@@ -837,7 +894,8 @@ class ClanReserveService
             $catalog = $this->fetchClanReserves(
                 (string) ($tokenResult['access_token'] ?? ''),
                 (string) ($tokenResult['realm'] ?? $realm),
-                'ru'
+                'ru',
+                trim((string) ($tokenResult['application_id'] ?? '')) ?: null
             );
             if (empty($catalog['ok'])) {
                 $summary['errors'][] = [
@@ -875,6 +933,7 @@ class ClanReserveService
     }
 
     public function runDueRules(?DateTimeInterface $now = null): array {
+        clan_reserve_heal_enabled_rules_links($this->db);
         $stockSummary = $this->syncAllEnabledRulesStock();
         $now = $now ?? new DateTimeImmutable('now', new DateTimeZone('UTC'));
         $rows = $this->db->fetchAll(
@@ -898,16 +957,17 @@ class ClanReserveService
             }
             $summary['triggered'] += 1;
             $userId = (int) ($row['user_id'] ?? 0);
-            $linkId = (int) ($row['link_id'] ?? 0);
-            if ($linkId <= 0) {
-                $tokenRow = clan_reserve_fetch_token_row(
-                    $this->db,
-                    $userId,
-                    (string) ($row['provider'] ?? 'wg'),
-                    (string) ($row['realm'] ?? 'eu')
-                );
-                $linkId = (int) ($tokenRow['id'] ?? 0);
-            }
+            $provider = clan_reserve_normalize_provider((string) ($row['provider'] ?? 'wg'));
+            $realm = clan_reserve_realm_for_provider($provider, (string) ($row['realm'] ?? 'eu'));
+            $linkId = clan_reserve_resolve_link_id(
+                $this->db,
+                $userId,
+                (int) ($row['link_id'] ?? 0),
+                $provider,
+                $realm
+            );
+            $reserveType = clan_reserve_normalize_reserve_type((string) ($row['reserve_type'] ?? ''));
+            $reserveLevel = (int) ($row['reserve_level'] ?? 0);
             if ($linkId <= 0) {
                 $summary['errors'][] = [
                     'rule_id' => (int) ($row['id'] ?? 0),
@@ -916,20 +976,29 @@ class ClanReserveService
                 $this->recordScheduleRuleAttempt(
                     $userId,
                     (int) ($row['id'] ?? 0),
-                    (string) ($row['provider'] ?? 'wg'),
-                    (string) ($row['realm'] ?? 'eu'),
-                    (string) ($row['reserve_type'] ?? ''),
-                    (int) ($row['reserve_level'] ?? 0),
+                    $provider,
+                    $realm,
+                    $reserveType,
+                    $reserveLevel,
                     'error',
                     'link_missing'
                 );
                 continue;
             }
+
+            $storedLinkId = (int) ($row['link_id'] ?? 0);
+            if ($storedLinkId !== $linkId) {
+                $this->db->update(
+                    'UPDATE clan_reserve_rules SET link_id = ? WHERE id = ? AND user_id = ?',
+                    [$linkId, (int) ($row['id'] ?? 0), $userId]
+                );
+            }
+
             $result = $this->activateForUser(
                 $userId,
                 $linkId,
-                (string) ($row['reserve_type'] ?? ''),
-                (int) ($row['reserve_level'] ?? 0),
+                $reserveType,
+                $reserveLevel,
                 'schedule',
                 (int) ($row['id'] ?? 0),
                 'ru'
@@ -1155,6 +1224,53 @@ class ClanReserveService
             CURLOPT_TIMEOUT => 12,
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        ]);
+        $raw = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($errno !== 0 || !is_string($raw)) {
+            return ['ok' => false, 'error' => 'network_error'];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return ['ok' => false, 'error' => 'invalid_json', 'http_code' => $httpCode];
+        }
+
+        if ($httpCode === 409) {
+            $message = is_array($decoded['error'] ?? null)
+                ? (string) ($decoded['error']['message'] ?? 'conflict')
+                : 'conflict';
+
+            return ['ok' => false, 'error' => $message, 'code' => 409, 'data' => $decoded];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return ['ok' => false, 'error' => 'http_' . $httpCode, 'http_code' => $httpCode, 'data' => $decoded];
+        }
+
+        return ['ok' => true, 'data' => $decoded];
+    }
+
+    private function httpPost(string $url, string $body): array
+    {
+        if (!function_exists('curl_init')) {
+            return ['ok' => false, 'error' => 'cURL unavailable'];
+        }
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 12,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'Accept: application/json',
+            ],
         ]);
         $raw = curl_exec($ch);
         $errno = curl_errno($ch);

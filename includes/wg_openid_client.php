@@ -5,10 +5,12 @@ require_once __DIR__ . '/../config/ensure_site_settings.php';
 class WgOpenIdClient
 {
     private $db;
+    private $preferDatabaseAppId;
 
-    public function __construct($db)
+    public function __construct($db, bool $preferDatabaseAppId = false)
     {
         $this->db = $db;
+        $this->preferDatabaseAppId = $preferDatabaseAppId;
     }
 
     public static function normalizeRealm(?string $realm): string
@@ -44,6 +46,10 @@ class WgOpenIdClient
     public function applicationIdForRealm(string $realm): string
     {
         require_once __DIR__ . '/game_api.php';
+
+        if ($this->preferDatabaseAppId) {
+            return game_api_application_id_for_realm_resolved($realm, $this->db);
+        }
 
         return game_api_application_id_for_realm($realm, $this->db);
     }

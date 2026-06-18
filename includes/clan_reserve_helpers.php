@@ -92,7 +92,7 @@ function clan_reserve_fetch_token_row($db, int $userId, string $provider, string
     $row = $db->fetchOne(
         'SELECT id, account_id, nickname, access_token_enc, expires_at, provider, realm
          FROM site_user_game_tokens
-         WHERE user_id = ? AND provider = ? AND realm = ? ORDER BY id ASC LIMIT 1',
+         WHERE user_id = ? AND provider = ? AND realm = ? ORDER BY id DESC LIMIT 1',
         [$userId, $provider, $realm]
     );
 
@@ -105,7 +105,7 @@ function clan_reserve_fetch_token_by_id($db, int $userId, int $linkId): ?array {
         return null;
     }
     $row = $db->fetchOne(
-        'SELECT id, user_id, account_id, nickname, access_token_enc, expires_at, provider, realm
+        'SELECT id, user_id, account_id, nickname, access_token_enc, application_id, expires_at, provider, realm
          FROM site_user_game_tokens WHERE id = ? AND user_id = ? LIMIT 1',
         [$linkId, $userId]
     );
@@ -225,12 +225,16 @@ function clan_reserve_user_links_state($db, int $userId, array $profile): array 
 }
 
 function clan_reserve_api_language(string $realm, string $lang = 'ru'): string {
+    require_once __DIR__ . '/tanki_client.php';
+    $realm = TankiClient::normalizeRealm($realm);
     $lang = strtolower(trim($lang));
+
+    if ($realm === TankiClient::REALM_RU) {
+        return $lang === 'en' ? 'en' : 'ru';
+    }
+
     if ($lang === 'en') {
         return 'en';
-    }
-    if ($lang === 'ru') {
-        return 'ru';
     }
 
     $wgLangs = ['de', 'pl', 'fr', 'es', 'cs', 'tr'];
@@ -507,6 +511,7 @@ function clan_reserve_save_user_token(
     if ($nickname === '') {
         $nickname = null;
     }
+    $applicationId = game_api_application_id_for_realm_resolved($realm, $db);
 
     $existing = $db->fetchOne(
         'SELECT id FROM site_user_game_tokens
@@ -519,16 +524,16 @@ function clan_reserve_save_user_token(
         if ($nickname !== null) {
             $db->update(
                 'UPDATE site_user_game_tokens
-                 SET nickname = ?, access_token_enc = ?, expires_at = ?
+                 SET nickname = ?, access_token_enc = ?, application_id = ?, expires_at = ?
                  WHERE id = ? AND user_id = ?',
-                [$nickname, $encrypted, max(0, $expiresAt), $linkId, $userId]
+                [$nickname, $encrypted, $applicationId !== '' ? $applicationId : null, max(0, $expiresAt), $linkId, $userId]
             );
         } else {
             $db->update(
                 'UPDATE site_user_game_tokens
-                 SET access_token_enc = ?, expires_at = ?
+                 SET access_token_enc = ?, application_id = ?, expires_at = ?
                  WHERE id = ? AND user_id = ?',
-                [$encrypted, max(0, $expiresAt), $linkId, $userId]
+                [$encrypted, $applicationId !== '' ? $applicationId : null, max(0, $expiresAt), $linkId, $userId]
             );
         }
 
@@ -538,9 +543,9 @@ function clan_reserve_save_user_token(
     }
 
     return (int) $db->insert(
-        'INSERT INTO site_user_game_tokens (user_id, provider, realm, account_id, nickname, access_token_enc, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [$userId, $provider, $realm, $accountId, $nickname, $encrypted, max(0, $expiresAt)]
+        'INSERT INTO site_user_game_tokens (user_id, provider, realm, account_id, nickname, access_token_enc, application_id, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [$userId, $provider, $realm, $accountId, $nickname, $encrypted, $applicationId !== '' ? $applicationId : null, max(0, $expiresAt)]
     );
 }
 
@@ -770,7 +775,18 @@ function clan_reserve_get_valid_token($db, int $userId, int $linkId): array {
         (string) ($row['access_token_enc'] ?? '')
     );
 
-    $client = new WgOpenIdClient($db);
+    $applicationId = trim((string) ($row['application_id'] ?? ''));
+    if ($applicationId === '') {
+        $applicationId = game_api_application_id_for_realm_resolved($realm, $db);
+        if ($applicationId !== '') {
+            $db->update(
+                'UPDATE site_user_game_tokens SET application_id = ? WHERE id = ? AND user_id = ?',
+                [$applicationId, $linkId, $userId]
+            );
+        }
+    }
+
+    $client = new WgOpenIdClient($db, true);
     $expiresAt = (int) ($row['expires_at'] ?? 0);
     if ($expiresAt > 0 && $expiresAt < time() + 3600) {
         $prolong = $client->prolongateToken($accessToken, $realm);
@@ -804,6 +820,7 @@ function clan_reserve_get_valid_token($db, int $userId, int $linkId): array {
         'ok' => true,
         'link_id' => $linkId,
         'access_token' => $accessToken,
+        'application_id' => $applicationId,
         'account_id' => (int) ($row['account_id'] ?? 0),
         'expires_at' => $expiresAt,
         'provider' => $provider,
@@ -964,9 +981,103 @@ function clan_reserve_format_rule_row(array $row): array {
     ];
 }
 
+function clan_reserve_normalize_reserve_type(string $type): string {
+    $type = trim($type);
+    if ($type === '') {
+        return '';
+    }
+    if (preg_match('/^[A-Z][A-Z0-9_]*$/', $type)) {
+        return $type;
+    }
+    $snake = preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $type);
+    $snake = str_replace(['-', ' '], '_', $snake);
+
+    return strtoupper($snake);
+}
+
+function clan_reserve_reserve_types_match(string $a, string $b): bool {
+    return clan_reserve_normalize_reserve_type($a) === clan_reserve_normalize_reserve_type($b);
+}
+
+function clan_reserve_resolve_link_id($db, int $userId, int $linkId, string $provider, string $realm): int {
+    $provider = clan_reserve_normalize_provider($provider);
+    $realm = clan_reserve_realm_for_provider($provider, $realm);
+
+    if ($linkId > 0) {
+        $token = clan_reserve_get_valid_token($db, $userId, $linkId);
+        if (!empty($token['ok'])) {
+            return $linkId;
+        }
+    }
+
+    $tokenRow = clan_reserve_fetch_token_row($db, $userId, $provider, $realm);
+    if (!is_array($tokenRow)) {
+        return 0;
+    }
+
+    $resolved = (int) ($tokenRow['id'] ?? 0);
+    if ($resolved <= 0) {
+        return 0;
+    }
+
+    $token = clan_reserve_get_valid_token($db, $userId, $resolved);
+
+    return !empty($token['ok']) ? $resolved : 0;
+}
+
+function clan_reserve_heal_enabled_rules_links($db, int $userId = 0): int {
+    ensure_clan_reserves_tables($db);
+
+    $params = [];
+    $where = 'enabled = 1';
+    if ($userId > 0) {
+        $where .= ' AND user_id = ?';
+        $params[] = $userId;
+    }
+
+    $rows = $db->fetchAll(
+        'SELECT id, user_id, link_id, provider, realm FROM clan_reserve_rules WHERE ' . $where,
+        $params
+    );
+
+    $updated = 0;
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $ruleUserId = (int) ($row['user_id'] ?? 0);
+        $ruleId = (int) ($row['id'] ?? 0);
+        if ($ruleUserId <= 0 || $ruleId <= 0) {
+            continue;
+        }
+
+        $provider = clan_reserve_normalize_provider((string) ($row['provider'] ?? 'wg'));
+        $realm = clan_reserve_realm_for_provider($provider, (string) ($row['realm'] ?? 'eu'));
+        $resolved = clan_reserve_resolve_link_id(
+            $db,
+            $ruleUserId,
+            (int) ($row['link_id'] ?? 0),
+            $provider,
+            $realm
+        );
+        if ($resolved <= 0 || $resolved === (int) ($row['link_id'] ?? 0)) {
+            continue;
+        }
+
+        $db->update(
+            'UPDATE clan_reserve_rules SET link_id = ? WHERE id = ? AND user_id = ?',
+            [$resolved, $ruleId, $ruleUserId]
+        );
+        $updated += 1;
+    }
+
+    return $updated;
+}
+
 function clan_reserve_catalog_level_status(array $items, string $type, int $level): ?string {
     foreach ($items as $item) {
-        if (!is_array($item) || (string) ($item['type'] ?? '') !== $type) {
+        if (!is_array($item) || !clan_reserve_reserve_types_match((string) ($item['type'] ?? ''), $type)) {
             continue;
         }
         foreach (is_array($item['levels'] ?? null) ? $item['levels'] : [] as $levelRow) {

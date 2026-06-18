@@ -15,16 +15,27 @@ $profile = reserves_require_user();
 $input = reserves_read_json_input();
 $activeLink = reserves_parse_active_link($profile, $input);
 
-$reserveType = trim((string) ($input['reserve_type'] ?? ''));
+$reserveType = clan_reserve_normalize_reserve_type(trim((string) ($input['reserve_type'] ?? '')));
 $reserveLevel = (int) ($input['reserve_level'] ?? 0);
 if ($reserveType === '' || $reserveLevel <= 0) {
     reserves_json_error($isEn ? 'Invalid reserve type or level.' : 'Некорректный тип или уровень резерва.');
 }
 
+$linkId = clan_reserve_resolve_link_id(
+    $userDb,
+    (int) $profile['id'],
+    (int) ($activeLink['link_id'] ?? 0),
+    (string) ($activeLink['provider'] ?? 'wg'),
+    (string) ($activeLink['realm'] ?? 'eu')
+);
+if ($linkId <= 0) {
+    reserves_json_error($isEn ? 'Could not load access token.' : 'Не удалось получить access token.', 403, 'token_missing');
+}
+
 $service = new ClanReserveService($userDb);
 $result = $service->activateForUser(
     (int) $profile['id'],
-    (int) ($activeLink['link_id'] ?? 0),
+    $linkId,
     $reserveType,
     $reserveLevel,
     'manual',
@@ -38,7 +49,7 @@ if (!$result['ok']) {
     if ($code === 409) {
         reserves_json_error($isEn
             ? 'Cannot activate: not in clan, no permission, or wrong reserve.'
-            : 'Не удалось активировать: нет клана, прав или выбран неверный резерв.', 409);
+            : 'Не удалось активировать: нет клана, прав или выбран неверный резерв.', 409, $errorCode);
     }
     reserves_json_error($errorCode, 502, $errorCode);
 }

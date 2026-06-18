@@ -31,7 +31,12 @@ if (!$token['ok']) {
 }
 
 $service = new ClanReserveService($userDb);
-$result = $service->fetchClanReserves((string) $token['access_token'], $realm, $lang);
+$result = $service->fetchClanReserves(
+    (string) $token['access_token'],
+    $realm,
+    $lang,
+    trim((string) ($token['application_id'] ?? '')) ?: null
+);
 if (!$result['ok']) {
     $code = (int) ($result['code'] ?? 0);
     if ($code === 409) {

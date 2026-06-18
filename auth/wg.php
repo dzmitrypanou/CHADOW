@@ -224,7 +224,7 @@ if ($action === 'login') {
     $_SESSION['wg_oauth_state'] = bin2hex(random_bytes(16));
 }
 
-$client = new WgOpenIdClient($userDb);
+$client = new WgOpenIdClient($userDb, $isReserveAction);
 $result = $client->fetchLoginLocation($realm);
 
 if (!$result['ok']) {
