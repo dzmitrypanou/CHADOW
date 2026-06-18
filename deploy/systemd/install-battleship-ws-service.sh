@@ -19,6 +19,20 @@ if [[ ! -d "$ROOT/deploy/battleship-ws/node_modules" ]]; then
   (cd "$ROOT/deploy/battleship-ws" && npm install --omit=dev)
 fi
 
+ENV_FILE="$ROOT/deploy/battleship-ws/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  SECRET="$(php -r "require '$ROOT/includes/user_bootstrap.php'; require '$ROOT/includes/battleship_helpers.php'; echo battleship_ws_secret(\\Database::getInstance());")"
+  if [[ -z "$SECRET" ]]; then
+    echo "Failed to read battleship_ws_secret from PHP/site_settings" >&2
+    exit 1
+  fi
+  printf 'BATTLESHIP_WS_SECRET=%s\nBATTLESHIP_WS_PORT=8793\n' "$SECRET" > "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+  echo "Created $ENV_FILE with secret from site_settings (PHP and Node will use the same value)."
+else
+  echo "Using existing $ENV_FILE (ensure BATTLESHIP_WS_SECRET matches site_settings battleship_ws_secret)."
+fi
+
 TMP="$(mktemp)"
 sed \
   -e "s|@RUN_USER@|$RUN_USER|g" \
@@ -33,15 +47,17 @@ rm -f "$TMP"
 sudo systemctl daemon-reload
 sudo systemctl enable chadow-battleship-ws.service
 sudo systemctl restart chadow-battleship-ws.service
+sleep 1
 sudo systemctl status chadow-battleship-ws.service --no-pager || true
 
 echo "Installed chadow-battleship-ws.service"
 
-ENV_FILE="$ROOT/deploy/battleship-ws/.env"
-if [[ ! -f "$ENV_FILE" ]]; then
-  SECRET="$(php -r "require '$ROOT/includes/user_bootstrap.php'; require '$ROOT/includes/battleship_helpers.php'; echo battleship_ws_secret(\\Database::getInstance());")"
-  printf 'BATTLESHIP_WS_SECRET=%s\n' "$SECRET" > "$ENV_FILE"
-  echo "Created $ENV_FILE with secret from site_settings (PHP and Node will use the same value)."
-else
-  echo "Ensure $ENV_FILE BATTLESHIP_WS_SECRET matches site_settings battleship_ws_secret (PHP also reads this file)."
+if ! curl -fsS "http://127.0.0.1:8793/health" >/dev/null 2>&1; then
+  echo "Health check failed. Recent logs:" >&2
+  sudo journalctl -u chadow-battleship-ws -n 20 --no-pager >&2 || true
+  echo "Port 8793 listeners:" >&2
+  sudo ss -tlnp | grep 8793 >&2 || true
+  exit 1
 fi
+
+echo "Health check OK: http://127.0.0.1:8793/health"

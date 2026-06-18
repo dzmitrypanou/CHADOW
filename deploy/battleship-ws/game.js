@@ -74,6 +74,31 @@ function neighbors(size, r, c) {
     return out;
 }
 
+function cellsAroundShip(size, shipCells) {
+    const shipSet = new Set(shipCells.map(([r, c]) => cellKey(r, c)));
+    const around = [];
+    shipCells.forEach(([r, c]) => {
+        neighbors(size, r, c).forEach(([nr, nc]) => {
+            const k = cellKey(nr, nc);
+            if (!shipSet.has(k)) {
+                around.push([nr, nc]);
+            }
+        });
+    });
+    return around;
+}
+
+function markAroundSunkShip(size, shooterBoard, sunkShip) {
+    if (!sunkShip || !Array.isArray(sunkShip.cells)) return;
+    const shotKeys = new Set(shooterBoard.shots.map(([r, c]) => cellKey(r, c)));
+    cellsAroundShip(size, sunkShip.cells).forEach(([r, c]) => {
+        const k = cellKey(r, c);
+        if (shotKeys.has(k)) return;
+        shooterBoard.shots.push([r, c, 'around']);
+        shotKeys.add(k);
+    });
+}
+
 function canPlaceShip(occupied, size, cells) {
     const cellSet = new Set(cells.map(([r, c]) => cellKey(r, c)));
     for (const [r, c] of cells) {
@@ -250,6 +275,10 @@ function applyShot(state, role, r, c) {
 
     shooterBoard.shots.push([row, col, result]);
     state.lastShot = { r: row, c: col, result, by: role, sunk: sunkShip };
+
+    if (sunkShip) {
+        markAroundSunkShip(size, shooterBoard, sunkShip);
+    }
 
     const allSunk = enemyBoard.ships.length > 0
         && enemyBoard.ships.every((ship) => ship.hits.length >= ship.cells.length);

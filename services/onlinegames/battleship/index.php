@@ -67,17 +67,35 @@ require __DIR__ . '/../../../includes/site_header.php';
                     <fieldset class="battleship-board-size-field">
                         <legend class="checkers-field-label" data-battleship-i18n="boardSizeLabel"><?php echo $lang === 'en' ? 'Board size' : 'Размер поля'; ?></legend>
                         <div class="battleship-board-size-options" role="radiogroup" aria-label="<?php echo $lang === 'en' ? 'Board size' : 'Размер поля'; ?>">
-                            <label class="battleship-board-size-option">
+                            <label class="battleship-size-card">
                                 <input type="radio" name="battleshipBoardSize" value="10" checked>
-                                <span>10×10</span>
+                                <span class="battleship-size-card__inner">
+                                    <span class="battleship-size-card__preview battleship-size-card__preview--10" aria-hidden="true"></span>
+                                    <span class="battleship-size-card__text">
+                                        <span class="battleship-size-card__size">10×10</span>
+                                        <span class="battleship-size-card__hint" data-battleship-i18n="boardSize10Hint"><?php echo $lang === 'en' ? 'Classic fleet' : 'Классический флот'; ?></span>
+                                    </span>
+                                </span>
                             </label>
-                            <label class="battleship-board-size-option">
+                            <label class="battleship-size-card">
                                 <input type="radio" name="battleshipBoardSize" value="20">
-                                <span>20×20</span>
+                                <span class="battleship-size-card__inner">
+                                    <span class="battleship-size-card__preview battleship-size-card__preview--20" aria-hidden="true"></span>
+                                    <span class="battleship-size-card__text">
+                                        <span class="battleship-size-card__size">20×20</span>
+                                        <span class="battleship-size-card__hint" data-battleship-i18n="boardSize20Hint"><?php echo $lang === 'en' ? 'Extended battle' : 'Расширенный бой'; ?></span>
+                                    </span>
+                                </span>
                             </label>
-                            <label class="battleship-board-size-option">
+                            <label class="battleship-size-card">
                                 <input type="radio" name="battleshipBoardSize" value="50">
-                                <span>50×50</span>
+                                <span class="battleship-size-card__inner">
+                                    <span class="battleship-size-card__preview battleship-size-card__preview--50" aria-hidden="true"></span>
+                                    <span class="battleship-size-card__text">
+                                        <span class="battleship-size-card__size">50×50</span>
+                                        <span class="battleship-size-card__hint" data-battleship-i18n="boardSize50Hint"><?php echo $lang === 'en' ? 'Massive armada' : 'Масштабная армада'; ?></span>
+                                    </span>
+                                </span>
                             </label>
                         </div>
                     </fieldset>

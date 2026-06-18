@@ -132,6 +132,10 @@
             return this.send({ type: 'auto_place' });
         }
 
+        placeShips(ships) {
+            return this.send({ type: 'place_ships', ships });
+        }
+
         shoot(r, c) {
             return this.send({ type: 'shoot', r, c });
         }

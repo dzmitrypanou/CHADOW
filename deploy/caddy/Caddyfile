@@ -1,3 +1,9 @@
+# /etc/caddy/Caddyfile — полная конфигурация chadow.ru
+#
+# Extensionless PHP (@php_ext): путь без .php переписывается в {path}.php, если файл есть.
+# .xml: статика через @static_xml; динамика → .php (sitemap.xml → sitemap.php).
+# WS: tactics 8791, checkers 8792, battleship 8793.
+
 (chadow_rewrites) {
     encode gzip
 
@@ -70,6 +76,9 @@
         rewrite /services/recruiting /services/recruiting/index.php
         rewrite /en/services/recruiting /services/recruiting/index.php
 
+        rewrite /services/reserves /services/reserves/index.php
+        rewrite /en/services/reserves /services/reserves/index.php
+
         rewrite /services/bracket/create /services/bracket/create.php
         rewrite /en/services/bracket/create /services/bracket/create.php
         @bracket_edit path_regexp be ^/services/bracket/([a-zA-Z0-9]{10,16})/edit/?$
@@ -92,6 +101,7 @@
         rewrite /services/tactics /services/tactics/index.php
         rewrite /en/services/tactics /services/tactics/index.php
 
+        # Aim trainers — fixed paths first, then any trainer slug
         rewrite /services/aim/ratings /services/aim/ratings.php
         rewrite /en/services/aim/ratings /services/aim/ratings.php
         redir /services/aim/checkers /services/onlinegames/checkers permanent

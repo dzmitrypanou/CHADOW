@@ -73,12 +73,16 @@ require __DIR__ . '/../../includes/site_header.php';
                     <a href="<?php echo htmlspecialchars($battleshipHref, ENT_QUOTES, 'UTF-8'); ?>" class="online-game-card online-game-card--battleship">
                         <i class="fas <?php echo htmlspecialchars($battleshipMeta['icon'], ENT_QUOTES, 'UTF-8'); ?> online-game-card__watermark" aria-hidden="true"></i>
                         <div class="online-game-card__visual">
-                            <div class="online-game-card__board online-game-card__board--battleship" aria-hidden="true">
-                                <?php for ($row = 0; $row < 10; $row++): ?>
-                                    <?php for ($col = 0; $col < 10; $col++): ?>
-                                        <span class="online-game-card__cell<?php echo ($row + $col) % 2 ? ' online-game-card__cell--dark' : ''; ?>"></span>
-                                    <?php endfor; ?>
-                                <?php endfor; ?>
+                            <div class="battleship-card-scene" aria-hidden="true">
+                                <div class="battleship-card-scene__ocean"></div>
+                                <div class="battleship-card-scene__grid"></div>
+                                <span class="battleship-card-scene__ship battleship-card-scene__ship--a"></span>
+                                <span class="battleship-card-scene__ship battleship-card-scene__ship--b"></span>
+                                <span class="battleship-card-scene__ship battleship-card-scene__ship--c"></span>
+                                <span class="battleship-card-scene__shot battleship-card-scene__shot--hit"></span>
+                                <span class="battleship-card-scene__shot battleship-card-scene__shot--miss"></span>
+                                <span class="battleship-card-scene__shot battleship-card-scene__shot--sunk"></span>
+                                <span class="battleship-card-scene__crosshair"></span>
                             </div>
                         </div>
                         <div class="online-game-card__body">

@@ -12,6 +12,22 @@
 
         let boardSize = 10;
         let myRole = 'host';
+        let placementOverlay = null;
+
+        function neighbors(r, c) {
+            const out = [];
+            for (let dr = -1; dr <= 1; dr += 1) {
+                for (let dc = -1; dc <= 1; dc += 1) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    if (nr >= 0 && nr < boardSize && nc >= 0 && nc < boardSize) {
+                        out.push([nr, nc]);
+                    }
+                }
+            }
+            return out;
+        }
 
         function maxCellPx(size) {
             if (size <= 10) return 32;
@@ -70,9 +86,25 @@
         function paintOwnBoard(state) {
             if (!ownEl || !state) return;
             const own = state.ownBoard || {};
-            const ships = shipCellSet(own.ships);
+            const usePlacement = (state.status === 'placement' || state.status === 'waiting')
+                && !own.ready
+                && placementOverlay
+                && Array.isArray(placementOverlay.ships);
+            const ships = usePlacement
+                ? shipCellSet(placementOverlay.ships)
+                : shipCellSet(own.ships);
             const incoming = shotMap(own.incomingShots);
-            const showShips = state.status === 'placement' || state.status === 'playing' || state.status === 'finished';
+            const showShips = state.status === 'placement'
+                || state.status === 'waiting'
+                || state.status === 'playing'
+                || state.status === 'finished';
+            const preview = placementOverlay && placementOverlay.preview ? placementOverlay.preview : null;
+            const previewKeys = new Set(
+                preview && Array.isArray(preview.cells)
+                    ? preview.cells.map(([pr, pc]) => cellKey(pr, pc))
+                    : []
+            );
+            const placementActive = (state.status === 'placement' || state.status === 'waiting') && !own.ready;
 
             ownEl.querySelectorAll('.battleship-cell').forEach((cell) => {
                 const r = Number(cell.dataset.r);
@@ -80,25 +112,32 @@
                 const key = cellKey(r, c);
                 const alt = (r + c) % 2 ? ' battleship-cell--alt' : '';
                 cell.className = 'battleship-cell' + alt;
-                cell.disabled = true;
+                cell.disabled = !placementActive;
+                cell.style.pointerEvents = placementActive ? '' : 'none';
 
                 const shipInfo = ships.get(key);
                 const incomingResult = incoming.get(key);
 
                 if (showShips && shipInfo && shipInfo.ship) {
                     cell.classList.add('battleship-cell--ship');
-                    if (shipInfo.hit) {
-                        cell.classList.add('battleship-cell--hit');
-                    }
-                    if (shipInfo.sunk) {
-                        cell.classList.add('battleship-cell--sunk');
-                    }
                 }
 
-                if (incomingResult === 'miss') {
-                    cell.classList.add('battleship-cell--miss');
+                if (previewKeys.has(key)) {
+                    cell.classList.add('battleship-cell--ship');
+                    cell.classList.add(preview.valid ? 'battleship-cell--preview' : 'battleship-cell--preview-invalid');
+                }
+
+                if (incomingResult === 'miss' || incomingResult === 'around') {
+                    cell.classList.add(incomingResult === 'around' ? 'battleship-cell--around' : 'battleship-cell--miss');
                 } else if (incomingResult === 'hit' || incomingResult === 'sunk') {
                     cell.classList.add('battleship-cell--hit');
+                }
+
+                if (!usePlacement && shipInfo && shipInfo.hit) {
+                    cell.classList.add('battleship-cell--hit');
+                }
+                if (!usePlacement && shipInfo && shipInfo.sunk) {
+                    cell.classList.add('battleship-cell--sunk');
                 }
             });
         }
@@ -129,6 +168,8 @@
 
                 if (result === 'miss') {
                     cell.classList.add('battleship-cell--miss');
+                } else if (result === 'around') {
+                    cell.classList.add('battleship-cell--around');
                 } else if (result === 'hit') {
                     cell.classList.add('battleship-cell--hit');
                 } else if (result === 'sunk') {
@@ -171,9 +212,37 @@
             paintEnemyBoard(state);
         }
 
+        function setPlacementOverlay(overlay) {
+            placementOverlay = overlay;
+        }
+
+        function getBoardSize() {
+            return boardSize;
+        }
+
+        function cellFromPoint(clientX, clientY) {
+            if (!ownEl) return null;
+            const target = document.elementFromPoint(clientX, clientY);
+            const cell = target ? target.closest('.battleship-cell') : null;
+            if (!cell || !ownEl.contains(cell)) return null;
+            return {
+                r: Number(cell.dataset.r),
+                c: Number(cell.dataset.c),
+            };
+        }
+
+        function getOwnEl() {
+            return ownEl;
+        }
+
         return {
             mount,
             update,
+            setPlacementOverlay,
+            getBoardSize,
+            getOwnEl,
+            cellFromPoint,
+            cellKey,
         };
     }
 

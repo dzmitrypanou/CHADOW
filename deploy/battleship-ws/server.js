@@ -414,3 +414,8 @@ setInterval(() => {
 server.listen(PORT, '127.0.0.1', () => {
     console.log('Battleship WS listening on 127.0.0.1:' + PORT);
 });
+
+server.on('error', (err) => {
+    console.error('Battleship WS listen failed on 127.0.0.1:' + PORT + ':', err && err.message ? err.message : err);
+    process.exit(1);
+});

@@ -103,76 +103,89 @@ require __DIR__ . '/../../../includes/site_header.php';
             <section class="checkers-panel battleship-board-panel">
                 <div class="battleship-placement-bar" id="battleshipPlacementBar" hidden>
                     <p class="battleship-placement-hint" id="battleshipPlacementHint"></p>
-                    <div class="battleship-fleet-list" id="battleshipFleetList"></div>
-                    <button type="button" class="checkers-submit-btn" id="battleshipAutoPlaceBtn">
-                        <i class="fas fa-random" aria-hidden="true"></i>
-                        <span data-battleship-i18n="autoPlace"><?php echo $lang === 'en' ? 'Random placement' : 'Случайная расстановка'; ?></span>
-                    </button>
-                </div>
-
-                <div class="battleship-play-layout">
-                    <div class="battleship-board-block">
-                        <h3 class="battleship-board-title" data-battleship-i18n="ownBoard"><?php echo $lang === 'en' ? 'Your fleet' : 'Ваш флот'; ?></h3>
-                        <div class="battleship-board-wrap">
-                            <div class="battleship-board" id="battleshipOwnBoard" data-board="own"></div>
-                        </div>
-                    </div>
-                    <div class="battleship-board-block">
-                        <h3 class="battleship-board-title" data-battleship-i18n="enemyBoard"><?php echo $lang === 'en' ? 'Enemy waters' : 'Поле соперника'; ?></h3>
-                        <div class="battleship-board-wrap">
-                            <div class="battleship-board" id="battleshipEnemyBoard" data-board="enemy"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="battleship-waiting" id="battleshipWaiting">
-                    <p data-battleship-i18n="waitingOpponent"><?php echo $lang === 'en'
-                        ? 'Waiting for the second player… Share the room link.'
-                        : 'Ждём второго игрока… Отправьте ссылку на комнату.'; ?></p>
-                </div>
-
-                <div class="checkers-overlay" id="battleshipGameOver" hidden>
-                    <div class="checkers-overlay__card">
-                        <h3 id="battleshipGameOverTitle"></h3>
-                        <p id="battleshipGameOverHint"></p>
-                        <div class="checkers-overlay__actions">
-                            <a class="checkers-submit-btn" id="battleshipPlayAgainBtn" href="<?php echo htmlspecialchars($lobbyHref, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php echo $lang === 'en' ? 'New game' : 'Новая игра'; ?>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="checkers-panel battleship-sidebar-panel">
-                <div class="checkers-play-meta">
-                    <div class="checkers-status-line" id="battleshipStatusLine" hidden></div>
-                    <div class="checkers-players" id="battleshipPlayers"></div>
-                </div>
-                <div class="checkers-chat" id="battleshipChat">
-                    <div class="checkers-chat__head">
-                        <h3 class="checkers-panel-title" data-battleship-i18n="chatTitle"><?php echo $lang === 'en' ? 'Chat' : 'Чат'; ?></h3>
-                    </div>
-                    <ul class="checkers-chat__messages" id="battleshipChatMessages" aria-live="polite"></ul>
-                    <p class="checkers-chat__empty" id="battleshipChatEmpty" data-battleship-i18n="chatEmpty"><?php echo $lang === 'en' ? 'No messages yet' : 'Сообщений пока нет'; ?></p>
-                    <form class="checkers-chat__form" id="battleshipChatForm">
-                        <label class="checkers-field checkers-chat__field" for="battleshipChatInput">
-                            <input
-                                type="text"
-                                id="battleshipChatInput"
-                                class="checkers-chat__input"
-                                maxlength="500"
-                                autocomplete="off"
-                                aria-label="<?php echo $lang === 'en' ? 'Message' : 'Сообщение'; ?>"
-                                placeholder="<?php echo $lang === 'en' ? 'Message…' : 'Сообщение…'; ?>"
-                                data-battleship-i18n-placeholder="chatPlaceholder"
-                            >
-                        </label>
-                        <button type="submit" class="checkers-submit-btn checkers-chat__send">
-                            <i class="fas fa-paper-plane" aria-hidden="true"></i>
-                            <span data-battleship-i18n="chatSend"><?php echo $lang === 'en' ? 'Send' : 'Отправить'; ?></span>
+                    <p class="battleship-placement-subhint" id="battleshipPlacementSubhint" data-battleship-i18n="placementDragHint"><?php echo $lang === 'en' ? 'Mouse wheel — rotate ship' : 'Колесо мыши — поворот корабля'; ?></p>
+                    <div class="battleship-ship-dock" id="battleshipShipDock" hidden></div>
+                    <div class="battleship-placement-actions">
+                        <button type="button" class="checkers-submit-btn" id="battleshipConfirmPlacementBtn" hidden>
+                            <i class="fas fa-check" aria-hidden="true"></i>
+                            <span data-battleship-i18n="confirmPlacement"><?php echo $lang === 'en' ? 'Ready — start battle' : 'Готово — начать бой'; ?></span>
                         </button>
-                    </form>
+                        <button type="button" class="checkers-back-link battleship-auto-place" id="battleshipAutoPlaceBtn">
+                            <i class="fas fa-random" aria-hidden="true"></i>
+                            <span data-battleship-i18n="autoPlace"><?php echo $lang === 'en' ? 'Random placement' : 'Случайная расстановка'; ?></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="battleship-room-layout">
+                    <div class="battleship-room-main">
+                        <div class="battleship-play-layout">
+                            <div class="battleship-board-block">
+                                <h3 class="battleship-board-title" data-battleship-i18n="ownBoard"><?php echo $lang === 'en' ? 'Your fleet' : 'Ваш флот'; ?></h3>
+                                <div class="battleship-board-wrap">
+                                    <div class="battleship-board" id="battleshipOwnBoard" data-board="own"></div>
+                                </div>
+                            </div>
+                            <div class="battleship-board-block">
+                                <h3 class="battleship-board-title" data-battleship-i18n="enemyBoard"><?php echo $lang === 'en' ? 'Enemy waters' : 'Поле соперника'; ?></h3>
+                                <div class="battleship-board-wrap">
+                                    <div class="battleship-board" id="battleshipEnemyBoard" data-board="enemy"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="battleship-waiting" id="battleshipWaiting">
+                            <p data-battleship-i18n="waitingOpponent"><?php echo $lang === 'en'
+                                ? 'Waiting for the second player… Share the room link.'
+                                : 'Ждём второго игрока… Отправьте ссылку на комнату.'; ?></p>
+                        </div>
+
+                        <div class="checkers-overlay" id="battleshipGameOver" hidden>
+                            <div class="checkers-overlay__card">
+                                <h3 id="battleshipGameOverTitle"></h3>
+                                <p id="battleshipGameOverHint"></p>
+                                <div class="checkers-overlay__actions">
+                                    <a class="checkers-submit-btn" id="battleshipPlayAgainBtn" href="<?php echo htmlspecialchars($lobbyHref, ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php echo $lang === 'en' ? 'New game' : 'Новая игра'; ?>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="checkers-sidebar battleship-sidebar">
+                        <div class="checkers-play-meta">
+                            <div class="checkers-status-line" id="battleshipStatusLine" hidden></div>
+                            <div class="checkers-players" id="battleshipPlayers"></div>
+                        </div>
+                        <div class="checkers-chat" id="battleshipChat">
+                            <div class="checkers-chat__head">
+                                <h3 class="checkers-panel-title" data-battleship-i18n="chatTitle"><?php echo $lang === 'en' ? 'Chat' : 'Чат'; ?></h3>
+                            </div>
+                            <div class="checkers-chat__body">
+                                <ul class="checkers-chat__messages" id="battleshipChatMessages" aria-live="polite"></ul>
+                                <p class="checkers-chat__empty" id="battleshipChatEmpty" data-battleship-i18n="chatEmpty"><?php echo $lang === 'en' ? 'No messages yet' : 'Сообщений пока нет'; ?></p>
+                            </div>
+                            <form class="checkers-chat__form" id="battleshipChatForm">
+                                <label class="checkers-field checkers-chat__field" for="battleshipChatInput">
+                                    <input
+                                        type="text"
+                                        id="battleshipChatInput"
+                                        class="checkers-chat__input"
+                                        maxlength="500"
+                                        autocomplete="off"
+                                        aria-label="<?php echo $lang === 'en' ? 'Message' : 'Сообщение'; ?>"
+                                        placeholder="<?php echo $lang === 'en' ? 'Message…' : 'Сообщение…'; ?>"
+                                        data-battleship-i18n-placeholder="chatPlaceholder"
+                                    >
+                                </label>
+                                <button type="submit" class="checkers-submit-btn checkers-chat__send">
+                                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                                    <span data-battleship-i18n="chatSend"><?php echo $lang === 'en' ? 'Send' : 'Отправить'; ?></span>
+                                </button>
+                            </form>
+                        </div>
+                    </aside>
                 </div>
             </section>
         </main>
@@ -198,6 +211,7 @@ require __DIR__ . '/../../../includes/site_header.php';
     <script src="/js/services/onlinegames/battleship/storage.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/onlinegames/battleship/ws-client.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/onlinegames/battleship/board.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
+    <script src="/js/services/onlinegames/battleship/placement.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
     <script src="/js/services/onlinegames/battleship/room.js?v=<?php echo htmlspecialchars($siteVersion); ?>" defer></script>
 </body>
 </html>

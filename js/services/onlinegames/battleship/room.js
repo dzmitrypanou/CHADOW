@@ -6,6 +6,7 @@
 
     let wsClient = null;
     let boardRenderer = null;
+    let placementController = null;
     let session = null;
     let latestState = null;
     let connectionState = 'connecting';
@@ -187,39 +188,39 @@
         badge.hidden = false;
     }
 
-    function renderFleetList(state) {
-        const list = document.getElementById('battleshipFleetList');
-        if (!list || !state || !Array.isArray(state.fleet)) return;
-        list.innerHTML = state.fleet.map((item) => {
-            const len = Number(item.len) || 0;
-            const count = Number(item.count) || 0;
-            return '<span class="battleship-fleet-chip">'
-                + escapeHtml(i18n().t('fleetShip', { len }))
-                + ' ' + escapeHtml(i18n().t('fleetCount', { count }))
-                + '</span>';
-        }).join('');
+    function canPlaceShips(state) {
+        if (!state || state.ownBoard.ready) return false;
+        return state.status === 'placement' || state.status === 'waiting';
     }
 
     function renderPlacement(state) {
         const bar = document.getElementById('battleshipPlacementBar');
         const hint = document.getElementById('battleshipPlacementHint');
+        const subhint = document.getElementById('battleshipPlacementSubhint');
         const autoBtn = document.getElementById('battleshipAutoPlaceBtn');
         if (!bar) return;
 
-        if (state.status !== 'placement') {
+        if (!canPlaceShips(state)) {
             bar.hidden = true;
+            if (placementController) placementController.stop();
             return;
         }
 
         bar.hidden = false;
-        renderFleetList(state);
-
         const ownReady = !!(state.ownBoard && state.ownBoard.ready);
+
         if (hint) {
             hint.textContent = ownReady ? i18n().t('placementReady') : i18n().t('placementHint');
         }
+        if (subhint) {
+            subhint.hidden = ownReady;
+        }
         if (autoBtn) {
             autoBtn.disabled = ownReady;
+        }
+
+        if (placementController) {
+            placementController.handleState(state);
         }
     }
 
@@ -234,7 +235,8 @@
             line.hidden = false;
             line.classList.remove('checkers-status-line--yours', 'checkers-status-line--opponent');
             line.classList.add('checkers-status-line--waiting');
-            if (waiting) waiting.hidden = false;
+            const placing = canPlaceShips(state);
+            if (waiting) waiting.hidden = state.status !== 'waiting' || placing;
             if (resignBtn) resignBtn.hidden = true;
             return;
         }
@@ -372,6 +374,9 @@
         renderPlacement(state);
         if (boardRenderer) {
             boardRenderer.update(state);
+            if (placementController) {
+                placementController.repaint(state);
+            }
         }
         if (state.status === 'finished') {
             showGameOver({ winner: state.winner, reason: state.finishReason }, state);
@@ -435,9 +440,12 @@
                         showGameOver(payload, latestState);
                     }
                 },
-                onError: () => {
+                onError: (code) => {
+                    const key = code === 'invalid_placement' || code === 'wrong_fleet' || code === 'invalid_fleet'
+                        ? 'placementRejected'
+                        : 'shotRejected';
                     if (window.AbsSiteToast) {
-                        window.AbsSiteToast.show(i18n().t('shotRejected'), 'error');
+                        window.AbsSiteToast.show(i18n().t(key), 'error');
                     }
                 },
                 onChat: (payload) => {
@@ -492,6 +500,20 @@
                 if (wsClient) {
                     wsClient.shoot(r, c);
                 }
+            },
+        });
+
+        placementController = window.AbsBattleshipPlacement.createPlacementController({
+            boardRenderer,
+            dockEl: document.getElementById('battleshipShipDock'),
+            confirmBtn: document.getElementById('battleshipConfirmPlacementBtn'),
+            onRepaint() {
+                if (latestState && boardRenderer) {
+                    boardRenderer.update(latestState);
+                }
+            },
+            onPlaceShips(ships) {
+                if (wsClient) wsClient.placeShips(ships);
             },
         });
 
