@@ -55,6 +55,7 @@ try {
             tactics_json_error($lang === 'en' ? 'Invalid room data' : 'Некорректные данные комнаты');
         }
         $newRoomData = $roomValidation['data'];
+        $newRoomData = tactics_apply_presentation_settings_policy($oldRoomData, $newRoomData, $tokenClientId, $isOwner);
 
         if (!$isOwner && tactics_draw_settings_changed($oldRoomData, $newRoomData)) {
             tactics_json_error($lang === 'en' ? 'Only the room creator can change draw settings' : 'Менять права рисования может только создатель комнаты', 403);

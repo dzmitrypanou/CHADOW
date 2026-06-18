@@ -10,6 +10,7 @@
     const POLL_WS_MS = 2000;
     const PRESENCE_POLL_MS = 2500;
     const SAVE_MS = 1000;
+    const SAVE_MODIFY_MS = 300;
     const PASSWORD_MASK = '••••••••';
 
     let roomState = null;
@@ -49,6 +50,10 @@
     let saveInFlight = false;
     let drawSettingsSaveInFlight = false;
     let presentationToggleInFlight = false;
+    const PRESENTATION_INACTIVITY_MS = 60000;
+    let presentationInactivityTimer = null;
+    let presentationLastActivityAt = 0;
+    let serverPresentationSnapshot = { mode: false, hostId: '' };
     let save403Attempts = 0;
     const SAVE_403_MAX_ATTEMPTS = 2;
 
@@ -919,6 +924,112 @@
         }
     }
 
+    function syncServerPresentationSnapshot(settings) {
+        if (!settings || typeof settings !== 'object') return;
+        serverPresentationSnapshot = {
+            mode: settings.presentation_mode === true,
+            hostId: String(settings.presentation_host_id || '').trim(),
+        };
+    }
+
+    function getPresentationHostId() {
+        return String(getDrawSettings().presentation_host_id || '').trim();
+    }
+
+    function touchPresentationActivity(fromClientId) {
+        if (!isPresentationMode()) return;
+        const hostId = getPresentationHostId();
+        if (!hostId) return;
+        const sourceId = fromClientId != null ? String(fromClientId) : String(clientId || '');
+        if (sourceId !== hostId) return;
+        presentationLastActivityAt = Date.now();
+        schedulePresentationInactivityCheck();
+    }
+
+    function clearPresentationInactivityTimer() {
+        if (presentationInactivityTimer) {
+            clearTimeout(presentationInactivityTimer);
+            presentationInactivityTimer = null;
+        }
+    }
+
+    function schedulePresentationInactivityCheck() {
+        clearPresentationInactivityTimer();
+        if (!isPresentationMode()) return;
+        presentationInactivityTimer = setTimeout(() => {
+            presentationInactivityTimer = null;
+            void stopPresentationDueToInactivity();
+        }, PRESENTATION_INACTIVITY_MS);
+    }
+
+    function onPresentationModeChanged(wasActive) {
+        if (isPresentationMode()) {
+            presentationLastActivityAt = Date.now();
+            schedulePresentationInactivityCheck();
+        } else {
+            clearPresentationInactivityTimer();
+            if (wasActive) {
+                presentationLastActivityAt = 0;
+            }
+        }
+        renderParticipants(participantsList);
+    }
+
+    function clearPresentationSettings(settings) {
+        if (!settings) return;
+        settings.presentation_mode = false;
+        delete settings.presentation_host_id;
+    }
+
+    async function ensureSaveAuthReady() {
+        if (accessToken) return hasSaveAuth();
+        if (canManage && window.ABS_TACTICS_IS_LOGGED_IN) {
+            return refreshSaveSession();
+        }
+        return hasSaveAuth();
+    }
+
+    function sanitizeStalePresentation() {
+        if (!isPresentationMode() || !roomState) return;
+        if (presentationToggleInFlight || drawSettingsSaveInFlight) return;
+        const canForceStop = canManage || (isPresentationOrphaned() && computeHasDrawRights());
+        if (!canForceStop) return;
+
+        const hostId = getPresentationHostId();
+        if (!hostId) {
+            void stopPresentationMode(true);
+            return;
+        }
+
+        const presenterOnline = participantsList.some((p) => String(p.clientId || '') === hostId);
+        if (!presenterOnline) {
+            void stopPresentationMode(true);
+        }
+    }
+
+    function prepareRoomDataForSave(roomData) {
+        if (!roomData || drawSettingsSaveInFlight) return roomData;
+
+        const selfId = String(clientId || '');
+        const hostId = getPresentationHostId();
+        const canChangePresentation = canManage
+            || (isPresentationMode() && hostId === selfId)
+            || (!isPresentationMode() && computeHasDrawRights())
+            || (isPresentationOrphaned() && computeHasDrawRights());
+
+        if (canChangePresentation) return roomData;
+
+        const copy = JSON.parse(JSON.stringify(roomData));
+        if (!copy.settings) copy.settings = {};
+        copy.settings.presentation_mode = serverPresentationSnapshot.mode;
+        if (serverPresentationSnapshot.hostId) {
+            copy.settings.presentation_host_id = serverPresentationSnapshot.hostId;
+        } else {
+            delete copy.settings.presentation_host_id;
+        }
+        return copy;
+    }
+
     function getDrawSettings() {
         if (!roomState.room_data) {
             roomState.room_data = {};
@@ -965,9 +1076,13 @@
         return editors.includes(String(clientId || ''));
     }
 
+    function isPresentationOrphaned() {
+        return isPresentationMode() && !getPresentationHostId();
+    }
+
     function isPresentationHost() {
         if (!isPresentationMode()) return false;
-        const hostId = String(getDrawSettings().presentation_host_id || '').trim();
+        const hostId = getPresentationHostId();
         if (!hostId) {
             return canManage;
         }
@@ -975,9 +1090,77 @@
     }
 
     function canControlPresentation() {
+        if (canManage) {
+            return isPresentationMode() || computeHasDrawRights();
+        }
         if (!computeHasDrawRights()) return false;
         if (!isPresentationMode()) return true;
-        return isPresentationHost() || canManage;
+        if (isPresentationOrphaned()) return true;
+        return isPresentationHost();
+    }
+
+    async function stopPresentationMode(force) {
+        if (!isPresentationMode() || presentationToggleInFlight) return false;
+        if (!force && !canControlPresentation()) return false;
+
+        const previousMode = true;
+        const previousHostId = getPresentationHostId();
+
+        presentationToggleInFlight = true;
+        updatePresentBtn();
+
+        const settings = getDrawSettings();
+        try {
+            clearPresentationSettings(settings);
+            applyDrawPermissions();
+
+            let saved = await pushDrawSettingsChange();
+            if (!saved) {
+                await resyncRoom(true);
+                clearPresentationSettings(getDrawSettings());
+                applyDrawPermissions();
+                saved = await pushDrawSettingsChange();
+            }
+
+            if (!saved) {
+                if (force && canManage) {
+                    void (async () => {
+                        await refreshSaveSession();
+                        clearPresentationSettings(getDrawSettings());
+                        await pushDrawSettingsChange();
+                    })();
+                    onPresentationModeChanged(true);
+                    return true;
+                }
+                settings.presentation_mode = previousMode;
+                if (previousHostId) {
+                    settings.presentation_host_id = previousHostId;
+                }
+                applyDrawPermissions();
+                return false;
+            }
+
+            onPresentationModeChanged(true);
+            return true;
+        } finally {
+            presentationToggleInFlight = false;
+            updatePresentBtn();
+        }
+    }
+
+    async function stopPresentationDueToInactivity() {
+        if (!isPresentationMode()) return;
+        const hostId = getPresentationHostId();
+        const selfId = String(clientId || '');
+        const canStop = canManage
+            || (hostId && hostId === selfId)
+            || (isPresentationOrphaned() && computeHasDrawRights());
+        if (!canStop) return;
+        if (Date.now() - presentationLastActivityAt < PRESENTATION_INACTIVITY_MS - 250) {
+            schedulePresentationInactivityCheck();
+            return;
+        }
+        await stopPresentationMode(true);
     }
 
     function syncViewerToPresentationSlide() {
@@ -990,7 +1173,10 @@
     }
 
     async function saveDrawSettingsNow() {
-        if (!computeHasDrawRights() || !roomState || !accessToken) return;
+        if (!canPersistRoomChanges() || !roomState) return false;
+        if (!(await ensureSaveAuthReady()) && !(canManage && window.ABS_TACTICS_IS_LOGGED_IN)) {
+            return false;
+        }
 
         persistCanvasToSlide();
         drawSettingsSaveInFlight = true;
@@ -998,17 +1184,18 @@
         try {
             const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
                 public_id: roomState.public_id,
-                room_data: roomState.room_data,
+                room_data: prepareRoomDataForSave(roomState.room_data),
                 revision,
-                access_token: accessToken,
+                access_token: accessToken || '',
             }, accessToken);
 
             if (res.ok && res.data.success) {
                 revision = res.data.data.revision || revision + 1;
                 roomState.revision = revision;
-            } else if (res.status === 409) {
-                await resyncRoom(true);
+                syncServerPresentationSnapshot(getDrawSettings());
+                return true;
             }
+            return false;
         } finally {
             drawSettingsSaveInFlight = false;
             updatePresentBtn();
@@ -1022,7 +1209,7 @@
 
         const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
             public_id: roomState.public_id,
-            room_data: roomState.room_data,
+            room_data: prepareRoomDataForSave(roomState.room_data),
             revision,
             access_token: accessToken,
         }, accessToken);
@@ -1038,7 +1225,7 @@
     async function pushDrawSettingsChange() {
         applyDrawPermissions();
         broadcastDrawSettings();
-        await saveDrawSettingsNow();
+        return saveDrawSettingsNow();
     }
 
     function pushGridChange(visible) {
@@ -1084,7 +1271,7 @@
         } else {
             canDraw = computeCanDraw();
             canvasCtrl?.setDrawEnabled(canDraw);
-            canvasCtrl?.setInteractionLocked(viewerLocked);
+            canvasCtrl?.setInteractionLocked(false);
         }
 
         updateDrawLockBtn();
@@ -1110,6 +1297,15 @@
         renderParticipants(participantsList);
         updateMobileSlideNav();
         syncMobileNicknameEditUi();
+
+        if (isPresentationMode()) {
+            if (!presentationLastActivityAt) {
+                presentationLastActivityAt = Date.now();
+            }
+            schedulePresentationInactivityCheck();
+        } else {
+            clearPresentationInactivityTimer();
+        }
     }
 
     function applyCursorPermissions() {
@@ -1376,11 +1572,12 @@
         const active = isPresentationMode();
         const host = isPresentationHost();
         const canToggle = canControlPresentation();
-        const viewerStatus = active && !host && !canToggle;
+        const canStop = canManage || canToggle;
+        const viewerStatus = active && !canManage && !host && !canStop;
         btn.hidden = !computeHasDrawRights() && !(active && !host);
         btn.classList.toggle('is-active', active && host);
         btn.classList.toggle('is-viewer-status', viewerStatus);
-        btn.disabled = !canToggle || presentationToggleInFlight || drawSettingsSaveInFlight;
+        btn.disabled = !canStop || presentationToggleInFlight || drawSettingsSaveInFlight;
         btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
 
         const icon = btn.querySelector('i');
@@ -1400,24 +1597,34 @@
 
         const labelEl = document.getElementById('tacticsPresentBtnLabel');
         if (labelEl) {
-            labelEl.textContent = i18n().t(viewerStatus
+            const labelKey = viewerStatus
                 ? 'presentActive'
-                : (active ? 'presentStopBtn' : 'presentBtn'));
+                : (active ? 'presentStopBtn' : 'presentBtn');
+            labelEl.textContent = i18n().t(labelKey);
         }
 
         document.getElementById('tacticsRoomWorkspace')?.classList.toggle('is-presenting', active);
     }
 
     async function togglePresentationMode() {
-        if (!canControlPresentation() || presentationToggleInFlight) return;
+        if (presentationToggleInFlight) return;
+        if (isPresentationMode() && canManage) {
+            await stopPresentationMode(true);
+            return;
+        }
+        if (!canControlPresentation()) return;
+        if (isPresentationMode()) {
+            await stopPresentationMode(false);
+            return;
+        }
+
         presentationToggleInFlight = true;
         updatePresentBtn();
 
         const settings = getDrawSettings();
-        const enabling = !isPresentationMode();
 
         try {
-            if (enabling && slidesCtrl && roomState?.room_data) {
+            if (slidesCtrl && roomState?.room_data) {
                 const slideId = slidesCtrl.getActiveSlideId();
                 if (slideId) {
                     roomState.room_data.active_slide_id = slideId;
@@ -1428,12 +1635,11 @@
                     });
                 }
                 settings.presentation_host_id = String(clientId || '');
-            } else {
-                delete settings.presentation_host_id;
             }
-
-            settings.presentation_mode = enabling;
+            settings.presentation_mode = true;
+            touchPresentationActivity();
             await pushDrawSettingsChange();
+            onPresentationModeChanged(false);
         } finally {
             presentationToggleInFlight = false;
             updatePresentBtn();
@@ -1837,11 +2043,14 @@
             roomState.room_data.active_slide_id = settings.active_slide_id;
         }
 
+        syncServerPresentationSnapshot(local);
+
         applyDrawPermissions();
 
         if (local.presentation_mode && !wasPresentation) {
             syncViewerToPresentationSlide();
         }
+        onPresentationModeChanged(wasPresentation);
     }
 
     function normalizeParticipants(list) {
@@ -1870,6 +2079,14 @@
         const settings = getDrawSettings();
         const editors = new Set(Array.isArray(settings.editors) ? settings.editors : []);
         const drawOpen = settings.draw_mode === 'open';
+        const presentHostId = isPresentationMode() ? getPresentationHostId() : '';
+
+        const buildPresenterIcon = (cid) => {
+            if (!presentHostId || String(cid) !== presentHostId) return '';
+            const title = escapeHtml(i18n().t('presentStreaming'));
+            return '<span class="tactics-participant-present" title="' + title + '">'
+                + '<i class="fas fa-video" aria-hidden="true"></i></span>';
+        };
 
         el.innerHTML = participantsList.map((p) => {
             const cid = String(p.clientId || '');
@@ -1881,6 +2098,7 @@
                 colorIdx = (colorIdx + cid.charCodeAt(i)) % colors.length;
             }
             const nickColor = colors[colorIdx] || '#b388ff';
+            const presenterIcon = buildPresenterIcon(cid);
             const name = '<span style="color:' + nickColor + '">' + escapeHtml(displayName) + '</span>';
             const self = isSelf ? ' tactics-participant-self' : '';
             const editingClass = isSelf && nicknameEditing && !usesTopbarNicknameEditUi()
@@ -1895,6 +2113,7 @@
                         + ' title="' + escapeHtml(editTitle) + '" aria-label="' + escapeHtml(editTitle) + '">'
                         + '<i class="fas fa-check" aria-hidden="true"></i></button>';
                     return '<li class="tactics-participant' + self + editingClass + '">'
+                        + presenterIcon
                         + '<input type="text" class="tactics-participant-name-input" maxlength="32"'
                         + ' value="' + escapeHtml(displayName) + '" autocomplete="nickname">'
                         + actionBtn
@@ -1918,7 +2137,7 @@
             }
 
             return '<li class="tactics-participant' + self + editingClass + '">'
-                + '<span class="tactics-participant-name">' + name + '</span>'
+                + '<span class="tactics-participant-name">' + presenterIcon + name + '</span>'
                 + actionBtn
                 + '</li>';
         }).join('');
@@ -1934,6 +2153,15 @@
                 toggleParticipantEditor(btn.getAttribute('data-client-id'));
             });
         });
+
+        if (slidesCtrl && (slidesCtrl.savedListScrollTop > 0 || slidesCtrl.savedListScrollLeft > 0)) {
+            const scrollState = {
+                top: slidesCtrl.savedListScrollTop,
+                left: slidesCtrl.savedListScrollLeft,
+            };
+            slidesCtrl.restoreScrollState(scrollState);
+            requestAnimationFrame(() => slidesCtrl.restoreScrollState(scrollState));
+        }
     }
 
     function escapeHtml(str) {
@@ -1944,9 +2172,10 @@
             .replace(/"/g, '&quot;');
     }
 
-    function markDirty() {
+    function markDirty(urgent) {
         dirty = true;
-        scheduleSave();
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveRoom, urgent ? SAVE_MODIFY_MS : SAVE_MS);
     }
 
     function scheduleSave() {
@@ -2011,7 +2240,7 @@
 
             const res = await store().postJson(window.ABS_TACTICS_UPDATE_API, {
                 public_id: roomState.public_id,
-                room_data: roomState.room_data,
+                room_data: prepareRoomDataForSave(roomState.room_data),
                 revision,
                 access_token: accessToken,
             }, accessToken);
@@ -2093,6 +2322,7 @@
 
     function applyPresenceList(list, applyCursors) {
         renderParticipants(list);
+        sanitizeStalePresentation();
         canvasCtrl?.syncRemoteCursorsPresence(participantsList);
         if (!applyCursors || !canvasCtrl?.showRemoteCursors) return;
 
@@ -2275,6 +2505,18 @@
         });
     }
 
+    function findRemoteCanvasObjectIndex(objects, payload) {
+        if (!Array.isArray(objects) || !payload) return -1;
+        const tacticsId = String(payload.tacticsId || '').trim();
+        if (tacticsId) {
+            const byId = objects.findIndex((obj) => String(obj?.tacticsId || '').trim() === tacticsId);
+            if (byId >= 0) return byId;
+        }
+        return objects.findIndex((obj) => obj.type === payload.type
+            && Math.round(obj.left) === Math.round(payload.left)
+            && Math.round(obj.top) === Math.round(payload.top));
+    }
+
     function mergeRemoteObjectIntoSlideCanvas(slideId, payload, mode) {
         if (!slidesCtrl || !slideId || !payload) return;
         const slide = slidesCtrl.getSlides().find((s) => s.id === slideId);
@@ -2291,16 +2533,12 @@
             delete next.tacticsLiveStrokeId;
             objects.push(next);
         } else if (mode === 'modify') {
-            const index = objects.findIndex((obj) => obj.type === payload.type
-                && Math.round(obj.left) === Math.round(payload.left)
-                && Math.round(obj.top) === Math.round(payload.top));
+            const index = findRemoteCanvasObjectIndex(objects, payload);
             if (index >= 0) {
                 objects[index] = { ...objects[index], ...payload };
             }
         } else if (mode === 'remove') {
-            const index = objects.findIndex((obj) => obj.type === payload.type
-                && Math.round(obj.left) === Math.round(payload.left)
-                && Math.round(obj.top) === Math.round(payload.top));
+            const index = findRemoteCanvasObjectIndex(objects, payload);
             if (index >= 0) {
                 objects.splice(index, 1);
             }
@@ -2588,6 +2826,7 @@
         }
         revision = newRevision;
         slidesCtrl?.setRoomData(roomState.room_data);
+        syncServerPresentationSnapshot(getDrawSettings());
         applyDrawPermissions();
 
         if (nextSlide && canvasCtrl && !dirty) {
@@ -3006,7 +3245,7 @@
 
         const body = {
             public_id: roomState.public_id,
-            room_data: roomState.room_data,
+            room_data: prepareRoomDataForSave(roomState.room_data),
             revision,
             visibility,
             access_token: accessToken,
@@ -3101,6 +3340,7 @@
         if (payload.room) {
             roomState = payload.room;
             revision = roomState.revision || revision;
+            syncServerPresentationSnapshot(roomState.room_data?.settings);
         }
         canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
 
@@ -3121,6 +3361,7 @@
         }
         await workspaceInitPromise;
         applyDrawPermissions();
+        sanitizeStalePresentation();
     }
 
     function applySessionTokens(payload) {
@@ -3140,6 +3381,7 @@
         if (payload.room) {
             roomState = payload.room;
             revision = roomState.revision || revision;
+            syncServerPresentationSnapshot(roomState.room_data?.settings);
         }
         canManage = !!payload.can_manage;
         canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
@@ -3168,6 +3410,7 @@
         saveRoomSessionSnapshot();
         applyDrawPermissions();
         syncViewerToPresentationSlide();
+        sanitizeStalePresentation();
         if (!wsToken) return;
         if (wsClient) {
             wsClient.reconnectWithToken(wsToken);
@@ -3261,7 +3504,14 @@
             onOp: async (msg) => {
                 if (msg.type === 'slide') {
                     slidesCtrl.applyRemote(msg.action, msg);
+                    if (msg.action === 'switch') {
+                        touchPresentationActivity(String(msg.from || ''));
+                    }
                     return;
+                }
+                const activityOps = ['add', 'remove', 'modify', 'full', 'clear', 'ping', 'cell', 'stroke_start', 'stroke_point', 'stroke_end'];
+                if (activityOps.includes(msg.op)) {
+                    touchPresentationActivity(String(msg.from || ''));
                 }
                 await applyRemoteCanvasOp(msg);
             },
@@ -3342,6 +3592,9 @@
                     await applyGameNicknameForSlide(slide);
                     if (dirty) scheduleSave();
                 }
+                if (isPresentationHost()) {
+                    touchPresentationActivity();
+                }
                 updateMobileSlideNav();
             },
             onChange: () => markDirty(),
@@ -3363,6 +3616,9 @@
             },
             onBroadcast: (data) => {
                 wsClient?.sendSlide(data.action, data);
+                if (data.action === 'switch' && isPresentationHost()) {
+                    touchPresentationActivity();
+                }
             },
             shouldBroadcastSlideSwitch: () => isPresentationMode() && isPresentationHost(),
             shouldFollowRemoteSlideSwitch: () => isPresentationMode() && !isPresentationHost(),
@@ -3424,6 +3680,9 @@
                 }
             },
             onOp: (msg) => {
+                if (isPresentationHost()) {
+                    touchPresentationActivity();
+                }
                 if (msg.op === 'ping' || msg.op === 'cell') {
                     if (wsClient?.sendOp(msg.slideId, msg.op, msg.payload)) {
                         return;
@@ -3439,8 +3698,12 @@
                 const persistOps = ['add', 'remove', 'modify', 'full', 'clear', 'sync_own'];
                 if (wsClient?.sendOp(msg.slideId, msg.op, msg.payload)) {
                     if (persistOps.includes(msg.op) && canDraw) {
-                        markDirty();
+                        markDirty(msg.op === 'modify');
                     }
+                    return;
+                }
+                if (persistOps.includes(msg.op) && canDraw) {
+                    markDirty(msg.op === 'modify');
                     return;
                 }
                 scheduleSave();
@@ -3716,7 +3979,7 @@
             flushCanvasToRoomData();
             const body = JSON.stringify({
                 public_id: roomState.public_id,
-                room_data: roomState.room_data,
+                room_data: prepareRoomDataForSave(roomState.room_data),
                 revision,
                 access_token: accessToken,
                 csrf_token: window.ABS_TACTICS_CSRF || window.ABS_SITE_CSRF || '',

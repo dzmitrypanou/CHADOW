@@ -11171,9 +11171,22 @@ html.tactics-auth-pending .tactics-room-layout--locked {
 .tactics-participant-name {
     flex: 1;
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.tactics-participant-present {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 168, 130, 0.95);
+    font-size: 0.78rem;
+    line-height: 1;
 }
 
 .tactics-participant-nick-btn,
@@ -13771,16 +13784,11 @@ html.tactics-auth-pending .tactics-room-layout--locked {
     }
 
     .page-tactics-room-shell .tactics-slides-list--carousel .tactics-slide-preview {
-        width: var(--tactics-carousel-thumb-inactive);
-        height: var(--tactics-carousel-thumb-inactive);
-        aspect-ratio: 1 / 1;
-        flex-shrink: 0;
-        transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .page-tactics-room-shell .tactics-slides-list--carousel .tactics-slide-card--thumb.is-active .tactics-slide-preview {
         width: var(--tactics-carousel-thumb-active);
         height: var(--tactics-carousel-thumb-active);
+        aspect-ratio: 1 / 1;
+        flex-shrink: 0;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .page-tactics-room-shell .tactics-slides-list--carousel .tactics-slide-name {
@@ -13792,13 +13800,12 @@ html.tactics-auth-pending .tactics-room-layout--locked {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-height: 0;
+        max-height: 1.4rem;
         opacity: 0;
-        transition: max-height 0.22s ease, opacity 0.22s ease;
+        transition: opacity 0.22s ease;
     }
 
     .page-tactics-room-shell .tactics-slides-list--carousel .tactics-slide-card--thumb.is-active .tactics-slide-name {
-        max-height: 1.4rem;
         opacity: 1;
     }
 
@@ -14258,8 +14265,9 @@ body.page-tactics-room-shell.is-tactics-mobile .tactics-map-scale {
 }
 
 .page-tactics-room .tactics-sidebar-panel--users {
-    flex: unset;
+    flex: 0 1 auto;
     min-height: 0;
+    max-height: min(38vh, 260px);
     overflow: auto;
     padding: 0;
 }
@@ -21125,14 +21133,6 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
     margin-top: 2px;
     color: rgba(175, 200, 228, 0.78);
     font-size: 0.82rem;
-    line-height: 1.35;
-}
-
-.reserves-rule-row__paused {
-    display: block;
-    margin-top: 4px;
-    color: rgba(255, 168, 140, 0.88);
-    font-size: 0.74rem;
     line-height: 1.35;
 }
 

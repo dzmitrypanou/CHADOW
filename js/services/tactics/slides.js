@@ -53,6 +53,9 @@
             this.viewMode = this.loadViewMode();
             this.viewSlideId = this.loadViewSlideId();
             this.pendingPresentationSlideId = null;
+            this.savedListScrollTop = 0;
+            this.savedListScrollLeft = 0;
+            this.slidesListSignature = '';
             this.applyViewModeClasses();
             this.bindEvents();
             this.render();
@@ -180,14 +183,6 @@
             if (fits) return;
 
             const scrollBehavior = behavior === 'auto' ? 'auto' : 'smooth';
-            if (typeof item.scrollIntoView === 'function') {
-                item.scrollIntoView({
-                    behavior: scrollBehavior,
-                    block: 'nearest',
-                    inline: 'center',
-                });
-                return;
-            }
             const viewportRect = viewport.getBoundingClientRect();
             const itemRect = item.getBoundingClientRect();
             const itemCenter = (itemRect.left - viewportRect.left) + viewport.scrollLeft + (itemRect.width / 2);
@@ -245,7 +240,9 @@
         }
 
         setCanManage(canManage) {
-            this.canManage = !!canManage;
+            const next = !!canManage;
+            if (this.canManage === next) return;
+            this.canManage = next;
             this.render();
         }
 
@@ -423,6 +420,15 @@
             this.carouselPrevBtn?.addEventListener('click', () => this.goToAdjacentSlide(-1));
             this.carouselNextBtn?.addEventListener('click', () => this.goToAdjacentSlide(1));
             this.viewToggleBtn?.addEventListener('click', () => this.toggleViewMode());
+
+            const onSlidesScroll = () => {
+                const scrollEl = this.getSlidesScrollEl();
+                if (!scrollEl) return;
+                this.savedListScrollTop = scrollEl.scrollTop || 0;
+                this.savedListScrollLeft = scrollEl.scrollLeft || 0;
+            };
+            this.listEl?.addEventListener('scroll', onSlidesScroll, { passive: true });
+            this.carouselViewport?.addEventListener('scroll', onSlidesScroll, { passive: true });
         }
 
         getAddSelectWrap() {
@@ -533,6 +539,67 @@
 
         getSlides() {
             return Array.isArray(this.roomData.slides) ? this.roomData.slides : [];
+        }
+
+        getSlidesScrollEl() {
+            if (this.isCarouselLayout() && this.carouselViewport) {
+                return this.carouselViewport;
+            }
+            return this.listEl;
+        }
+
+        captureScrollState() {
+            const scrollEl = this.getSlidesScrollEl();
+            if (!scrollEl) {
+                return { top: 0, left: 0 };
+            }
+            return {
+                top: scrollEl.scrollTop || 0,
+                left: scrollEl.scrollLeft || 0,
+            };
+        }
+
+        restoreScrollState(state) {
+            const scrollEl = this.getSlidesScrollEl();
+            if (!scrollEl || !state) return;
+            const top = Number(state.top) || 0;
+            const left = Number(state.left) || 0;
+            if (top > 0) {
+                scrollEl.scrollTop = top;
+            }
+            if (left > 0) {
+                scrollEl.scrollLeft = left;
+            }
+            this.savedListScrollTop = top;
+            this.savedListScrollLeft = left;
+        }
+
+        getSlidesListSignature() {
+            const flags = [
+                this.viewMode,
+                this.canManage ? '1' : '0',
+                this.canAddSlides ? '1' : '0',
+                this.slidesLocked ? '1' : '0',
+            ].join(';');
+            const slides = this.getSlides().map((slide) => [
+                slide.id,
+                slide.map_code || '',
+                slide.title || '',
+                slide.game || '',
+                slide.battle_mode || '',
+                slide.map_width_m || '',
+                slide.map_height_m || '',
+            ].join(':')).join('|');
+            return flags + '::' + slides;
+        }
+
+        shouldRerenderSlideList() {
+            const next = this.getSlidesListSignature();
+            if (next === this.slidesListSignature) {
+                return false;
+            }
+            this.slidesListSignature = next;
+            return true;
         }
 
         getActiveSlideId() {
@@ -680,7 +747,14 @@
                 }
                 window.ABS_TACTICS_MAP_URLS[slide.id] = url;
                 if (img.getAttribute('src') !== url) {
+                    const scrollState = this.captureScrollState();
+                    if (scrollState.top <= 0 && this.savedListScrollTop > 0) {
+                        scrollState.top = this.savedListScrollTop;
+                    }
                     img.src = url;
+                    requestAnimationFrame(() => {
+                        this.restoreScrollState(scrollState);
+                    });
                 }
             });
         }
@@ -753,8 +827,48 @@
                 + '</li>';
         }
 
+        updateActiveSlideState(activeId) {
+            if (!this.listEl) return false;
+            const slides = this.getSlides();
+            const cards = this.listEl.querySelectorAll('.tactics-slide-card[data-slide-id]');
+            if (cards.length !== slides.length) return false;
+
+            const changeMapTitle = i18n().t('changeMapSlide');
+            cards.forEach((card) => {
+                const id = card.getAttribute('data-slide-id');
+                const isActive = id === activeId;
+                card.classList.toggle('is-active', isActive);
+
+                if (this.viewMode === 'list') return;
+
+                const preview = card.querySelector('.tactics-slide-preview');
+                const existingBtn = preview?.querySelector('.tactics-slide-change-map');
+                if (isActive && this.canAddSlides && preview && !existingBtn) {
+                    preview.insertAdjacentHTML('beforeend', this.buildChangeMapBtn(id, changeMapTitle, true));
+                    const btn = preview.querySelector('.tactics-slide-change-map');
+                    btn?.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        this.openChangeMapModal(id);
+                    });
+                } else if (!isActive && existingBtn) {
+                    existingBtn.remove();
+                }
+            });
+
+            requestAnimationFrame(() => this.syncCarouselScroll('smooth'));
+            return true;
+        }
+
         render() {
             if (!this.listEl) return;
+            const scrollState = this.captureScrollState();
+            if (scrollState.top <= 0 && this.savedListScrollTop > 0) {
+                scrollState.top = this.savedListScrollTop;
+            }
+            if (scrollState.left <= 0 && this.savedListScrollLeft > 0) {
+                scrollState.left = this.savedListScrollLeft;
+            }
+            this.slidesListSignature = this.getSlidesListSignature();
             const slides = this.getSlides();
             const activeId = this.getViewSlideId();
             const canDelete = (this.canManage || this.canAddSlides) && slides.length > 1;
@@ -806,7 +920,15 @@
             this.refreshSlideThumbs();
             this.updatePreviewScales();
             this.applyCarouselMode();
-            requestAnimationFrame(() => this.syncCarouselScroll('smooth'));
+            const restoreScroll = () => this.restoreScrollState(scrollState);
+            restoreScroll();
+            requestAnimationFrame(() => {
+                restoreScroll();
+                if (this.isCarouselLayout()) {
+                    this.syncCarouselScroll('auto');
+                    restoreScroll();
+                }
+            });
         }
 
         startSlideRename(slideId, nameEl) {
@@ -914,7 +1036,9 @@
                 this.roomData.active_slide_id = slideId;
             }
 
-            this.render();
+            if (!this.updateActiveSlideState(slideId)) {
+                this.render();
+            }
             await Promise.resolve(this.onSwitch(slideId, prevSlideId));
             this.onChange();
 
@@ -1339,7 +1463,9 @@
 
         setRoomData(roomData) {
             this.roomData = roomData;
-            this.render();
+            if (this.shouldRerenderSlideList()) {
+                this.render();
+            }
         }
 
         setMapPicker(mapPicker) {

@@ -595,9 +595,6 @@
                     + '<div class="reserves-rule-row__info">'
                     + '<strong class="reserves-rule-row__title">' + escHtml(name) + '</strong>'
                     + '<span class="reserves-rule-row__schedule">' + escHtml(schedule) + '</span>'
-                    + (paused
-                        ? '<span class="reserves-rule-row__paused">' + escHtml(i18n().t('rulePausedHint')) + '</span>'
-                        : '')
                     + '</div>'
                     + '<div class="reserves-rule-row__next">'
                     + '<span class="reserves-rule-row__next-label">' + escHtml(i18n().t('ruleNextActivation')) + '</span>'

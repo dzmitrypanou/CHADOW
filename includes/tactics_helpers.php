@@ -542,6 +542,92 @@ function tactics_normalize_draw_settings(array $settings): array {
     return $settings;
 }
 
+function tactics_presentation_settings(array $roomData): array {
+    $settings = tactics_normalize_draw_settings(is_array($roomData['settings'] ?? null) ? $roomData['settings'] : []);
+
+    return [
+        'presentation_mode' => !empty($settings['presentation_mode']),
+        'presentation_host_id' => trim((string) ($settings['presentation_host_id'] ?? '')),
+    ];
+}
+
+function tactics_presentation_settings_changed(array $old, array $new): bool {
+    $oldPres = tactics_presentation_settings($old);
+    $newPres = tactics_presentation_settings($new);
+
+    if ($oldPres['presentation_mode'] !== $newPres['presentation_mode']) {
+        return true;
+    }
+
+    return $oldPres['presentation_host_id'] !== $newPres['presentation_host_id'];
+}
+
+function tactics_can_change_presentation_settings(array $old, array $new, string $clientId, bool $isOwner): bool {
+    if ($isOwner) {
+        return true;
+    }
+
+    if ($clientId === '') {
+        return false;
+    }
+
+    $oldPres = tactics_presentation_settings($old);
+    $newPres = tactics_presentation_settings($new);
+
+    if (!$oldPres['presentation_mode'] && $newPres['presentation_mode']) {
+        $newHost = $newPres['presentation_host_id'] !== '' ? $newPres['presentation_host_id'] : $clientId;
+
+        return $newHost === $clientId;
+    }
+
+    if ($oldPres['presentation_mode']) {
+        $hostId = $oldPres['presentation_host_id'];
+
+        if (!$newPres['presentation_mode']) {
+            if ($isOwner) {
+                return true;
+            }
+            if ($hostId === '') {
+                return tactics_user_can_draw($old, $clientId, $isOwner);
+            }
+
+            return $hostId === $clientId;
+        }
+
+        if ($isOwner) {
+            return true;
+        }
+
+        return $hostId !== '' && $hostId === $clientId;
+    }
+
+    return true;
+}
+
+function tactics_apply_presentation_settings_policy(array $oldRoomData, array $newRoomData, string $clientId, bool $isOwner): array {
+    if (!tactics_presentation_settings_changed($oldRoomData, $newRoomData)) {
+        return $newRoomData;
+    }
+
+    if (tactics_can_change_presentation_settings($oldRoomData, $newRoomData, $clientId, $isOwner)) {
+        return $newRoomData;
+    }
+
+    $oldPres = tactics_presentation_settings($oldRoomData);
+    if (!isset($newRoomData['settings']) || !is_array($newRoomData['settings'])) {
+        $newRoomData['settings'] = [];
+    }
+
+    $newRoomData['settings']['presentation_mode'] = $oldPres['presentation_mode'];
+    if ($oldPres['presentation_host_id'] !== '') {
+        $newRoomData['settings']['presentation_host_id'] = $oldPres['presentation_host_id'];
+    } else {
+        unset($newRoomData['settings']['presentation_host_id']);
+    }
+
+    return $newRoomData;
+}
+
 function tactics_user_can_draw(array $roomData, string $clientId, bool $isOwner): bool {
     if ($isOwner) {
         return true;

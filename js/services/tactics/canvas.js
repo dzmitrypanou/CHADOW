@@ -202,6 +202,8 @@
             this.eraserStartPointer = null;
             this.eraserStartEvent = null;
             this.eraserErasedKeys = new Set();
+            this.transformMovedTarget = null;
+            this.transformModifiedAt = 0;
             this.hueSliderEl = options.hueSliderEl || document.getElementById('tacticsHueSlider');
             this.imageUploadEl = options.imageUploadEl || document.getElementById('tacticsImageUpload');
             this.applyToolPrefs();
@@ -468,7 +470,11 @@
                 }
                 this.handleLocalChange('add', e);
             });
-            this.fabric.on('object:modified', (e) => this.handleLocalChange('modify', e));
+            this.fabric.on('object:modified', (e) => {
+                this.transformModifiedAt = Date.now();
+                this.transformMovedTarget = null;
+                this.handleLocalChange('modify', e);
+            });
             this.fabric.on('object:removed', (e) => this.handleLocalChange('remove', e));
 
             this.fabric.on('mouse:down', (opt) => this.handleMouseDown(opt));
@@ -483,10 +489,22 @@
                     }
                 }
             });
-            this.fabric.on('mouse:up', (opt) => this.handleMouseUp(opt));
-            this.fabric.on('object:moving', (e) => this.guardObjectTransform(e));
-            this.fabric.on('object:scaling', (e) => this.guardObjectTransform(e));
-            this.fabric.on('object:rotating', (e) => this.guardObjectTransform(e));
+            this.fabric.on('mouse:up', (opt) => {
+                this.handleMouseUp(opt);
+                this.commitPendingTransform();
+            });
+            this.fabric.on('object:moving', (e) => {
+                this.guardObjectTransform(e);
+                this.trackTransformTarget(e);
+            });
+            this.fabric.on('object:scaling', (e) => {
+                this.guardObjectTransform(e);
+                this.trackTransformTarget(e);
+            });
+            this.fabric.on('object:rotating', (e) => {
+                this.guardObjectTransform(e);
+                this.trackTransformTarget(e);
+            });
             this.fabric.on('mouse:dblclick', () => {
                 if (this.tool === 'pen') {
                     this.cancelPenStroke();
@@ -1856,6 +1874,27 @@
             });
             target.setCoords();
             this.fabric?.requestRenderAll();
+        }
+
+        trackTransformTarget(e) {
+            const target = e?.target;
+            if (!target || this.isPreviewObject(target) || target.isBackground) return;
+            this.transformMovedTarget = target;
+        }
+
+        commitPendingTransform() {
+            if (!this.fabric || this.isRemote || !this.canMoveObjects()) {
+                this.transformMovedTarget = null;
+                return;
+            }
+
+            const target = this.transformMovedTarget;
+            this.transformMovedTarget = null;
+            if (!target || this.isPreviewObject(target) || target.isBackground) return;
+            if (Date.now() - this.transformModifiedAt < 100) return;
+
+            target.setCoords();
+            this.handleLocalChange('modify', { target });
         }
 
         canMoveObjects() {
@@ -5506,6 +5545,102 @@
             return obj.tacticsId;
         }
 
+        findObjectByTacticsId(tacticsId) {
+            if (!this.fabric || !tacticsId) return null;
+            const id = String(tacticsId).trim();
+            if (!id) return null;
+            return this.fabric.getObjects().find((o) => !o.isBackground && !o.isGridLine
+                && String(o.tacticsId || '').trim() === id) || null;
+        }
+
+        findObjectByPosition(payload) {
+            if (!this.fabric || !payload) return null;
+            const left = Math.round(payload.left);
+            const top = Math.round(payload.top);
+            return this.fabric.getObjects().find((o) => !o.isBackground && !o.isGridLine
+                && o.type === payload.type
+                && Math.round(o.left) === left
+                && Math.round(o.top) === top) || null;
+        }
+
+        async applyRemoteObjectAdd(msg, remoteClientId, payload) {
+            const liveStrokeId = payload.tacticsLiveStrokeId;
+            delete payload.tacticsLiveStrokeId;
+            this.syncFabricLayoutSize();
+            const target = TacticsCanvas.COORD_SPACE;
+            const fromSize = Number(msg.coordSpace) || 0;
+            let addedCount = 0;
+            await new Promise((resolve) => {
+                fabric.util.enlivenObjects([payload], (objs) => {
+                    (Array.isArray(objs) ? objs : []).forEach((obj) => {
+                        if (!obj) return;
+                        if (fromSize && Math.abs(fromSize - target) > 0.5) {
+                            this.scaleObjectGeometry(obj, target / fromSize);
+                        }
+                        if (remoteClientId) {
+                            this.markRemoteObject(obj, remoteClientId);
+                        }
+                        this.fabric.add(obj);
+                        addedCount += 1;
+                    });
+                    if (addedCount > 0) {
+                        this.relinkArrowHeads();
+                        this.syncInteractionState();
+                        this.fabric.requestRenderAll();
+                    }
+                    resolve();
+                });
+            });
+            if (remoteClientId && addedCount > 0) {
+                if (liveStrokeId) {
+                    this.removeRemoteStroke(remoteClientId, liveStrokeId);
+                } else {
+                    this.removeRemoteStrokesFromClient(remoteClientId);
+                }
+            }
+            if (addedCount > 0) {
+                this.rebuildForeignObjectRegistry();
+            }
+            return addedCount;
+        }
+
+        async applyRemoteObjectModify(msg, remoteClientId, payload) {
+            const tacticsId = String(payload.tacticsId || '').trim();
+            let existing = tacticsId ? this.findObjectByTacticsId(tacticsId) : null;
+            if (!existing) {
+                existing = this.findObjectByPosition(payload);
+            }
+            if (!existing) {
+                return this.applyRemoteObjectAdd(msg, remoteClientId, { ...payload });
+            }
+
+            this.syncFabricLayoutSize();
+            const target = TacticsCanvas.COORD_SPACE;
+            const fromSize = Number(msg.coordSpace) || 0;
+            await new Promise((resolve) => {
+                fabric.util.enlivenObjects([payload], (objs) => {
+                    const obj = Array.isArray(objs) ? objs[0] : null;
+                    if (obj) {
+                        if (fromSize && Math.abs(fromSize - target) > 0.5) {
+                            this.scaleObjectGeometry(obj, target / fromSize);
+                        }
+                        const props = obj.toObject(TacticsCanvas.EXPORT_PROPS);
+                        existing.set(props);
+                        existing.setCoords();
+                        if (remoteClientId) {
+                            this.markRemoteObject(existing, remoteClientId);
+                        }
+                        this.relinkArrowHeads();
+                        this.syncInteractionState();
+                        this.fabric.requestRenderAll();
+                        this.rebuildForeignObjectRegistry();
+                    }
+                    resolve();
+                });
+            });
+            return 1;
+        }
+
         isForeignObject(obj) {
             const authorId = String(obj?.tacticsAuthorId || '').trim();
             const selfId = String(this.clientId || '').trim();
@@ -6396,6 +6531,7 @@
             const obj = e?.target;
             if (!obj || this.isPreviewObject(obj)) return;
 
+            obj.setCoords();
             this.markOwnObject(obj);
             this.pushHistory();
             this.onChange();
@@ -6987,50 +7123,17 @@
                     await this.applyRemoteOwnDrawings(remoteClientId, msg.payload);
                     this.rebuildForeignObjectRegistry();
                 } else if (msg.op === 'remove' && msg.payload) {
-                    const objects = this.fabric.getObjects();
-                    const match = objects.find((o) => o.type === msg.payload.type
-                        && Math.round(o.left) === Math.round(msg.payload.left)
-                        && Math.round(o.top) === Math.round(msg.payload.top));
+                    const payload = msg.payload;
+                    const tacticsId = String(payload.tacticsId || '').trim();
+                    let match = tacticsId ? this.findObjectByTacticsId(tacticsId) : null;
+                    if (!match) {
+                        match = this.findObjectByPosition(payload);
+                    }
                     if (match) this.fabric.remove(match);
-                } else if ((msg.op === 'add' || msg.op === 'modify') && msg.payload) {
-                    const payload = { ...msg.payload };
-                    const liveStrokeId = payload.tacticsLiveStrokeId;
-                    delete payload.tacticsLiveStrokeId;
-                    this.syncFabricLayoutSize();
-                    const target = TacticsCanvas.COORD_SPACE;
-                    const fromSize = Number(msg.coordSpace) || 0;
-                    let addedCount = 0;
-                    await new Promise((resolve) => {
-                        fabric.util.enlivenObjects([payload], (objs) => {
-                            (Array.isArray(objs) ? objs : []).forEach((obj) => {
-                                if (!obj) return;
-                                if (fromSize && Math.abs(fromSize - target) > 0.5) {
-                                    this.scaleObjectGeometry(obj, target / fromSize);
-                                }
-                                if (remoteClientId) {
-                                    this.markRemoteObject(obj, remoteClientId);
-                                }
-                                this.fabric.add(obj);
-                                addedCount += 1;
-                            });
-                            if (addedCount > 0) {
-                                this.relinkArrowHeads();
-                                this.syncInteractionState();
-                                this.fabric.requestRenderAll();
-                            }
-                            resolve();
-                        });
-                    });
-                    if (remoteClientId && msg.op === 'add' && addedCount > 0) {
-                        if (liveStrokeId) {
-                            this.removeRemoteStroke(remoteClientId, liveStrokeId);
-                        } else {
-                            this.removeRemoteStrokesFromClient(remoteClientId);
-                        }
-                    }
-                    if (addedCount > 0) {
-                        this.rebuildForeignObjectRegistry();
-                    }
+                } else if (msg.op === 'add' && msg.payload) {
+                    await this.applyRemoteObjectAdd(msg, remoteClientId, { ...msg.payload });
+                } else if (msg.op === 'modify' && msg.payload) {
+                    await this.applyRemoteObjectModify(msg, remoteClientId, { ...msg.payload });
                 } else if (msg.op === 'ping' && msg.payload) {
                     const p = msg.payload;
                     this.playPing(p.x, p.y, p.color, p.width, p.stroke);
