@@ -21693,7 +21693,7 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-placement-dock-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     min-width: 0;
 }
@@ -21730,18 +21730,15 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-ship-dock {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 6px;
-    padding: 6px 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
     border: 1px dashed rgba(113, 163, 230, 0.28);
     border-radius: 6px;
     background: rgba(8, 14, 28, 0.35);
-    overflow-x: auto;
-    overflow-y: hidden;
     flex: 1 1 auto;
     min-width: 0;
-    max-height: 42px;
-    scrollbar-width: thin;
+    overflow: visible;
 }
 
 .battleship-ship-dock[hidden] {
@@ -21749,13 +21746,14 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 }
 
 .battleship-dock-ship {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    min-width: 36px;
-    min-height: 28px;
-    padding: 4px 6px;
+    min-width: 40px;
+    min-height: 32px;
+    padding: 6px 8px;
     border: 1px solid rgba(100, 181, 246, 0.4);
     background: rgba(36, 74, 122, 0.55);
     cursor: grab;
@@ -21764,9 +21762,9 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-board-panel[data-bs-size="20"] .battleship-dock-ship,
 .battleship-board-panel[data-bs-size="50"] .battleship-dock-ship {
-    min-width: 30px;
-    min-height: 24px;
-    padding: 3px 5px;
+    min-width: 36px;
+    min-height: 28px;
+    padding: 5px 7px;
 }
 
 .battleship-dock-ship:active {
@@ -21784,17 +21782,61 @@ html.aim-device-mobile.aim-play-portrait body.page-aim-play .aim-play-rotate-hin
 
 .battleship-board-panel[data-bs-size="20"] .battleship-dock-ship__bar,
 .battleship-board-panel[data-bs-size="50"] .battleship-dock-ship__bar {
-    width: calc(var(--ship-len, 3) * 8px);
+    width: calc(var(--ship-len, 3) * 10px);
     height: 8px;
 }
 
+.battleship-dock-ship__count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: rgba(79, 195, 247, 0.92);
+    color: #0a1628;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.battleship-drag-ghost {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 12000;
+    pointer-events: none;
+    will-change: transform;
+}
+
+.battleship-drag-ghost__ship {
+    display: block;
+    width: calc(var(--ship-len, 3) * 14px);
+    height: 14px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #9ecbf0 0%, #4a86b8 100%);
+    border: 1px solid rgba(179, 229, 252, 0.85);
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.38),
+        0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.battleship-drag-ghost__ship--vertical {
+    width: 14px;
+    height: calc(var(--ship-len, 3) * 14px);
+}
+
 body.battleship-dragging {
-    cursor: grabbing;
+    cursor: none;
     user-select: none;
 }
 
-body.battleship-dragging .battleship-board[data-board="own"] {
-    cursor: crosshair;
+body.battleship-dragging .battleship-board[data-board="own"],
+body.battleship-dragging .battleship-dock-ship {
+    cursor: none;
 }
 
 .battleship-cell--preview {

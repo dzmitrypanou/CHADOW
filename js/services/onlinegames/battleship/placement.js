@@ -76,6 +76,59 @@
         let preview = null;
         let bound = false;
         let pointerId = null;
+        let dragGhostEl = null;
+
+        function getDockGroups() {
+            const groups = new Map();
+            dock.forEach((item, index) => {
+                const len = item.len;
+                if (!groups.has(len)) {
+                    groups.set(len, []);
+                }
+                groups.get(len).push(index);
+            });
+            return Array.from(groups.entries()).sort((a, b) => b[0] - a[0]);
+        }
+
+        function dockBarScale(len) {
+            if (boardSize >= 50) return Math.min(len, 6);
+            if (boardSize >= 20) return Math.min(len, 8);
+            return len;
+        }
+
+        function removeDragGhost() {
+            if (dragGhostEl) {
+                dragGhostEl.remove();
+                dragGhostEl = null;
+            }
+        }
+
+        function updateDragGhostOrientation() {
+            if (!dragGhostEl || !dragging) return;
+            const ship = dragGhostEl.querySelector('.battleship-drag-ghost__ship');
+            if (!ship) return;
+            ship.classList.toggle('battleship-drag-ghost__ship--vertical', !dragging.horizontal);
+        }
+
+        function updateDragGhostPosition(clientX, clientY) {
+            if (!dragGhostEl) return;
+            dragGhostEl.style.transform = `translate(${clientX}px, ${clientY}px) translate(-50%, -50%)`;
+        }
+
+        function createDragGhost(len, horizontal) {
+            removeDragGhost();
+            dragGhostEl = document.createElement('div');
+            dragGhostEl.className = 'battleship-drag-ghost';
+            dragGhostEl.setAttribute('aria-hidden', 'true');
+            const ship = document.createElement('span');
+            ship.className = 'battleship-drag-ghost__ship';
+            if (!horizontal) {
+                ship.classList.add('battleship-drag-ghost__ship--vertical');
+            }
+            ship.style.setProperty('--ship-len', String(len));
+            dragGhostEl.appendChild(ship);
+            document.body.appendChild(dragGhostEl);
+        }
 
         function buildOccupied(excludeId) {
             const occupied = new Set();
@@ -120,18 +173,24 @@
             if (dockCountEl) {
                 dockCountEl.textContent = formatDockCount(dock.length);
             }
-            dock.forEach((item, index) => {
+            getDockGroups().forEach(([len, indices]) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'battleship-dock-ship';
-                btn.dataset.index = String(index);
-                btn.dataset.len = String(item.len);
-                btn.title = String(item.len);
-                btn.setAttribute('aria-label', String(item.len));
+                btn.dataset.pickIndex = String(indices[0]);
+                btn.dataset.len = String(len);
+                btn.title = indices.length > 1 ? `${len} × ${indices.length}` : String(len);
+                btn.setAttribute('aria-label', btn.title);
                 const bar = document.createElement('span');
                 bar.className = 'battleship-dock-ship__bar';
-                bar.style.setProperty('--ship-len', String(item.len));
+                bar.style.setProperty('--ship-len', String(dockBarScale(len)));
                 btn.appendChild(bar);
+                if (indices.length > 1) {
+                    const count = document.createElement('span');
+                    count.className = 'battleship-dock-ship__count';
+                    count.textContent = String(indices.length);
+                    btn.appendChild(count);
+                }
                 dockEl.appendChild(btn);
             });
         }
@@ -156,12 +215,14 @@
                 source,
             };
             preview = null;
+            createDragGhost(len, dragging.horizontal);
             document.body.classList.add('battleship-dragging');
         }
 
         function endDrag() {
             dragging = null;
             preview = null;
+            removeDragGhost();
             document.body.classList.remove('battleship-dragging');
             refresh();
         }
@@ -233,7 +294,7 @@
             const dockBtn = event.target.closest('.battleship-dock-ship');
             if (dockBtn && dockEl && dockEl.contains(dockBtn)) {
                 event.preventDefault();
-                const index = Number(dockBtn.dataset.index);
+                const index = Number(dockBtn.dataset.pickIndex);
                 const item = dock[index];
                 if (!item) return;
                 pointerId = event.pointerId;
@@ -241,6 +302,7 @@
                     dockBtn.setPointerCapture(event.pointerId);
                 }
                 startDrag(item.len, true, { type: 'dock', dockIndex: index });
+                updateDragGhostPosition(event.clientX, event.clientY);
                 const cell = boardRenderer.cellFromPoint(event.clientX, event.clientY);
                 if (cell) updatePreviewAt(cell.r, cell.c);
                 if (options.onRepaint) options.onRepaint();
@@ -267,12 +329,14 @@
                 hitCell.setPointerCapture(event.pointerId);
             }
             pickShipFromBoard(ship.id);
+            updateDragGhostPosition(event.clientX, event.clientY);
             updatePreviewAt(cell.r, cell.c);
             if (options.onRepaint) options.onRepaint();
         }
 
         function onPointerMove(event) {
             if (!active || !dragging) return;
+            updateDragGhostPosition(event.clientX, event.clientY);
             const cell = boardRenderer.cellFromPoint(event.clientX, event.clientY);
             if (!cell) {
                 preview = null;
@@ -308,6 +372,7 @@
             if (!active || !dragging) return;
             event.preventDefault();
             dragging.horizontal = !dragging.horizontal;
+            updateDragGhostOrientation();
             const cell = boardRenderer.cellFromPoint(event.clientX, event.clientY);
             if (cell) {
                 updatePreviewAt(cell.r, cell.c);
@@ -388,6 +453,7 @@
             dragging = null;
             preview = null;
             endDrag();
+            removeDragGhost();
             if (dockRowEl) dockRowEl.hidden = true;
             if (dockEl) {
                 dockEl.innerHTML = '';

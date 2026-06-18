@@ -37,6 +37,19 @@ function abs_sitemap_lastmod_from_version(): string
     return abs_sitemap_lastmod_from_file('/config/version.json');
 }
 
+function abs_sitemap_lastmod_from_files(array $relativePaths): string
+{
+    $latest = 0;
+    foreach ($relativePaths as $relativePath) {
+        $path = __DIR__ . $relativePath;
+        if (is_file($path)) {
+            $latest = max($latest, (int) filemtime($path));
+        }
+    }
+
+    return $latest > 0 ? gmdate('Y-m-d', $latest) : gmdate('Y-m-d');
+}
+
 function abs_sitemap_page(string $ruPath, string $enPath, ?string $lastmod = null): array
 {
     $page = [
@@ -69,7 +82,15 @@ $pages = [
     abs_sitemap_page('/services/tactics/rooms', '/en/services/tactics/rooms', abs_sitemap_lastmod_from_file('/services/tactics/rooms.php')),
     abs_sitemap_page('/services/aim', '/en/services/aim', abs_sitemap_lastmod_from_file('/services/aim/index.php')),
     abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings', abs_sitemap_lastmod_from_file('/services/aim/ratings.php')),
-    abs_sitemap_page('/services/onlinegames', '/en/services/onlinegames', abs_sitemap_lastmod_from_file('/services/onlinegames/index.php')),
+    abs_sitemap_page(
+        '/services/onlinegames',
+        '/en/services/onlinegames',
+        abs_sitemap_lastmod_from_files([
+            '/services/onlinegames/index.php',
+            '/services/onlinegames/checkers/index.php',
+            '/services/onlinegames/battleship/index.php',
+        ])
+    ),
     abs_sitemap_page('/services/onlinegames/checkers', '/en/services/onlinegames/checkers', abs_sitemap_lastmod_from_file('/services/onlinegames/checkers/index.php')),
     abs_sitemap_page('/services/onlinegames/battleship', '/en/services/onlinegames/battleship', abs_sitemap_lastmod_from_file('/services/onlinegames/battleship/index.php')),
     abs_sitemap_page('/services/mods', '/en/services/mods', abs_sitemap_lastmod_from_file('/services/mods/index.php')),
