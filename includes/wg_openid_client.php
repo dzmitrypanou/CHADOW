@@ -13,8 +13,9 @@ class WgOpenIdClient
 
     public static function normalizeRealm(?string $realm): string
     {
-        $realm = strtolower(trim((string) $realm));
-        return in_array($realm, ['ru', 'eu', 'na'], true) ? $realm : 'eu';
+        require_once __DIR__ . '/user_auth.php';
+
+        return user_normalize_wg_realm($realm);
     }
 
     public static function apiBaseForRealm(string $realm): string
@@ -24,6 +25,8 @@ class WgOpenIdClient
                 return 'https://api.worldoftanks.eu';
             case 'na':
                 return 'https://api.worldoftanks.com';
+            case 'asia':
+                return 'https://api.worldoftanks.asia';
             case 'ru':
                 return 'https://api.tanki.su';
             default:

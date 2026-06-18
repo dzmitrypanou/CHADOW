@@ -105,6 +105,9 @@ $aimBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'
     . '<span class="project-card-badge project-card-badge--dota2">Dota 2</span>'
     . '</div>';
+$reserveServiceHref = abs_build_lang_href($lang, 'services/reserves');
+$reserveBadgesHtml = game_api_landing_badges_html($lang);
+$reserveServiceActive = game_api_reserves_service_active();
 require __DIR__ . '/includes/site_header.php';
 ?>
 
@@ -192,22 +195,49 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </a>
 
-                <div class="project-card project-card--disabled project-card--span-2" aria-disabled="true" data-landing-id="clan-reserve">
+                <?php if ($reserveServiceActive): ?>
+                <a href="<?php echo htmlspecialchars($reserveServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="clan-reserve">
                     <i class="fas fa-user-plus project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
-                            <?php echo $inDevBadgeHtml; ?>
+                            <?php echo $reserveBadgesHtml; ?>
                             <h2 class="project-card-title">
                                 <i class="fas fa-user-plus project-card-icon" aria-hidden="true"></i>
                                 <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Automatic Clan Reserve Activation' : 'Автоматическое включение клановых резервов'; ?>
+                                    <?php echo $lang === 'en' ? 'Clan Reserves' : 'Клановые резервы'; ?>
                                 </span>
                             </h2>
                         </div>
                         <p class="project-card-desc">
                             <?php echo $lang === 'en'
-                                ? 'Scheduled automatic activation of clan reserves.'
-                                : 'Автоматическое включение клановых резервов по расписанию.'; ?>
+                                ? 'View clan reserves, activate manually, or schedule automatic activation.'
+                                : 'Список клановых резервов, ручной запуск и автоматическая активация по расписанию.'; ?>
+                        </p>
+                    </div>
+                    <div class="project-card-footer">
+                        <span class="project-card-action">
+                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </a>
+                <?php else: ?>
+                <div class="project-card project-card--disabled project-card--span-2" aria-disabled="true" data-landing-id="clan-reserve">
+                    <i class="fas fa-user-plus project-card-bg-icon" aria-hidden="true"></i>
+                    <div class="project-card-body">
+                        <div class="project-card-head">
+                            <?php echo $reserveBadgesHtml; ?>
+                            <h2 class="project-card-title">
+                                <i class="fas fa-user-plus project-card-icon" aria-hidden="true"></i>
+                                <span class="project-card-title-text">
+                                    <?php echo $lang === 'en' ? 'Clan Reserves' : 'Клановые резервы'; ?>
+                                </span>
+                            </h2>
+                        </div>
+                        <p class="project-card-desc">
+                            <?php echo $lang === 'en'
+                                ? 'Configure WG or LESTA API keys in admin to enable this service.'
+                                : 'Настройте API-ключи WG или LESTA в админке, чтобы включить сервис.'; ?>
                         </p>
                     </div>
                     <div class="project-card-footer">
@@ -217,6 +247,7 @@ require __DIR__ . '/includes/site_header.php';
                         </span>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <div class="project-card project-card--active project-card--span-2" data-landing-id="bracket">
                     <i class="fas fa-sitemap project-card-bg-icon" aria-hidden="true"></i>

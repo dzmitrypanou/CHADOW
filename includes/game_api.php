@@ -50,7 +50,7 @@ function game_api_is_configured_for_realm(string $realm, $db = null): bool {
 }
 
 function game_api_ru_publisher_name(string $lang = 'ru'): string {
-    return $lang === 'en' ? 'AO IT Technologies' : 'АО «Айти Технологии»';
+    return 'LESTA';
 }
 
 function game_api_ru_api_label(string $lang = 'ru'): string {
@@ -66,4 +66,34 @@ function game_api_ru_publisher_badge_span(string $lang = 'ru'): string {
         . ' data-label-ru="' . htmlspecialchars($ru, ENT_QUOTES, 'UTF-8') . '"'
         . ' data-label-en="' . htmlspecialchars($en, ENT_QUOTES, 'UTF-8') . '">'
         . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
+}
+
+function game_api_landing_badges_html(string $lang = 'ru', $db = null): string {
+    $wgActive = game_api_wg_application_id($db) !== '';
+    $lestaActive = game_api_lesta_application_id($db) !== '';
+    $badges = [];
+
+    if ($wgActive) {
+        $badges[] = '<span class="project-card-badge project-card-badge--wg project-card-badge--active">WG</span>';
+    }
+
+    if ($lestaActive) {
+        $lestaBadge = game_api_ru_publisher_badge_span($lang);
+        $lestaBadge = str_replace(
+            'project-card-badge--lesta"',
+            'project-card-badge--lesta project-card-badge--active"',
+            $lestaBadge
+        );
+        $badges[] = $lestaBadge;
+    }
+
+    if ($badges === []) {
+        return '';
+    }
+
+    return '<div class="project-card-badge-row">' . implode('', $badges) . '</div>';
+}
+
+function game_api_reserves_service_active($db = null): bool {
+    return game_api_wg_application_id($db) !== '' || game_api_lesta_application_id($db) !== '';
 }

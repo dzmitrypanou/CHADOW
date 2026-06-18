@@ -71,6 +71,7 @@
         if (typeof window.absUpdateDocumentTitle === 'function'
             && !document.body.classList.contains('page-recruiting')
             && !document.body.classList.contains('page-online')
+            && !document.body.classList.contains('page-reserves')
             && !document.getElementById('uploadArea')) {
             window.absUpdateDocumentTitle(lang);
         }
@@ -424,6 +425,25 @@
         return switchCheckersLanguage(lang);
     }
 
+    async function switchReservesLanguage(lang) {
+        if (lang !== 'ru' && lang !== 'en') return false;
+        if (window.ABS_RESERVES_LANG === lang && window.ABS_LANG === lang) return true;
+
+        if (!window.AbsReservesI18n || typeof window.AbsReservesI18n.switchLanguage !== 'function') {
+            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
+            return true;
+        }
+
+        window.AbsReservesI18n.switchLanguage(lang);
+
+        const newPath = buildLangPath(window.location.pathname, lang);
+        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
+
+        updateLangLinks(lang);
+        updateHeaderFooterTexts(lang);
+        return true;
+    }
+
     async function switchLanguageInPlace(lang) {
         if (document.body.classList.contains('page-auth-profile')) {
             await switchProfileLanguage(lang);
@@ -463,6 +483,11 @@
 
         if (document.body.classList.contains('page-wotmods')) {
             await switchWotmodsLanguage(lang);
+            return;
+        }
+
+        if (document.body.classList.contains('page-reserves')) {
+            await switchReservesLanguage(lang);
             return;
         }
 

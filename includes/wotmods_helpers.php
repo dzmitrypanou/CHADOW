@@ -410,8 +410,8 @@ function wotmods_battle_limit_page(string $lang = 'ru'): array
                 'Не автоматизирует стрельбу — только блокирует постановку в очередь.',
             ],
         'compatNote' => $isEn
-            ? 'Tested against the AO IT Technologies RU client layout. WG clients use the same hook points but may need verification after major patches.'
-            : 'Разработано под клиент АО «Айти Технологии» (Мир танков RU). На WG-клиенте используются те же точки подключения, но после крупных патчей может потребоваться проверка.',
+            ? 'Tested against the LESTA RU client layout. WG clients use the same hook points but may need verification after major patches.'
+            : 'Разработано под клиент LESTA (Мир танков RU). На WG-клиенте используются те же точки подключения, но после крупных патчей может потребоваться проверка.',
         'installSteps' => $installSteps,
         'examplePaths' => $isEn
             ? [

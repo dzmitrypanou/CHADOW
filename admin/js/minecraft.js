@@ -304,7 +304,7 @@ function renderLandingBadgesList() {
             test: 'Тест',
             minecraft: 'Minecraft',
             wg: 'WG',
-            lesta: 'АО «Айти Технологии»',
+            lesta: 'LESTA',
             cs2: 'CS2',
             dota2: 'Dota 2',
             survival: 'Выживание',

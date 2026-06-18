@@ -27,8 +27,8 @@
                     roomsLabel: 'Открытые комнаты',
                 },
                 'clan-reserve': {
-                    title: 'Автоматическое включение клановых резервов',
-                    desc: 'Автоматическое включение клановых резервов по расписанию.',
+                    title: 'Клановые резервы',
+                    desc: 'Список клановых резервов, ручной запуск и автоматическая активация по расписанию.',
                 },
                 bracket: {
                     title: 'Генератор турнирных сеток',
@@ -66,6 +66,7 @@
                 'aim-trainers': '/services/aim',
                 'mod-install': '/services/mods',
                 'online-games': '/services/onlinegames',
+                'clan-reserve': '/services/reserves',
             },
         },
         en: {
@@ -93,8 +94,8 @@
                     roomsLabel: 'Open rooms',
                 },
                 'clan-reserve': {
-                    title: 'Automatic Clan Reserve Activation',
-                    desc: 'Scheduled automatic activation of clan reserves.',
+                    title: 'Clan Reserves',
+                    desc: 'View clan reserves, activate manually, or schedule automatic activation.',
                 },
                 bracket: {
                     title: 'Tournament Bracket Generator',
@@ -132,6 +133,7 @@
                 'aim-trainers': '/en/services/aim',
                 'mod-install': '/en/services/mods',
                 'online-games': '/en/services/onlinegames',
+                'clan-reserve': '/en/services/reserves',
             },
         },
     };

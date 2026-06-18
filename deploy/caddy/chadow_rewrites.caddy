@@ -77,6 +77,9 @@
         rewrite /services/recruiting /services/recruiting/index.php
         rewrite /en/services/recruiting /services/recruiting/index.php
 
+        rewrite /services/reserves /services/reserves/index.php
+        rewrite /en/services/reserves /services/reserves/index.php
+
         rewrite /services/bracket/create /services/bracket/create.php
         rewrite /en/services/bracket/create /services/bracket/create.php
         @bracket_edit path_regexp be ^/services/bracket/([a-zA-Z0-9]{10,16})/edit/?$

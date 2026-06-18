@@ -156,9 +156,9 @@ $statsOk = $tankStats !== null && $mapStats !== null;
                                     <small class="form-hint">EU, NA, ASIA: поиск игроков, % попаданий, ссылки на кланы в рекрутинге.</small>
                                 </div>
                                 <div class="form-group">
-                                    <label for="lesta_application_id">API АО «Айти Технологии» application_id</label>
+                                    <label for="lesta_application_id">API LESTA application_id</label>
                                     <input type="text" name="lesta_application_id" id="lesta_application_id" maxlength="64" value="<?php echo htmlspecialchars($lestaApplicationId, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ключ с developers.lesta.ru" autocomplete="off">
-                                    <small class="form-hint">RU: поиск игроков, % попаданий, ссылки на кланы, OAuth АО «Айти Технологии».</small>
+                                    <small class="form-hint">RU: поиск игроков, % попаданий, ссылки на кланы, OAuth LESTA.</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="seo_google_verification">Google Search Console (meta-тег)</label>

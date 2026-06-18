@@ -17,8 +17,8 @@ require_once __DIR__ . '/../../includes/online_health.php';
 $pageTitle = $lang === 'en' ? 'Server Status' : 'Статус серверов';
 abs_set_page_titles('Статус серверов', 'Server Status');
 $metaDescription = $lang === 'en'
-    ? 'Live World of Tanks server status for AO IT Technologies and Wargaming: cluster availability, online players by region, and activity charts.'
-    : 'Актуальный статус серверов World of Tanks АО «Айти Технологии» и Wargaming: доступность кластеров, онлайн по регионам и графики активности.';
+    ? 'Live World of Tanks server status for LESTA and Wargaming: cluster availability, online players by region, and activity charts.'
+    : 'Актуальный статус серверов World of Tanks LESTA и Wargaming: доступность кластеров, онлайн по регионам и графики активности.';
 $bodyClass = 'page-online';
 $seoSlug = 'services/online';
 $extraHeadHtml = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>';

@@ -1,7 +1,7 @@
 (() => {
     'use strict';
 
-    const i18n = () => window.AbsTacticsI18n || window.AbsCheckersI18n;
+    const i18n = () => window.AbsTacticsI18n || window.AbsCheckersI18n || window.AbsReservesI18n;
 
     let modalEl = null;
     let titleEl = null;
@@ -178,4 +178,5 @@
 
     window.addEventListener('tactics:langchange', () => relocalize());
     window.addEventListener('checkers:langchange', () => relocalize());
+    window.addEventListener('reserves:langchange', () => relocalize());
 })();
