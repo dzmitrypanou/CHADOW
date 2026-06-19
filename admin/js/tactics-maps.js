@@ -600,6 +600,10 @@ function updateFileNameLabel() {
     label.style.color = file ? '#e8eef2' : '';
 }
 
+const SPAWN_MARKER_SCALE_DEFAULT = 1;
+const SPAWN_MARKER_SCALE_MIN = 0.5;
+const SPAWN_MARKER_SCALE_MAX = 2;
+
 const spawnEditor = {
     asset: null,
     bounds: null,
@@ -609,16 +613,144 @@ const spawnEditor = {
     drag: null,
 };
 
+function normalizeSpawnMarkerScale(value) {
+    const scale = Number(value);
+    if (!Number.isFinite(scale) || scale <= 0) return SPAWN_MARKER_SCALE_DEFAULT;
+    return Math.min(SPAWN_MARKER_SCALE_MAX, Math.max(SPAWN_MARKER_SCALE_MIN, Math.round(scale * 100) / 100));
+}
+
+function getSpawnPointMarkerScale(point) {
+    return normalizeSpawnMarkerScale(point?.marker_scale ?? 1);
+}
+
+function applySpawnEditorPointScale(index) {
+    const point = spawnEditor.points[index];
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    if (!point || !overlay) return;
+    const el = overlay.querySelector(`[data-index="${index}"]`);
+    if (el) {
+        el.style.setProperty('--spawn-marker-scale', String(getSpawnPointMarkerScale(point)));
+    }
+}
+
+function updateSpawnEditorSelectionPanel() {
+    const index = spawnEditor.selectedIndex;
+    const point = spawnEditor.points[index];
+    const sizeBlock = document.getElementById('tacticsSpawnEditorSizeBlock');
+    const slider = document.getElementById('tacticsSpawnEditorSize');
+    const output = document.getElementById('tacticsSpawnEditorSizeValue');
+    const hasSelection = point != null;
+
+    if (sizeBlock) sizeBlock.hidden = !hasSelection;
+    if (hasSelection) {
+        const scale = getSpawnPointMarkerScale(point);
+        if (slider) slider.value = String(Math.round(scale * 100));
+        if (output) output.textContent = `${Math.round(scale * 100)}%`;
+    } else if (slider) {
+        slider.value = '100';
+        if (output) output.textContent = '100%';
+    }
+
+    updateSpawnEditorPropsPanel();
+}
+
+function setSelectedSpawnPointScale(scale) {
+    const point = spawnEditor.points[spawnEditor.selectedIndex];
+    if (!point) return;
+    const normalized = normalizeSpawnMarkerScale(scale);
+    if (Math.abs(normalized - 1) < 0.001) {
+        delete point.marker_scale;
+    } else {
+        point.marker_scale = normalized;
+    }
+    applySpawnEditorPointScale(spawnEditor.selectedIndex);
+    renderSpawnEditorList();
+}
+
+function resetSelectedSpawnPointScale() {
+    setSelectedSpawnPointScale(SPAWN_MARKER_SCALE_DEFAULT);
+}
+
+function normalizeSpawnBaseNumber(value) {
+    const raw = String(value ?? '').trim();
+    if (!/^[0-9]{1,3}$/.test(raw)) return '';
+    return raw;
+}
+
 function spawnPointLabel(point, index) {
     const type = String(point?.point_type || '');
     const team = String(point?.team || '');
     const names = {
         base: 'База',
         spawn: 'Респ',
-        control_point: 'Точка',
+        control_point: 'База (встречка)',
     };
     const teamLabel = team === 'team1' ? '1' : (team === 'team2' ? '2' : '');
-    return `${index + 1}. ${names[type] || type}${teamLabel ? ' (' + teamLabel + ')' : ''}`;
+    let suffix = teamLabel ? ` (${teamLabel})` : '';
+    if (type === 'base') {
+        const baseNumber = normalizeSpawnBaseNumber(point?.base_number);
+        if (baseNumber) {
+            suffix += ` · ${baseNumber}`;
+        }
+    }
+    const pointScale = getSpawnPointMarkerScale(point);
+    if (Math.abs(pointScale - 1) >= 0.001) {
+        suffix += ` · ${Math.round(pointScale * 100)}%`;
+    }
+    return `${index + 1}. ${names[type] || type}${suffix}`;
+}
+
+function appendSpawnEditorBaseMarkerContent(el, point) {
+    if (!el || String(point?.point_type) !== 'base') return;
+    const baseNumber = normalizeSpawnBaseNumber(point?.base_number);
+    if (baseNumber) {
+        const numberEl = document.createElement('span');
+        numberEl.className = 'tactics-spawn-base-number';
+        numberEl.textContent = baseNumber;
+        el.appendChild(numberEl);
+        return;
+    }
+    const flagEl = document.createElement('span');
+    flagEl.className = 'tactics-spawn-flag';
+    flagEl.setAttribute('aria-hidden', 'true');
+    el.appendChild(flagEl);
+}
+
+function updateSpawnEditorPropsPanel() {
+    const panel = document.getElementById('tacticsSpawnEditorProps');
+    const input = document.getElementById('tacticsSpawnEditorBaseNumber');
+    if (!panel || !input) return;
+    const point = spawnEditor.points[spawnEditor.selectedIndex];
+    const isBase = point && String(point.point_type) === 'base';
+    panel.hidden = !isBase;
+    if (!isBase) {
+        input.value = '';
+        return;
+    }
+    input.value = normalizeSpawnBaseNumber(point.base_number);
+}
+
+function updateSpawnEditorBaseMarker(index) {
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    const point = spawnEditor.points[index];
+    if (!overlay || !point) return;
+    const el = overlay.querySelector(`[data-index="${index}"]`);
+    if (!el) return;
+    el.querySelectorAll('.tactics-spawn-flag, .tactics-spawn-base-number').forEach((node) => node.remove());
+    appendSpawnEditorBaseMarkerContent(el, point);
+}
+
+function setSpawnEditorBaseNumber(value) {
+    const point = spawnEditor.points[spawnEditor.selectedIndex];
+    if (!point || String(point.point_type) !== 'base') return;
+    const normalized = normalizeSpawnBaseNumber(value);
+    if (normalized) {
+        point.base_number = normalized;
+    } else {
+        delete point.base_number;
+    }
+    updateSpawnEditorBaseMarker(spawnEditor.selectedIndex);
+    renderSpawnEditorList();
 }
 
 function spawnPointClassNames(point) {
@@ -626,7 +758,7 @@ function spawnPointClassNames(point) {
     const team = String(point?.team || '');
     const classes = ['tactics-spawn-editor-point'];
     if (type === 'base') classes.push('is-base');
-    if (type === 'control_point') classes.push('is-neutral', 'is-neutral-color');
+    if (type === 'control_point') classes.push('is-encounter-cap');
     else if (team === 'team1') classes.push('is-green');
     else if (team === 'team2') classes.push('is-red');
     else classes.push('is-neutral-color');
@@ -671,9 +803,15 @@ function createSpawnEditorMarkerEl(point, index) {
     if (index === spawnEditor.selectedIndex) el.classList.add('is-selected');
     el.style.left = `${pos.left}%`;
     el.style.top = `${pos.top}%`;
+    el.style.setProperty('--spawn-marker-scale', String(getSpawnPointMarkerScale(point)));
     el.dataset.index = String(index);
     if (String(point.point_type) === 'base') {
-        el.textContent = point.team === 'team2' ? '2' : '1';
+        appendSpawnEditorBaseMarkerContent(el, point);
+    } else if (String(point.point_type) === 'control_point') {
+        const flagEl = document.createElement('span');
+        flagEl.className = 'tactics-spawn-flag';
+        flagEl.setAttribute('aria-hidden', 'true');
+        el.appendChild(flagEl);
     }
     el.addEventListener('pointerdown', (ev) => startSpawnPointDrag(ev, index));
     return el;
@@ -699,6 +837,7 @@ function highlightSpawnSelection() {
         el.classList.toggle('is-selected', idx === spawnEditor.selectedIndex);
     });
     renderSpawnEditorList();
+    updateSpawnEditorSelectionPanel();
 }
 
 function renderSpawnEditorPoints() {
@@ -711,6 +850,7 @@ function renderSpawnEditorPoints() {
         if (el) overlay.appendChild(el);
     });
     renderSpawnEditorList();
+    updateSpawnEditorSelectionPanel();
 }
 
 function selectSpawnPoint(index) {
@@ -828,6 +968,9 @@ function addSpawnEditorPoint(type, team) {
     if (type !== 'control_point') {
         point.team = team;
     }
+    if (type === 'base') {
+        point.base_number = team === 'team2' ? '2' : '1';
+    }
     spawnEditor.points.push(point);
     spawnEditor.selectedIndex = spawnEditor.points.length - 1;
     renderSpawnEditorPoints();
@@ -888,6 +1031,13 @@ function bindSpawnEditorUi() {
     });
     document.getElementById('tacticsSpawnEditorDelete')?.addEventListener('click', deleteSelectedSpawnPoint);
     document.getElementById('tacticsSpawnEditorReset')?.addEventListener('click', resetSpawnEditorPoints);
+    document.getElementById('tacticsSpawnEditorSizeReset')?.addEventListener('click', resetSelectedSpawnPointScale);
+    document.getElementById('tacticsSpawnEditorSize')?.addEventListener('input', (e) => {
+        setSelectedSpawnPointScale(Number(e.target.value) / 100);
+    });
+    document.getElementById('tacticsSpawnEditorBaseNumber')?.addEventListener('input', (e) => {
+        setSpawnEditorBaseNumber(e.target.value);
+    });
     document.getElementById('tacticsSpawnEditorSave')?.addEventListener('click', saveSpawnEditorPoints);
     document.getElementById('tacticsSpawnEditorCancel')?.addEventListener('click', closeSpawnEditorModal);
     document.getElementById('tacticsSpawnEditorModal')?.addEventListener('click', (e) => {

@@ -559,6 +559,7 @@ require __DIR__ . '/../../includes/site_footer.php';
         window.ABS_TACTICS_DEFAULT_NICK = <?php echo json_encode($defaultNickname); ?>;
         window.ABS_TACTICS_IS_LOGGED_IN = <?php echo json_encode($userLoggedIn); ?>;
         window.ABS_TACTICS_IS_OWNER = <?php echo json_encode($isRoomOwner); ?>;
+        window.ABS_TACTICS_CAN_DELETE = <?php echo json_encode($isRoomOwner); ?>;
         window.ABS_TACTICS_GAME_NICKS = <?php echo json_encode($gameNicknames); ?>;
         window.ABS_TACTICS_LOBBY_HREF = <?php echo json_encode($lobbyHref); ?>;
         window.ABS_TACTICS_ROOMS_HREF = <?php echo json_encode($roomsHref); ?>;

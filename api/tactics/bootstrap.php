@@ -72,6 +72,7 @@ function tactics_format_response(array $row, $db, string $clientId, string $nick
         'nickname' => $nickname,
         'nick_color' => $resolvedNickColor,
         'can_manage' => $isOwner,
+        'can_delete' => $isOwner,
         'can_draw' => $canDraw,
     ];
 }

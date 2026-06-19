@@ -711,6 +711,25 @@
         return c;
     }
 
+    function normalizeSpawnMarkerScale(value) {
+        const scale = Number(value);
+        if (!Number.isFinite(scale) || scale <= 0) return 1;
+        return Math.min(2, Math.max(0.5, scale));
+    }
+
+    function getSpawnPointMarkerScale(point) {
+        return normalizeSpawnMarkerScale(point?.marker_scale ?? 1);
+    }
+
+    function spawnMarkerTransform(scale) {
+        const normalized = normalizeSpawnMarkerScale(scale);
+        const base = 'translate(-50%, -50%)';
+        if (Math.abs(normalized - 1) < 0.001) {
+            return base;
+        }
+        return `${base} scale(${normalized})`;
+    }
+
     function getMapSpawnData(mapCode) {
         const spawns = catalogCache?.map_spawns;
         if (!spawns) return null;
@@ -873,10 +892,55 @@
         return 'tactics-map-point--other';
     }
 
-    function spawnBaseLabelForTeam(team) {
-        const normalized = normalizeSpawnTeam(team);
-        if (normalized === 'team1') return '1';
-        if (normalized === 'team2') return '2';
+    const SPAWN_FLAG_PATH_D = 'M7 2.5h2v27H7zM9.5 7L26 7 20 16 26 25 9.5 25z';
+
+    const SPAWN_BASE_FLAG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+        + `<path fill="#fff" d="${SPAWN_FLAG_PATH_D}"/>`
+        + '</svg>';
+
+    function spawnFlagFabricPathD(scale) {
+        const u = scale / 16;
+        const pole = `M ${-9 * u} ${-13.5 * u} h ${2 * u} v ${27 * u} h ${-2 * u} Z`;
+        const flag = `M ${-6.5 * u} ${-9 * u} L ${10 * u} ${-9 * u} L ${4 * u} 0 L ${10 * u} ${9 * u} L ${-6.5 * u} ${9 * u} Z`;
+        return `${pole} ${flag}`;
+    }
+
+    function spawnBaseFlagStyleUrl() {
+        return `url("data:image/svg+xml,${encodeURIComponent(SPAWN_BASE_FLAG_SVG)}")`;
+    }
+
+    function appendSpawnBaseFlag(containerEl) {
+        if (!containerEl) return;
+        const flagEl = document.createElement('span');
+        flagEl.className = 'tactics-spawn-flag';
+        flagEl.setAttribute('aria-hidden', 'true');
+        containerEl.appendChild(flagEl);
+    }
+
+    function normalizeSpawnBaseNumber(value) {
+        const raw = String(value ?? '').trim();
+        if (!/^[0-9]{1,3}$/.test(raw)) return '';
+        return raw;
+    }
+
+    function spawnBaseDisplayNumber(point) {
+        return normalizeSpawnBaseNumber(point?.base_number);
+    }
+
+    function appendSpawnBaseMarker(containerEl, point) {
+        if (!containerEl) return;
+        const baseNumber = spawnBaseDisplayNumber(point);
+        if (baseNumber) {
+            const numberEl = document.createElement('span');
+            numberEl.className = 'tactics-spawn-base-number';
+            numberEl.textContent = baseNumber;
+            containerEl.appendChild(numberEl);
+            return;
+        }
+        appendSpawnBaseFlag(containerEl);
+    }
+
+    function spawnBaseLabelForTeam() {
         return '';
     }
 
@@ -954,18 +1018,15 @@
             const pos = spawnPointToPercent(display.point, bounds);
             if (!pos) return;
             const el = document.createElement('span');
+            const type = String(point?.point_type || '').toLowerCase();
             el.className = `tactics-map-point ${spawnPointClass(point, display.team)}`;
             el.style.left = `${pos.left}%`;
             el.style.top = `${pos.top}%`;
-            const type = String(point?.point_type || '').toLowerCase();
+            el.style.transform = spawnMarkerTransform(getSpawnPointMarkerScale(point));
             if (type === 'base') {
-                const label = spawnBaseLabelForTeam(display.team);
-                if (label) {
-                    const labelEl = document.createElement('span');
-                    labelEl.className = 'tactics-map-point__label';
-                    labelEl.textContent = label;
-                    el.appendChild(labelEl);
-                }
+                appendSpawnBaseMarker(el, point);
+            } else if (type === 'control_point') {
+                appendSpawnBaseFlag(el);
             }
             if (point.label) {
                 el.title = String(point.label);
@@ -1048,6 +1109,9 @@
         isMapAllowedForMode,
         normalizeSpawnTeam,
         getMapSpawnData,
+        getSpawnPointMarkerScale,
+        normalizeSpawnMarkerScale,
+        spawnMarkerTransform,
         supportsSpawnOverlay,
         getSlideSpawnOverlayOpts,
         getSpawnPointsForSlide,
@@ -1057,6 +1121,12 @@
         effectiveSpawnTeam,
         spawnBaseLabel,
         spawnBaseLabelForTeam,
+        spawnBaseFlagStyleUrl,
+        spawnFlagFabricPathD,
+        appendSpawnBaseFlag,
+        appendSpawnBaseMarker,
+        spawnBaseDisplayNumber,
+        normalizeSpawnBaseNumber,
         renderSpawnOverlay,
         renderSlideSpawnOverlay,
     };

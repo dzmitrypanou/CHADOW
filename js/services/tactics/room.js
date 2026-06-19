@@ -36,6 +36,7 @@
     let dirty = false;
     let wsConnected = false;
     let canManage = false;
+    let canDeleteRoom = false;
     let canDraw = false;
     let participantsList = [];
     let lastPresenceClientIds = new Set();
@@ -3320,6 +3321,7 @@
         if (!room) return null;
 
         const isOwner = stored?.is_owner === true || window.ABS_TACTICS_IS_OWNER === true;
+        const canDelete = window.ABS_TACTICS_CAN_DELETE === true;
         const roomData = room.room_data || {};
 
         return {
@@ -3328,6 +3330,7 @@
             ws_token: stored?.ws_token || '',
             ws_url: window.ABS_TACTICS_WS_URL || '',
             can_manage: isOwner,
+            can_delete: canDelete,
             can_draw: canDrawFromRoomData(roomData, isOwner),
         };
     }
@@ -3594,7 +3597,7 @@
         }
         const deleteBtn = document.getElementById('tacticsDeleteRoomBtn');
         if (deleteBtn) {
-            deleteBtn.hidden = !canManage;
+            deleteBtn.hidden = !canDeleteRoom;
         }
         updatePresentBtn();
         updateCursorsLockBtn();
@@ -3747,7 +3750,7 @@
     }
 
     async function deleteRoom() {
-        if (!canManage || !roomState || !accessToken) return;
+        if (!canDeleteRoom || !roomState || !accessToken) return;
         if (!(await tacticsConfirm(i18n().t('deleteRoomConfirm')))) return;
 
         stopPolling();
@@ -3962,6 +3965,7 @@
             }
         }
         canManage = !!payload.can_manage;
+        canDeleteRoom = payload.can_delete !== undefined ? !!payload.can_delete : canManage;
         if (payload.room) {
             roomState = payload.room;
             revision = roomState.revision || revision;
@@ -4016,6 +4020,7 @@
             syncServerPresentationSnapshot(roomState.room_data?.settings);
         }
         canManage = !!payload.can_manage;
+        canDeleteRoom = payload.can_delete !== undefined ? !!payload.can_delete : canManage;
         canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
         window.ABS_TACTICS_MAP_URLS = buildMapUrls(
             roomState.room_data,

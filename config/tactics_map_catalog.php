@@ -444,6 +444,20 @@ function tactics_tankist_spawn_entry(string $mapCode): ?array {
     return is_array($entry) ? $entry : null;
 }
 
+function tactics_normalize_marker_scale($value): float {
+    if (!is_numeric($value)) {
+        return 1.0;
+    }
+    $scale = (float) $value;
+    if ($scale < 0.5) {
+        $scale = 0.5;
+    } elseif ($scale > 2.0) {
+        $scale = 2.0;
+    }
+
+    return round($scale, 2);
+}
+
 function tactics_normalize_spawn_points(array $points): array {
     $out = [];
     foreach ($points as $point) {
@@ -473,6 +487,18 @@ function tactics_normalize_spawn_points(array $points): array {
         if ($label !== '') {
             $row['label'] = $label;
         }
+        if ($type === 'base') {
+            $baseNumber = trim((string) ($point['base_number'] ?? ''));
+            if ($baseNumber !== '' && preg_match('/^[0-9]{1,3}$/', $baseNumber)) {
+                $row['base_number'] = $baseNumber;
+            }
+        }
+        if (array_key_exists('marker_scale', $point)) {
+            $scale = tactics_normalize_marker_scale($point['marker_scale']);
+            if (abs($scale - 1.0) >= 0.001) {
+                $row['marker_scale'] = $scale;
+            }
+        }
         $out[] = $row;
     }
 
@@ -499,6 +525,25 @@ function tactics_spawn_bounds_from_entry(?array $entry): ?array {
         'max_x' => (float) $bounds['max_x'],
         'max_y' => (float) $bounds['max_y'],
     ];
+}
+
+function tactics_apply_legacy_mode_marker_scale(array $points, $legacyScale): array {
+    $scale = tactics_normalize_marker_scale($legacyScale);
+    if (abs($scale - 1.0) < 0.001) {
+        return $points;
+    }
+    $out = [];
+    foreach ($points as $point) {
+        if (!is_array($point)) {
+            continue;
+        }
+        if (!array_key_exists('marker_scale', $point)) {
+            $point['marker_scale'] = $scale;
+        }
+        $out[] = $point;
+    }
+
+    return $out;
 }
 
 function tactics_spawn_mode_defaults(string $mapCode, string $battleMode): array {
@@ -539,11 +584,15 @@ function tactics_admin_get_map_spawns(string $mapCode, string $battleMode): arra
             }
         }
         if (array_key_exists('points', $custom) && is_array($custom['points'])) {
-            $points = tactics_normalize_spawn_points($custom['points']);
-            $hasOverride = !tactics_spawn_points_equal($points, $defaults['points'])
-                || ($bounds !== null && $defaults['bounds'] !== null
-                    && json_encode($bounds) !== json_encode($defaults['bounds']));
+            $rawPoints = $custom['points'];
+            if (array_key_exists('marker_scale', $custom)) {
+                $rawPoints = tactics_apply_legacy_mode_marker_scale($rawPoints, $custom['marker_scale']);
+            }
+            $points = tactics_normalize_spawn_points($rawPoints);
         }
+        $hasOverride = !tactics_spawn_points_equal($points, $defaults['points'])
+            || ($bounds !== null && $defaults['bounds'] !== null
+                && json_encode($bounds) !== json_encode($defaults['bounds']));
     }
 
     return [
@@ -556,7 +605,12 @@ function tactics_admin_get_map_spawns(string $mapCode, string $battleMode): arra
     ];
 }
 
-function tactics_admin_save_map_spawns(string $mapCode, string $battleMode, array $points, ?array $bounds = null): array {
+function tactics_admin_save_map_spawns(
+    string $mapCode,
+    string $battleMode,
+    array $points,
+    ?array $bounds = null,
+): array {
     require_once __DIR__ . '/../includes/tactics_helpers.php';
 
     $code = strtolower(trim($mapCode));
@@ -578,11 +632,12 @@ function tactics_admin_save_map_spawns(string $mapCode, string $battleMode, arra
         }
     }
 
-    $overrides = tactics_load_spawn_overrides_raw();
-    $sameAsDefault = tactics_spawn_points_equal($normalized, $defaults['points'])
-        && ($boundsOut === null || $defaults['bounds'] === null
-            || json_encode($boundsOut) === json_encode($defaults['bounds']));
+    $samePoints = tactics_spawn_points_equal($normalized, $defaults['points']);
+    $sameBounds = $boundsOut === null || $defaults['bounds'] === null
+        || json_encode($boundsOut) === json_encode($defaults['bounds']);
+    $sameAsDefault = $samePoints && $sameBounds;
 
+    $overrides = tactics_load_spawn_overrides_raw();
     if ($sameAsDefault) {
         if (isset($overrides[$code][$mode])) {
             unset($overrides[$code][$mode]);
@@ -594,12 +649,14 @@ function tactics_admin_save_map_spawns(string $mapCode, string $battleMode, arra
         if (!isset($overrides[$code]) || !is_array($overrides[$code])) {
             $overrides[$code] = [];
         }
-        $overrides[$code][$mode] = [
-            'points' => $normalized,
-        ];
-        if ($boundsOut !== null) {
-            $overrides[$code][$mode]['bounds'] = $boundsOut;
+        $entry = [];
+        if (!$samePoints) {
+            $entry['points'] = $normalized;
         }
+        if (!$sameBounds && $boundsOut !== null) {
+            $entry['bounds'] = $boundsOut;
+        }
+        $overrides[$code][$mode] = $entry;
     }
 
     $path = tactics_spawn_overrides_path();
@@ -663,7 +720,11 @@ function tactics_load_tankist_spawns_for_client(): array {
             $custom = $overrides[$code][$mode] ?? null;
             if (is_array($custom)) {
                 if (is_array($custom['points'] ?? null)) {
-                    $points = tactics_normalize_spawn_points($custom['points']);
+                    $rawPoints = $custom['points'];
+                    if (array_key_exists('marker_scale', $custom)) {
+                        $rawPoints = tactics_apply_legacy_mode_marker_scale($rawPoints, $custom['marker_scale']);
+                    }
+                    $points = tactics_normalize_spawn_points($rawPoints);
                 }
                 if (is_array($custom['bounds'] ?? null)) {
                     $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $custom['bounds']]);
@@ -689,9 +750,13 @@ function tactics_load_tankist_spawns_for_client(): array {
                 if (!is_array($custom) || isset($modes[$mode])) {
                     continue;
                 }
+                $rawPoints = is_array($custom['points'] ?? null) ? $custom['points'] : [];
+                if (array_key_exists('marker_scale', $custom)) {
+                    $rawPoints = tactics_apply_legacy_mode_marker_scale($rawPoints, $custom['marker_scale']);
+                }
                 $modes[$mode] = [
                     'label_ru' => '',
-                    'points' => tactics_normalize_spawn_points(is_array($custom['points'] ?? null) ? $custom['points'] : []),
+                    'points' => tactics_normalize_spawn_points($rawPoints),
                 ];
                 if (is_array($custom['bounds'] ?? null)) {
                     $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $custom['bounds']]);

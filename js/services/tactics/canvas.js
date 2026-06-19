@@ -658,59 +658,41 @@
                     : '');
             const cx = normX * canvasSize;
             const cy = normY * canvasSize;
-            const baseRadius = Math.max(28, canvasSize * 0.044);
-            const spawnRadius = Math.max(16, canvasSize * 0.028);
+            const markerScale = mapsApi?.getSpawnPointMarkerScale
+                ? mapsApi.getSpawnPointMarkerScale(point)
+                : (mapsApi?.normalizeSpawnMarkerScale
+                    ? mapsApi.normalizeSpawnMarkerScale(point?.marker_scale ?? 1)
+                    : 1);
+            const baseRadius = Math.max(28, canvasSize * 0.044) * markerScale;
+            const spawnRadius = Math.max(16, canvasSize * 0.028) * markerScale;
             const strokeWidth = Math.max(3, Math.round(baseRadius * 0.14));
 
             if (type === 'control_point') {
-                const size = baseRadius * 1.35;
-                const marker = new fabric.Rect({
+                const ringWidth = Math.max(4, Math.round(baseRadius * 0.16));
+                const circle = new fabric.Circle({
                     left: cx,
                     top: cy,
-                    width: size,
-                    height: size,
-                    fill: '#8b93a7',
-                    angle: 45,
+                    radius: baseRadius,
+                    fill: 'rgba(18, 18, 20, 0.92)',
                     originX: 'center',
                     originY: 'center',
-                    stroke: '#ffffff',
-                    strokeWidth,
+                    stroke: '#c8ced8',
+                    strokeWidth: ringWidth,
                 });
-                this.applySpawnMarkerLock(marker);
-                return marker;
-            }
-
-            const isGreen = team === 'team1';
-            const color = isGreen ? '#36c736' : '#e03c3c';
-            const radius = type === 'base' ? baseRadius : spawnRadius;
-            const circle = new fabric.Circle({
-                left: cx,
-                top: cy,
-                radius,
-                fill: color,
-                originX: 'center',
-                originY: 'center',
-                stroke: '#ffffff',
-                strokeWidth,
-            });
-
-            if (type === 'base') {
-                const label = mapsApi?.spawnBaseLabelForTeam
-                    ? mapsApi.spawnBaseLabelForTeam(team)
-                    : (mapsApi?.spawnBaseLabel
-                        ? mapsApi.spawnBaseLabel(point)
-                        : (isGreen ? '1' : '2'));
-                const text = new fabric.Text(label, {
-                    left: cx,
-                    top: cy,
-                    originX: 'center',
-                    originY: 'center',
-                    fontSize: Math.max(12, Math.round(radius * 1.05)),
-                    fontWeight: 'bold',
-                    fill: '#ffffff',
-                    fontFamily: 'Arial, Helvetica, sans-serif',
-                });
-                const group = new fabric.Group([circle, text], {
+                const flagScale = baseRadius * 0.9;
+                const flagPathD = mapsApi?.spawnFlagFabricPathD
+                    ? mapsApi.spawnFlagFabricPathD(flagScale)
+                    : '';
+                const flag = new fabric.Path(flagPathD, {
+                        left: cx,
+                        top: cy,
+                        fill: '#ffffff',
+                        stroke: null,
+                        originX: 'center',
+                        originY: 'center',
+                    },
+                );
+                const group = new fabric.Group([circle, flag], {
                     left: cx,
                     top: cy,
                     originX: 'center',
@@ -719,6 +701,74 @@
                 this.applySpawnMarkerLock(group);
                 return group;
             }
+
+            const isGreen = team === 'team1';
+            const ringColor = isGreen ? '#29d500' : '#e03c3c';
+            const fillColor = isGreen ? '#36c736' : '#e03c3c';
+            const radius = type === 'base' ? baseRadius : spawnRadius;
+
+            if (type === 'base') {
+                const ringWidth = Math.max(4, Math.round(baseRadius * 0.16));
+                const circle = new fabric.Circle({
+                    left: cx,
+                    top: cy,
+                    radius,
+                    fill: 'rgba(18, 18, 20, 0.92)',
+                    originX: 'center',
+                    originY: 'center',
+                    stroke: ringColor,
+                    strokeWidth: ringWidth,
+                });
+                const baseNumber = mapsApi?.spawnBaseDisplayNumber
+                    ? mapsApi.spawnBaseDisplayNumber(point)
+                    : '';
+                const markerItems = [circle];
+                if (baseNumber) {
+                    markerItems.push(new fabric.Text(baseNumber, {
+                        left: cx,
+                        top: cy,
+                        originX: 'center',
+                        originY: 'center',
+                        fontSize: Math.max(12, Math.round(radius * 1.05)),
+                        fontWeight: 'bold',
+                        fill: '#ffffff',
+                        fontFamily: 'Arial, Helvetica, sans-serif',
+                    }));
+                } else {
+                    const flagScale = radius * 0.9;
+                    const flagPathD = mapsApi?.spawnFlagFabricPathD
+                        ? mapsApi.spawnFlagFabricPathD(flagScale)
+                        : '';
+                    markerItems.push(new fabric.Path(flagPathD, {
+                            left: cx,
+                            top: cy,
+                            fill: '#ffffff',
+                            stroke: null,
+                            originX: 'center',
+                            originY: 'center',
+                        },
+                    ));
+                }
+                const group = new fabric.Group(markerItems, {
+                    left: cx,
+                    top: cy,
+                    originX: 'center',
+                    originY: 'center',
+                });
+                this.applySpawnMarkerLock(group);
+                return group;
+            }
+
+            const circle = new fabric.Circle({
+                left: cx,
+                top: cy,
+                radius,
+                fill: fillColor,
+                originX: 'center',
+                originY: 'center',
+                stroke: '#ffffff',
+                strokeWidth,
+            });
 
             this.applySpawnMarkerLock(circle);
             return circle;
