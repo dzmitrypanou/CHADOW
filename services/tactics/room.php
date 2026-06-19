@@ -235,6 +235,8 @@ require __DIR__ . '/../../includes/site_header.php';
                     <div class="tactics-tools-column__inner">
                     <section class="tactics-room-controls" aria-label="<?php echo $lang === 'en' ? 'View options' : 'Параметры'; ?>">
                         <button type="button" class="tactics-room-controls__btn is-active" id="tacticsGridToggleBtn" title="<?php echo $lang === 'en' ? 'Toggle grid' : 'Сетка'; ?>"><i class="fas fa-border-all" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-room-controls__btn is-active" id="tacticsSpawnOverlayBtn" title="<?php echo $lang === 'en' ? 'Map spawns' : 'Респы на карте'; ?>" hidden><i class="fas fa-map-pin" aria-hidden="true"></i></button>
+                        <button type="button" class="tactics-room-controls__btn" id="tacticsSpawnSwapBtn" title="<?php echo $lang === 'en' ? 'Swap spawns' : 'Поменять респы'; ?>" hidden><i class="fas fa-right-left" aria-hidden="true"></i></button>
                         <button type="button" class="tactics-room-controls__btn" id="tacticsCursorsLockBtn" title="<?php echo $lang === 'en' ? 'Cursors lock' : 'Курсоры'; ?>" hidden><i class="fas fa-eye" aria-hidden="true"></i></button>
                         <button type="button" class="tactics-room-controls__btn is-active" id="tacticsRemoteCursorsBtn" title="<?php echo $lang === 'en' ? 'Peer cursors' : 'Курсоры участников'; ?>"><i class="fas fa-users" aria-hidden="true"></i></button>
                         <button type="button" class="tactics-room-controls__btn is-active" id="tacticsShareCursorBtn" title="<?php echo $lang === 'en' ? 'Share cursor' : 'Мой курсор'; ?>"><i class="fas fa-location-arrow" aria-hidden="true"></i></button>

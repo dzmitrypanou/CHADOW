@@ -26,6 +26,7 @@ if (!is_array($metadata)) {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/ensure_map_dictionary.php';
 require_once __DIR__ . '/../config/ensure_tactics.php';
+require_once __DIR__ . '/../config/tactics_map_catalog.php';
 require_once __DIR__ . '/../includes/tactics_helpers.php';
 
 $db = Database::getInstance();
@@ -140,6 +141,14 @@ function tactics_prune_invalid_tank_assignments($db): int {
                 [$mapCode, $game, $rawMode]
             );
             $removed++;
+            continue;
+        }
+        if ($rawMode === 'grand' || !tactics_map_allowed_for_mode($mapCode, $rawMode, $game)) {
+            $db->query(
+                'DELETE FROM tactics_map_assignments WHERE map_code = ? AND game = ? AND battle_mode = ?',
+                [$mapCode, $game, $rawMode]
+            );
+            $removed++;
         }
     }
 
@@ -154,6 +163,13 @@ foreach ($metadata as $mapCode => $row) {
 
     $ru = trim((string) ($row['display_name_ru'] ?? $mapCode));
     $en = trim((string) ($row['display_name_en'] ?? $ru));
+    $named = tactics_apply_map_display_names([
+        'map_code' => $mapCode,
+        'display_name_ru' => $ru,
+        'display_name_en' => $en,
+    ]);
+    $ru = (string) $named['display_name_ru'];
+    $en = (string) $named['display_name_en'];
     $sideLength = isset($row['side_length']) ? tactics_sanitize_side_length($row['side_length']) : null;
     $games = is_array($row['games'] ?? null) ? $row['games'] : [];
     $modes = is_array($row['modes'] ?? null) ? $row['modes'] : ['random'];
@@ -183,6 +199,9 @@ foreach ($metadata as $mapCode => $row) {
         $game = tactics_sanitize_game((string) $game);
         foreach ($modes as $mode) {
             $mode = tactics_sanitize_battle_mode((string) $mode, $game);
+            if (!tactics_map_allowed_for_mode($mapCode, $mode, $game)) {
+                continue;
+            }
             if (!tactics_map_has_mode_asset($mapCode, $game, $mode)) {
                 continue;
             }

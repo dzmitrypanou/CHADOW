@@ -59,7 +59,27 @@
             this.applyViewModeClasses();
             this.bindEvents();
             this.render();
-            window.addEventListener('tactics:catalog-updated', () => this.updatePreviewScales());
+            window.addEventListener('tactics:catalog-updated', () => {
+                this.updatePreviewScales();
+                this.refreshSlideSpawnOverlays();
+            });
+        }
+
+        refreshSlideSpawnOverlays() {
+            if (!this.listEl || this.viewMode === 'list') return;
+            if (typeof maps().renderSlideSpawnOverlay !== 'function') return;
+            const renderAll = () => {
+                this.listEl.querySelectorAll('[data-slide-spawns]').forEach((el) => {
+                    const slideId = el.getAttribute('data-slide-spawns');
+                    const slide = this.getSlides().find((s) => s.id === slideId);
+                    maps().renderSlideSpawnOverlay(el, slide);
+                });
+            };
+            if (typeof maps().loadCatalog === 'function') {
+                void maps().loadCatalog().then(renderAll).catch(renderAll);
+                return;
+            }
+            renderAll();
         }
 
         getViewSlideStorageKey() {
@@ -818,6 +838,7 @@
                 + '<div class="tactics-slide-preview">'
                 + '<button type="button" class="tactics-slide-btn tactics-slide-thumb-btn" data-slide-id="' + slide.id + '">'
                 + '<img class="tactics-slide-thumb" src="' + thumbUrl + '" alt="" loading="lazy" crossorigin="anonymous">'
+                + '<div class="tactics-slide-preview-spawns" data-slide-spawns="' + slide.id + '" hidden aria-hidden="true"></div>'
                 + this.renderSlideScaleBar(slide)
                 + '</button>'
                 + changeMapBtn
@@ -918,6 +939,7 @@
             });
 
             this.refreshSlideThumbs();
+            this.refreshSlideSpawnOverlays();
             this.updatePreviewScales();
             this.applyCarouselMode();
             const restoreScroll = () => this.restoreScrollState(scrollState);
@@ -1065,6 +1087,9 @@
             slide.game = game || slide.game || 'wot';
             slide.battle_mode = battleMode || slide.battle_mode || 'random';
             slide.canvas = null;
+            if (slide.view && typeof slide.view === 'object') {
+                slide.view.spawn_swapped = false;
+            }
 
             const scaleOpts = scale && typeof scale === 'object' ? scale : null;
             const defaultScale = maps().defaultCustomMapScaleHu(slide.game);

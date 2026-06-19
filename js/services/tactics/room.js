@@ -214,6 +214,9 @@
         if (typeof slide.view.show_grid !== 'boolean') {
             slide.view.show_grid = getDrawSettings().show_grid !== false;
         }
+        if (typeof slide.view.spawn_overlay !== 'boolean') {
+            slide.view.spawn_overlay = true;
+        }
     }
 
     function getSlideShowGrid(slide) {
@@ -227,6 +230,116 @@
         slide.view.show_grid = !!visible;
     }
 
+    function getSlideSpawnSwapped(slide) {
+        ensureSlideView(slide);
+        return slide.view.spawn_swapped === true;
+    }
+
+    function setSlideSpawnSwapped(slide, swapped) {
+        if (!slide) return;
+        ensureSlideView(slide);
+        slide.view.spawn_swapped = !!swapped;
+    }
+
+    function supportsSpawnSwap(slide) {
+        return typeof maps().supportsSpawnSwap === 'function' && maps().supportsSpawnSwap(slide);
+    }
+
+    function canToggleSlideView() {
+        return !(isPresentationMode() && !isPresentationHost());
+    }
+
+    function getSlideSpawnOverlay(slide) {
+        ensureSlideView(slide);
+        return slide.view.spawn_overlay !== false;
+    }
+
+    function setSlideSpawnOverlay(slide, visible) {
+        if (!slide) return;
+        ensureSlideView(slide);
+        slide.view.spawn_overlay = !!visible;
+    }
+
+    function supportsSpawnOverlay(slide) {
+        return typeof maps().supportsSpawnOverlay === 'function' && maps().supportsSpawnOverlay(slide);
+    }
+
+    async function pushSpawnSwapChange() {
+        const slide = slidesCtrl?.getActiveSlide();
+        if (!slide || !supportsSpawnSwap(slide) || !canToggleSlideView() || !roomState) return;
+
+        setSlideSpawnSwapped(slide, !getSlideSpawnSwapped(slide));
+        updateSpawnSwapBtn();
+        canvasCtrl?.syncSpawnOverlay(slide);
+        slidesCtrl?.refreshSlideSpawnOverlays?.();
+        await saveGridSettingNow();
+        markDirty();
+    }
+
+    async function pushSpawnOverlayChange() {
+        const slide = slidesCtrl?.getActiveSlide();
+        if (!slide || !supportsSpawnOverlay(slide) || !canToggleSlideView() || !roomState) return;
+
+        setSlideSpawnOverlay(slide, !getSlideSpawnOverlay(slide));
+        updateSpawnOverlayBtn();
+        canvasCtrl?.syncSpawnOverlay(slide);
+        slidesCtrl?.refreshSlideSpawnOverlays?.();
+        await saveGridSettingNow();
+        markDirty();
+    }
+
+    function updateSpawnOverlayBtn() {
+        const btn = document.getElementById('tacticsSpawnOverlayBtn');
+        if (!btn) return;
+        const slide = slidesCtrl?.getActiveSlide();
+        const supported = supportsSpawnOverlay(slide);
+        const viewerLocked = isPresentationMode() && !isPresentationHost();
+        btn.hidden = !supported;
+        btn.disabled = viewerLocked;
+        btn.classList.toggle('is-disabled', btn.disabled);
+        btn.classList.toggle('is-active', supported && getSlideSpawnOverlay(slide));
+        const i18n = window.AbsTacticsI18n;
+        btn.title = i18n
+            ? i18n.t(getSlideSpawnOverlay(slide) ? 'spawnOverlayOn' : 'spawnOverlayOff')
+            : (getSlideSpawnOverlay(slide) ? 'Респы на карте' : 'Показать респы');
+    }
+
+    function bindSpawnOverlayBtn() {
+        const btn = document.getElementById('tacticsSpawnOverlayBtn');
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+            if (!canToggleSlideView()) return;
+            pushSpawnOverlayChange();
+        });
+    }
+
+    function updateSpawnSwapBtn() {
+        const btn = document.getElementById('tacticsSpawnSwapBtn');
+        if (!btn) return;
+        const slide = slidesCtrl?.getActiveSlide();
+        const supported = supportsSpawnSwap(slide);
+        const viewerLocked = isPresentationMode() && !isPresentationHost();
+        btn.hidden = !supported;
+        btn.disabled = viewerLocked;
+        btn.classList.toggle('is-disabled', btn.disabled);
+        btn.classList.toggle('is-active', supported && getSlideSpawnSwapped(slide));
+        const i18n = window.AbsTacticsI18n;
+        btn.title = i18n
+            ? i18n.t(getSlideSpawnSwapped(slide) ? 'spawnSwapOn' : 'spawnSwapOff')
+            : (getSlideSpawnSwapped(slide) ? 'Респы поменяны' : 'Поменять респы');
+    }
+
+    function bindSpawnSwapBtn() {
+        const btn = document.getElementById('tacticsSpawnSwapBtn');
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+            if (!canToggleSlideView()) return;
+            pushSpawnSwapChange();
+        });
+    }
+
     function applySlideViewPrefs(slide) {
         if (!slide || !canvasCtrl) return;
         ensureSlideView(slide);
@@ -236,6 +349,9 @@
             canvasCtrl.setShareMyCursor(cursorPrefs.share_my_cursor);
         }
         canvasCtrl.setShowGrid(getSlideShowGrid(slide));
+        updateSpawnSwapBtn();
+        updateSpawnOverlayBtn();
+        canvasCtrl?.syncSpawnOverlay(slide);
     }
 
     const CUSTOM_MAP_CODES = {
@@ -1605,7 +1721,7 @@
     }
 
     async function saveGridSettingNow() {
-        if (!canDraw || !roomState || !accessToken) return;
+        if ((!canDraw && !canManage) || !roomState || !accessToken) return;
 
         persistCanvasToSlide();
 
@@ -1684,6 +1800,8 @@
             gridBtn.disabled = viewerLocked;
             gridBtn.classList.toggle('is-disabled', viewerLocked);
         }
+        updateSpawnSwapBtn();
+        updateSpawnOverlayBtn();
         const canEditSlides = !mobileView && (canManage || canDraw) && !viewerLocked;
         slidesCtrl?.setCanManage(canManage);
         slidesCtrl?.setCanAddSlides(canEditSlides);
@@ -3464,9 +3582,7 @@
         const publicId = roomPublicId();
         (roomData?.slides || []).forEach((slide) => {
             if (!slide?.id) return;
-            if (!urls[slide.id]) {
-                urls[slide.id] = maps().slideMapUrl(slide, publicId, urls);
-            }
+            urls[slide.id] = maps().slideMapUrl(slide, publicId, urls);
         });
         return urls;
     }
@@ -4256,6 +4372,8 @@
         bindCustomMapUpload();
         bindDrawLockBtn();
         bindCursorsLockBtn();
+        bindSpawnSwapBtn();
+        bindSpawnOverlayBtn();
         bindPresentBtn();
         bindBackBtn();
         bindDownloadScreenshotBtn();

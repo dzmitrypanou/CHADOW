@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Extract tactical minimaps from a Mir Tankov / WoT game client and place them
+Extract tactical minimaps from a Mir Tankov or World of Tanks game client and place them
 under assets/tactics/maps/{game}/{mode}/{map_code}.webp
 
-Draws spawn points and capture bases from arena_defs.
+These are separate games — never mix their assets:
+  lesta → C:\\Games\\Tanki (Мир танков)
+  wot   → C:\\Games\\World_of_Tanks_EU (World of Tanks)
 
-Requires: Python 3.9+, Pillow, scripts/_wot_extract (wot-map-extractor clone).
-Default client path: C:\\Games\\Tanki
+Draws spawn points and capture bases from arena_defs (optional, --no-spawns for clean maps).
 """
 
 from __future__ import annotations
@@ -24,6 +25,11 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 EXTRACTOR = ROOT / "scripts" / "_wot_extract"
 DEFAULT_CLIENT = Path(r"C:\Games\Tanki")
+DEFAULT_WOT_CLIENT = Path(r"C:\Games\World_of_Tanks_EU")
+GAME_CLIENTS = {
+    "lesta": DEFAULT_CLIENT,
+    "wot": DEFAULT_WOT_CLIENT,
+}
 ASSETS_ROOT = ROOT / "assets" / "tactics" / "maps"
 METADATA_PATH = ROOT / "scripts" / "lesta_maps_metadata.json"
 ASSETS_DIR = EXTRACTOR / "assets"
@@ -51,7 +57,53 @@ CANONICAL_NAMES = {
     "highway": ("Хайвей", "Highway"),
     "kharkiv": ("Харьков", "Kharkov"),
     "munchen": ("Уайдпарк", "Widepark"),
+    "karelia": ("Орловский выступ", "Karelia"),
 }
+
+MAP_NAMES_PATH = ROOT / "config" / "tactics_map_names.json"
+MAP_NAMES_CACHE: dict[str, dict[str, str]] | None = None
+
+
+def load_map_names_index() -> dict[str, dict[str, dict[str, str]]]:
+    global MAP_NAMES_CACHE
+    if MAP_NAMES_CACHE is not None:
+        return MAP_NAMES_CACHE
+    if not MAP_NAMES_PATH.is_file():
+        MAP_NAMES_CACHE = {"by_code": {}, "by_arena": {}}
+        return MAP_NAMES_CACHE
+    data = json.loads(MAP_NAMES_PATH.read_text(encoding="utf-8"))
+    MAP_NAMES_CACHE = {
+        "by_code": data.get("by_code") or {},
+        "by_arena": data.get("by_arena") or {},
+    }
+    return MAP_NAMES_CACHE
+
+
+def map_lookup_code(code: str) -> str:
+    code = code.lower().strip()
+    if code.endswith("_sw"):
+        code = code[:-3]
+    m = re.match(r"^\d+_(.+)$", code)
+    if m:
+        return m.group(1)
+    return code
+
+
+def map_name_entry(code: str) -> dict[str, str] | None:
+    code = code.lower().strip()
+    if not code:
+        return None
+    index = load_map_names_index()
+    by_code = index.get("by_code") or {}
+    by_arena = index.get("by_arena") or {}
+    if code in by_code:
+        return by_code[code]
+    if code in by_arena:
+        return by_arena[code]
+    lookup = map_lookup_code(code)
+    if lookup != code and lookup in by_code:
+        return by_code[lookup]
+    return None
 
 SPAWN_CHAIN_BY_MODE = {
     "random": ["standard_battle", "att_def", "assault", "encounter_battle", "onslaught"],
@@ -103,6 +155,19 @@ WOT_ONLY = {
     "last_frontier_v",
 }
 
+# WoT client arenas that are not real random-battle maps (events, hangars, variants).
+WOT_EXCLUDED = {
+    "ensk_big",
+    "ruinberg_sm24",
+    "dday_sm24",
+    "germany_sm24",
+    "graf_zeppelin",
+    "graf_zeppelin_scc",
+    "siegfried_line_ls26_1",
+    "hangar_v4",
+    "hangar_v4_last_stand",
+}
+
 ENCOUNTER = {
     "airfield",
     "cliff",
@@ -137,7 +202,6 @@ ENCOUNTER = {
 }
 
 ASSAULT = {
-    "karelia",
     "murovanka",
     "ruinberg",
     "siegfried_line",
@@ -179,6 +243,16 @@ def modes_for_arena(gameplay_tags: set[str], code: str) -> list[str]:
     return modes or (["random"] if has_ctf else [])
 
 
+def game_allowed_for_code(code: str, game: str) -> bool:
+    if game == "lesta" and code in WOT_ONLY:
+        return False
+    if game == "wot" and code in LESTA_ONLY:
+        return False
+    if game == "wot" and code in WOT_EXCLUDED:
+        return False
+    return True
+
+
 def games_for_code(code: str) -> list[str]:
     games = []
     if code not in LESTA_ONLY:
@@ -215,6 +289,9 @@ def has_spawn_data(map_info: dict, gameplay_mode: str) -> bool:
 
 
 def canonical_names(code: str, ru: str, en: str) -> tuple[str, str]:
+    entry = map_name_entry(code)
+    if entry:
+        return entry.get("ru") or ru, entry.get("en") or en
     if code in CANONICAL_NAMES:
         return CANONICAL_NAMES[code]
     return ru, en
@@ -301,81 +378,40 @@ MARKER_PROFILE_BY_MODE = {
     "assault": {"green_spawn", "red_spawn", "green_cap"},
 }
 
-SPAWN_SOURCE_PRIORITY = ("standard_battle", "encounter_battle", "att_def")
-ASSAULT_SOURCES = ("assault", "att_def")
 
-GRAY_CAP_RGB = {
-    (41, 160, 0): (120, 120, 120),
-    (41, 159, 0): (118, 118, 118),
-    (41, 158, 0): (116, 116, 116),
-    (29, 211, 0): (170, 170, 170),
-}
+def assault_gameplay_data(map_info: dict) -> dict:
+    assault = map_info.get("assault") or {}
+    if assault.get("green_spawn") or assault.get("red_spawn") or assault.get("green_cap"):
+        return assault
+    return map_info.get("att_def") or {}
 
 
-def recolor_cap_asset(source: Path, target: Path) -> None:
-    image = Image.open(source).convert("RGBA")
-    pixels = image.load()
-    for y in range(image.height):
-        for x in range(image.width):
-            red, green, blue, alpha = pixels[x, y]
-            if alpha == 0:
-                continue
-            replacement = GRAY_CAP_RGB.get((red, green, blue))
-            if replacement is not None:
-                pixels[x, y] = (*replacement, alpha)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    image.save(target, format="PNG")
-
-
-def ensure_gray_cap_assets(assets_dir: Path) -> None:
-    for index, suffix in enumerate(("", "2"), start=1):
-        target = assets_dir / f"gray_cap{suffix}.png"
-        if target.is_file():
-            continue
-        source = assets_dir / f"green_cap{suffix}.png"
-        if not source.is_file():
-            raise SystemExit(f"Missing cap asset template: {source}")
-        recolor_cap_asset(source, target)
-
-
-def merge_from_sources(
-    map_info: dict,
-    sources: list[str],
-    fields: tuple[str, ...],
-    *,
-    accumulate: frozenset[str] = frozenset(),
-) -> dict[str, list]:
+def markers_from_fields(data: dict, fields: tuple[str, ...]) -> dict[str, list]:
     merged = empty_markers()
-    for gameplay in sources:
-        data = map_info.get(gameplay) or {}
-        for field in fields:
-            coords = normalize_coords(data.get(field))
-            if not coords:
-                continue
-            if field in accumulate:
-                extend_unique_coords(merged[field], coords)
-            elif not merged[field]:
-                extend_unique_coords(merged[field], coords)
+    for field in fields:
+        extend_unique_coords(merged[field], normalize_coords(data.get(field)))
     return merged
 
-
 def merge_assault_markers(map_info: dict) -> dict[str, list]:
-    spawns = merge_from_sources(
-        map_info,
-        list(ASSAULT_SOURCES),
-        ("green_spawn", "red_spawn"),
-        accumulate=frozenset({"green_spawn", "red_spawn"}),
+    return markers_from_fields(
+        assault_gameplay_data(map_info),
+        ("green_spawn", "red_spawn", "green_cap"),
     )
-    caps = merge_from_sources(
-        map_info,
-        list(ASSAULT_SOURCES),
-        ("green_cap",),
-        accumulate=frozenset({"green_cap"}),
+
+
+def merge_random_markers(map_info: dict, code: str) -> dict[str, list]:
+    merged = markers_from_fields(
+        map_info.get("standard_battle") or {},
+        ("green_cap", "red_cap"),
     )
-    merged = empty_markers()
-    merged["green_spawn"] = spawns["green_spawn"]
-    merged["red_spawn"] = spawns["red_spawn"]
-    merged["green_cap"] = caps["green_cap"]
+    for source in spawn_sources_for_mode("random", code):
+        data = map_info.get(source) or {}
+        if not (data.get("green_spawn") or data.get("red_spawn")):
+            continue
+        spawns = markers_from_fields(data, ("green_spawn", "red_spawn"))
+        merged["green_spawn"] = spawns["green_spawn"]
+        merged["red_spawn"] = spawns["red_spawn"]
+        break
     return merged
 
 
@@ -383,43 +419,11 @@ def merge_mode_markers(map_info: dict, mode: str, code: str) -> dict[str, list]:
     if mode == "assault":
         return merge_assault_markers(map_info)
     if mode == "encounter":
-        return merge_from_sources(
-            map_info,
-            ["encounter_battle"],
+        return markers_from_fields(
+            map_info.get("encounter_battle") or {},
             ("green_spawn", "red_spawn", "cap_point"),
         )
-    caps = merge_from_sources(
-        map_info,
-        ["standard_battle"],
-        ("green_cap", "red_cap"),
-    )
-    spawns = merge_from_sources(
-        map_info,
-        list(SPAWN_SOURCE_PRIORITY),
-        ("green_spawn", "red_spawn"),
-        accumulate=frozenset({"green_spawn", "red_spawn"}),
-    )
-    merged = empty_markers()
-    merged["green_spawn"] = spawns["green_spawn"]
-    merged["red_spawn"] = spawns["red_spawn"]
-    merged["green_cap"] = caps["green_cap"]
-    merged["red_cap"] = caps["red_cap"]
-    return merged
-
-
-def cap_coords_for_mode(
-    tactical_mode: str,
-    green_cap: list,
-    red_cap: list,
-    cap_point: list,
-) -> list[list[float]]:
-    if tactical_mode == "encounter":
-        return cap_point[:1]
-    coords = list(green_cap)
-    if tactical_mode == "random":
-        coords.extend(red_cap)
-    return coords
-
+    return merge_random_markers(map_info, code)
 
 def paste_marker_data(
     image: Image.Image,
@@ -428,6 +432,8 @@ def paste_marker_data(
     assets_dir: Path,
     gameplay_mode: str = "standard_battle",
     tactical_mode: str = "random",
+    *,
+    swap_spawns: bool = False,
 ) -> Image.Image:
     profile = MARKER_PROFILE_BY_MODE.get(tactical_mode, MARKER_PROFILE_BY_MODE["random"])
     green_spawn = markers.get("green_spawn") or [] if "green_spawn" in profile else []
@@ -466,13 +472,30 @@ def paste_marker_data(
         pasted = True
 
     for coord in green_spawn:
-        paste_asset("green_spawn", coord, spawn_size, spawn_offset)
+        if tactical_mode == "random":
+            asset_name = "red_cap" if swap_spawns else "green_cap"
+            paste_asset(asset_name, coord, cap_size, cap_offset)
+        else:
+            paste_asset("green_spawn", coord, spawn_size, spawn_offset)
     for coord in red_spawn:
-        paste_asset("red_spawn", coord, spawn_size, spawn_offset)
+        if tactical_mode == "random":
+            asset_name = "green_cap" if swap_spawns else "red_cap"
+            paste_asset(asset_name, coord, cap_size, cap_offset)
+        else:
+            paste_asset("red_spawn", coord, spawn_size, spawn_offset)
 
-    capture_bases = cap_coords_for_mode(tactical_mode, green_cap, red_cap, cap_point)
-    for index, coord in enumerate(capture_bases[:2]):
-        asset_name = "gray_cap" if index == 0 else "gray_cap2"
+    for coord in cap_point:
+        paste_asset("encounter_cap", coord, cap_size, cap_offset)
+
+    for index, coord in enumerate(green_cap[:2]):
+        if swap_spawns:
+            asset_name = "red_cap"
+        else:
+            asset_name = "green_cap" if index == 0 else "green_cap2"
+        paste_asset(asset_name, coord, cap_size, cap_offset)
+
+    for coord in red_cap:
+        asset_name = "green_cap" if swap_spawns else "red_cap"
         paste_asset(asset_name, coord, cap_size, cap_offset)
 
     return out if pasted else image
@@ -518,6 +541,8 @@ def render_map_for_mode(
     mode: str,
     code: str,
     assets_dir: Path,
+    *,
+    swap_spawns: bool = False,
 ) -> Image.Image:
     if map_info is None:
         return base
@@ -525,7 +550,19 @@ def render_map_for_mode(
     if not any(markers.values()):
         return base
     gameplay = gameplay_for_mode(mode, code)
-    return paste_marker_data(base, map_info, markers, assets_dir, gameplay, mode)
+    return paste_marker_data(
+        base,
+        map_info,
+        markers,
+        assets_dir,
+        gameplay,
+        mode,
+        swap_spawns=swap_spawns,
+    )
+
+
+def should_draw_markers(mode: str, draw_spawns: bool) -> bool:
+    return draw_spawns and mode == "random"
 
 
 def should_skip_arena(arena: str, ru_name: str) -> bool:
@@ -643,13 +680,34 @@ def map_side_length(map_info: dict | None) -> int | None:
     return int(size) if size >= 100 else None
 
 
-def run(client: Path, dry_run: bool = False, draw_spawns: bool = True) -> dict:
+def merge_metadata_entry(existing: dict, incoming: dict, game: str) -> dict:
+    games = sorted(set(existing.get("games") or []) | {game})
+    merged = dict(incoming)
+    merged["games"] = games
+    if existing.get("side_length") and not merged.get("side_length"):
+        merged["side_length"] = existing["side_length"]
+    return merged
+
+
+def run(
+    client: Path,
+    game: str,
+    dry_run: bool = False,
+    draw_spawns: bool = True,
+    *,
+    write_metadata: bool = True,
+    metadata_base: dict | None = None,
+) -> tuple[dict, dict]:
+    if game not in GAME_CLIENTS:
+        raise ValueError(f"Unknown game: {game}")
+
     arenas, MapInfoCreator, client = load_extractor(client)
     packages_dir = client / "res" / "packages"
 
-    stats = {"arenas": 0, "files": 0, "skipped": 0, "codes": {}}
-    metadata: dict[str, dict] = {}
+    stats = {"game": game, "client": str(client), "arenas": 0, "files": 0, "skipped": 0, "codes": {}}
+    metadata: dict[str, dict] = dict(metadata_base or {})
     written_files: set[Path] = set()
+    game_root = ASSETS_ROOT / game
 
     arena_cache: dict[str, Image.Image | None] = {}
     info_cache: dict[str, dict | None] = {}
@@ -675,12 +733,13 @@ def run(client: Path, dry_run: bool = False, draw_spawns: bool = True) -> dict:
     assets_dir = ASSETS_DIR
     if draw_spawns and not assets_dir.is_dir():
         raise SystemExit(f"Missing spawn assets: {assets_dir}")
-    if draw_spawns:
-        ensure_gray_cap_assets(assets_dir)
 
     for entry in sorted(arenas.values(), key=lambda item: item["code"]):
         code = entry["code"]
         arena = entry["arena"]
+        if not game_allowed_for_code(code, game):
+            stats["skipped"] += 1
+            continue
         if not (packages_dir / f"{arena}.pkg").is_file():
             stats["skipped"] += 1
             continue
@@ -692,48 +751,63 @@ def run(client: Path, dry_run: bool = False, draw_spawns: bool = True) -> dict:
 
         map_info = get_info(arena)
         side_length = map_side_length(map_info)
-        games = games_for_code(code)
         modes = modes_for_arena(get_tags(arena), code)
-        if not games:
+        if not modes:
             stats["skipped"] += 1
             continue
 
-        metadata[code] = {
+        row = {
             "arena": arena,
             "display_name_ru": entry["display_name_ru"],
             "display_name_en": entry["display_name_en"],
             "side_length": side_length,
-            "games": games,
+            "games": [game],
             "modes": modes,
         }
+        if code in metadata:
+            metadata[code] = merge_metadata_entry(metadata[code], row, game)
+        else:
+            metadata[code] = row
         stats["arenas"] += 1
-        stats["codes"][code] = {"games": games, "modes": modes}
+        stats["codes"][code] = {"games": [game], "modes": modes}
 
-        for game in games:
-            for mode in modes:
-                dest = ASSETS_ROOT / game / mode / f"{code}.webp"
-                if dry_run:
-                    print(f"would write {dest}")
-                    continue
-                output = (
-                    render_map_for_mode(image, map_info, mode, code, assets_dir)
-                    if draw_spawns
-                    else image
-                )
+        for mode in modes:
+            dest = game_root / mode / f"{code}.webp"
+            if dry_run:
+                print(f"would write {dest}")
+                continue
+            if should_draw_markers(mode, draw_spawns):
+                output = render_map_for_mode(image, map_info, mode, code, assets_dir)
                 save_webp(output, dest)
                 written_files.add(dest)
-                stats["files"] += 1
+                swapped_dest = game_root / mode / f"{code}_sw.webp"
+                swapped = render_map_for_mode(
+                    image,
+                    map_info,
+                    mode,
+                    code,
+                    assets_dir,
+                    swap_spawns=True,
+                )
+                save_webp(swapped, swapped_dest)
+                written_files.add(swapped_dest)
+            else:
+                save_webp(image, dest)
+                written_files.add(dest)
+            stats["files"] += 1
 
     if not dry_run:
-        for path in ASSETS_ROOT.rglob("*.webp"):
-            if path not in written_files:
-                path.unlink()
-        METADATA_PATH.write_text(
-            json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        if game_root.is_dir():
+            for path in game_root.rglob("*.webp"):
+                if path not in written_files:
+                    path.unlink()
+        if write_metadata:
+            METADATA_PATH.write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
 
-    return stats
+    return stats, metadata
 
 
 def save_webp(image: Image.Image, dest: Path, quality: int = 88) -> None:
@@ -742,18 +816,58 @@ def save_webp(image: Image.Image, dest: Path, quality: int = 88) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract Mir Tankov minimaps into chadow.ru assets")
-    parser.add_argument("--client", type=Path, default=DEFAULT_CLIENT, help="Path to Tanki/WoT client")
+    parser = argparse.ArgumentParser(description="Extract WoT/Lesta minimaps into chadow.ru assets")
+    parser.add_argument(
+        "--game",
+        choices=("lesta", "wot", "all"),
+        default="all",
+        help="Target game catalog (default: extract both clients separately)",
+    )
+    parser.add_argument(
+        "--client",
+        type=Path,
+        default=None,
+        help="Override game client path (only with --game lesta or --game wot)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-spawns", action="store_true", help="Skip respawn markers overlay")
     args = parser.parse_args()
 
-    client = args.client.resolve()
-    if not client.is_dir():
-        raise SystemExit(f"Client directory not found: {client}")
+    draw_spawns = not args.no_spawns
+    targets = list(GAME_CLIENTS.items()) if args.game == "all" else [(args.game, args.client or GAME_CLIENTS[args.game])]
 
-    stats = run(client, dry_run=args.dry_run, draw_spawns=not args.no_spawns)
-    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    combined_metadata: dict[str, dict] = {}
+    if METADATA_PATH.is_file():
+        loaded = json.loads(METADATA_PATH.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            combined_metadata = loaded
+
+    all_stats: dict[str, dict] = {}
+    for index, (game, default_client) in enumerate(targets):
+        client = (args.client or default_client).resolve()
+        if not client.is_dir():
+            raise SystemExit(f"Client directory not found for {game}: {client}")
+        if args.game != "all" and args.client is not None and game != args.game:
+            continue
+
+        stats, metadata = run(
+            client,
+            game,
+            dry_run=args.dry_run,
+            draw_spawns=draw_spawns,
+            write_metadata=False,
+            metadata_base=combined_metadata,
+        )
+        combined_metadata = metadata
+        all_stats[game] = stats
+
+        if not args.dry_run and index == len(targets) - 1:
+            METADATA_PATH.write_text(
+                json.dumps(combined_metadata, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+    print(json.dumps(all_stats, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

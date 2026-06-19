@@ -41,7 +41,8 @@
         const g = (game || 'wot').toLowerCase();
         const mode = (battleMode || 'random').toLowerCase();
         const root = '/assets/tactics/maps';
-        return root + '/' + encodeURIComponent(g) + '/' + encodeURIComponent(mode) + '/' + encodeURIComponent(code) + '.webp';
+        return root + '/' + encodeURIComponent(g) + '/' + encodeURIComponent(mode) + '/'
+            + encodeURIComponent(code) + '.webp';
     }
 
     function mapUrlCandidates(mapCode, game, battleMode) {
@@ -117,7 +118,7 @@
                 catalogReady = true;
                 return catalogCache;
             }
-            catalogCache = { games: {}, mode_labels: {}, default_game: 'wot', default_mode: 'random' };
+            catalogCache = { games: {}, mode_labels: {}, map_spawns: {}, default_game: 'wot', default_mode: 'random' };
             catalogReady = true;
             return catalogCache;
         })();
@@ -349,6 +350,17 @@
             + encodeURIComponent(slide.id);
     }
 
+    function supportsSpawnSwap(slide) {
+        if (!slide) return false;
+        const game = (slide.game || 'wot').toLowerCase();
+        if (game !== 'wot' && game !== 'lesta') return false;
+        return supportsSpawnOverlay(slide);
+    }
+
+    function slideSpawnSwapped(slide) {
+        return slide?.view?.spawn_swapped === true;
+    }
+
     function knownSlideMapUrl(slide, knownUrls) {
         if (!slide?.id) return '';
         const urls = knownUrls
@@ -360,14 +372,17 @@
     function slideMapUrl(slide, publicId, knownUrls) {
         if (!slide) return placeholderUrl();
 
-        const known = knownSlideMapUrl(slide, knownUrls);
-        if (known) return known;
-
         if (publicId && isCustomRoomSlide(slide)) {
+            const known = knownSlideMapUrl(slide, knownUrls);
+            if (known) return known;
             return placeholderUrl();
         }
 
-        return mapUrl(slide.map_code, slide.game, slide.battle_mode);
+        return mapUrl(
+            slide.map_code,
+            slide.game,
+            slide.battle_mode,
+        );
     }
 
     function slideMapUrlCandidates(slide, publicId, knownUrls) {
@@ -379,7 +394,11 @@
             }
             return [placeholderUrl()];
         }
-        return mapUrlCandidates(slide.map_code, slide.game, slide.battle_mode);
+        return mapUrlCandidates(
+            slide.map_code,
+            slide.game,
+            slide.battle_mode,
+        );
     }
 
     async function slideSideLength(slide) {
@@ -651,7 +670,304 @@
             return placeholderUrl();
         }
 
-        return mapUrl(slide.map_code, slide.game, slide.battle_mode);
+        return mapUrl(
+            slide.map_code,
+            slide.game,
+            slide.battle_mode,
+            slideSpawnSwapped(slide),
+        );
+    }
+
+    function normalizeMapCode(code) {
+        let c = String(code || '').toLowerCase().trim();
+        if (!c) return '';
+        if (c.endsWith('_sw')) c = c.slice(0, -3);
+        const prefixed = c.match(/^\d+_(.+)$/);
+        if (prefixed) return prefixed[1];
+        return c;
+    }
+
+    function getMapSpawnData(mapCode) {
+        const spawns = catalogCache?.map_spawns;
+        if (!spawns) return null;
+        const code = normalizeMapCode(mapCode);
+        return spawns[code] || null;
+    }
+
+    function normalizeSpawnTeam(team) {
+        const t = String(team || '').toLowerCase().replace(/[\s_-]+/g, '');
+        if (t === 'team1' || t === '1' || t === 'ally' || t === 'allies') return 'team1';
+        if (t === 'team2' || t === '2' || t === 'enemy' || t === 'enemies') return 'team2';
+        return t;
+    }
+
+    function effectiveSpawnTeam(point, spawnSwapped) {
+        let team = normalizeSpawnTeam(point?.team);
+        if (!spawnSwapped) return team;
+        if (team === 'team1') return 'team2';
+        if (team === 'team2') return 'team1';
+        return team;
+    }
+
+    function spawnPointIndex(point) {
+        const label = String(point?.label || '').toLowerCase();
+        const match = label.match(/_(\d+)$/);
+        return match ? parseInt(match[1], 10) : 1;
+    }
+
+    function findSpawnPartner(point, allPoints) {
+        if (!Array.isArray(allPoints) || !point) return null;
+        const type = String(point.point_type || '').toLowerCase();
+        const team = normalizeSpawnTeam(point.team);
+        if (team !== 'team1' && team !== 'team2') return null;
+        const opposite = team === 'team1' ? 'team2' : 'team1';
+        const index = spawnPointIndex(point);
+        let partner = allPoints.find((candidate) => {
+            if (String(candidate?.point_type || '').toLowerCase() !== type) return false;
+            if (normalizeSpawnTeam(candidate?.team) !== opposite) return false;
+            return spawnPointIndex(candidate) === index;
+        });
+        if (!partner) {
+            partner = allPoints.find((candidate) => {
+                if (String(candidate?.point_type || '').toLowerCase() !== type) return false;
+                return normalizeSpawnTeam(candidate?.team) === opposite;
+            });
+        }
+        return partner || null;
+    }
+
+    function mirrorSpawnPoint(point, bounds) {
+        if (!point || !bounds) return point;
+        const minX = Number(bounds.min_x);
+        const minY = Number(bounds.min_y);
+        const maxX = Number(bounds.max_x);
+        const maxY = Number(bounds.max_y);
+        const x = Number(point.x);
+        const y = Number(point.y);
+        if (Number.isNaN(minX) || Number.isNaN(minY) || Number.isNaN(maxX) || Number.isNaN(maxY)) {
+            return point;
+        }
+        if (Number.isNaN(x) || Number.isNaN(y)) return point;
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        return { ...point, x: 2 * cx - x, y: 2 * cy - y };
+    }
+
+    function resolveSpawnDisplayPoint(point, allPoints, spawnSwapped) {
+        if (!spawnSwapped || !Array.isArray(allPoints) || !point) return point;
+        const partner = findSpawnPartner(point, allPoints);
+        if (!partner) return point;
+        return {
+            ...point,
+            x: partner.x,
+            y: partner.y,
+        };
+    }
+
+    function resolveSpawnDisplay(point, allPoints, options) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const spawnSwapped = opts.spawnSwapped === true;
+        const team = normalizeSpawnTeam(point?.team);
+        if (!spawnSwapped || !point) {
+            return { point, team };
+        }
+
+        const type = String(point.point_type || '').toLowerCase();
+        const mode = String(opts.battleMode || 'random').toLowerCase();
+
+        if (type === 'control_point') {
+            return { point, team };
+        }
+
+        if (mode === 'assault') {
+            if (type === 'base') {
+                return {
+                    point,
+                    team: effectiveSpawnTeam(point, true),
+                };
+            }
+            if (type === 'spawn') {
+                const partner = findSpawnPartner(point, allPoints);
+                if (partner) {
+                    return {
+                        point: { ...point, x: partner.x, y: partner.y },
+                        team,
+                    };
+                }
+                if (opts.bounds) {
+                    return {
+                        point: mirrorSpawnPoint(point, opts.bounds),
+                        team,
+                    };
+                }
+                return { point, team };
+            }
+            return { point, team };
+        }
+
+        return {
+            point: resolveSpawnDisplayPoint(point, allPoints, true),
+            team,
+        };
+    }
+
+    function supportsSpawnOverlay(slide) {
+        if (!slide) return false;
+        const game = (slide.game || 'wot').toLowerCase();
+        if (game !== 'wot' && game !== 'lesta') return false;
+        if (isCustomRoomSlide(slide)) return false;
+        const mode = (slide.battle_mode || 'random').toLowerCase();
+        const data = getMapSpawnData(slide.map_code);
+        const points = data?.modes?.[mode]?.points;
+        return Array.isArray(points) && points.length > 0;
+    }
+
+    function getSlideSpawnOverlayOpts(slide) {
+        const view = slide?.view || {};
+        return {
+            spawnSwapped: view.spawn_swapped === true,
+            showOverlay: view.spawn_overlay !== false,
+        };
+    }
+
+    function spawnPointClass(point, teamOverride) {
+        const type = String(point?.point_type || '').toLowerCase();
+        const team = teamOverride !== undefined
+            ? normalizeSpawnTeam(teamOverride)
+            : normalizeSpawnTeam(point?.team);
+        if (type === 'control_point') return 'tactics-map-point--neutral';
+        if (type === 'base' || type === 'spawn') {
+            if (team === 'team1') {
+                return type === 'base' ? 'tactics-map-point--base-green' : 'tactics-map-point--spawn-green';
+            }
+            if (team === 'team2') {
+                return type === 'base' ? 'tactics-map-point--base-red' : 'tactics-map-point--spawn-red';
+            }
+        }
+        return 'tactics-map-point--other';
+    }
+
+    function spawnBaseLabelForTeam(team) {
+        const normalized = normalizeSpawnTeam(team);
+        if (normalized === 'team1') return '1';
+        if (normalized === 'team2') return '2';
+        return '';
+    }
+
+    function spawnPointToPercent(point, bounds) {
+        if (!bounds) return null;
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        const minX = Number(bounds.min_x);
+        const minY = Number(bounds.min_y);
+        const maxX = Number(bounds.max_x);
+        const maxY = Number(bounds.max_y);
+        const dx = maxX - minX;
+        const dy = maxY - minY;
+        if (!dx || !dy || Number.isNaN(x) || Number.isNaN(y)) return null;
+        return {
+            left: ((x - minX) / dx) * 100,
+            top: (1 - ((y - minY) / dy)) * 100,
+        };
+    }
+
+    function spawnPointToNormalized(point, bounds) {
+        const pos = spawnPointToPercent(point, bounds);
+        if (!pos) return null;
+        return {
+            x: pos.left / 100,
+            y: pos.top / 100,
+        };
+    }
+
+    function spawnBaseLabel(point) {
+        return spawnBaseLabelForTeam(point?.team);
+    }
+
+    function getSpawnPointsForSlide(slide) {
+        if (!supportsSpawnOverlay(slide)) return null;
+        const data = getMapSpawnData(slide.map_code);
+        const mode = String(slide.battle_mode || 'random').toLowerCase();
+        const modeEntry = data?.modes?.[mode];
+        const points = modeEntry?.points;
+        const bounds = data?.bounds;
+        if (!Array.isArray(points) || !points.length || !bounds) return null;
+        return {
+            points,
+            bounds,
+            mode,
+            opts: getSlideSpawnOverlayOpts(slide),
+        };
+    }
+
+    function renderSpawnOverlay(container, mapCode, battleMode, opts) {
+        if (!container) return;
+        container.innerHTML = '';
+        const options = opts && typeof opts === 'object' ? opts : {};
+        if (options.showOverlay === false) {
+            container.hidden = true;
+            return;
+        }
+        const data = getMapSpawnData(mapCode);
+        const mode = String(battleMode || 'random').toLowerCase();
+        const modeEntry = data?.modes?.[mode];
+        const points = modeEntry?.points;
+        const bounds = data?.bounds;
+        if (!Array.isArray(points) || !points.length || !bounds) {
+            container.hidden = true;
+            return;
+        }
+        const spawnSwapped = options.spawnSwapped === true;
+        const displayOpts = {
+            spawnSwapped,
+            battleMode: mode,
+            bounds,
+        };
+        points.forEach((point) => {
+            const display = resolveSpawnDisplay(point, points, displayOpts);
+            const pos = spawnPointToPercent(display.point, bounds);
+            if (!pos) return;
+            const el = document.createElement('span');
+            el.className = `tactics-map-point ${spawnPointClass(point, display.team)}`;
+            el.style.left = `${pos.left}%`;
+            el.style.top = `${pos.top}%`;
+            const type = String(point?.point_type || '').toLowerCase();
+            if (type === 'base') {
+                const label = spawnBaseLabelForTeam(display.team);
+                if (label) {
+                    const labelEl = document.createElement('span');
+                    labelEl.className = 'tactics-map-point__label';
+                    labelEl.textContent = label;
+                    el.appendChild(labelEl);
+                }
+            }
+            if (point.label) {
+                el.title = String(point.label);
+            }
+            container.appendChild(el);
+        });
+        container.hidden = false;
+    }
+
+    function renderSlideSpawnOverlay(container, slide) {
+        if (!container || !slide) {
+            if (container) {
+                container.innerHTML = '';
+                container.hidden = true;
+            }
+            return;
+        }
+        if (!supportsSpawnOverlay(slide)) {
+            container.innerHTML = '';
+            container.hidden = true;
+            return;
+        }
+        renderSpawnOverlay(
+            container,
+            slide.map_code,
+            slide.battle_mode,
+            getSlideSpawnOverlayOpts(slide),
+        );
     }
 
     window.AbsTacticsMaps = {
@@ -673,6 +989,8 @@
         getCachedImage,
         preloadMapUrls,
         mapUrl,
+        supportsSpawnSwap,
+        slideSpawnSwapped,
         slideMapUrl,
         slideMapUrlCandidates,
         slideSideLength,
@@ -700,5 +1018,19 @@
         clearStoredSlideMapUrl,
         previewUrlFromSlide,
         refreshSlidePreviewUrl,
+        normalizeMapCode,
+        normalizeSpawnTeam,
+        getMapSpawnData,
+        supportsSpawnOverlay,
+        getSlideSpawnOverlayOpts,
+        getSpawnPointsForSlide,
+        spawnPointToNormalized,
+        resolveSpawnDisplayPoint,
+        resolveSpawnDisplay,
+        effectiveSpawnTeam,
+        spawnBaseLabel,
+        spawnBaseLabelForTeam,
+        renderSpawnOverlay,
+        renderSlideSpawnOverlay,
     };
 })();

@@ -189,16 +189,83 @@ try {
             transform: none;
             box-shadow: none;
         }
-        .tactics-maps-page .action-buttons .action-btn {
-            min-width: 34px;
-            height: 34px;
+        .tactics-maps-page .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tactics-maps-page #tactics-maps-table {
+            table-layout: fixed;
+            min-width: 1020px;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(1),
+        .tactics-maps-page #tactics-maps-table td:nth-child(1) {
+            width: 84px;
+            min-width: 84px;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(2),
+        .tactics-maps-page #tactics-maps-table td:nth-child(2) {
+            width: 11%;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(3),
+        .tactics-maps-page #tactics-maps-table td:nth-child(3) {
+            width: 11%;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(4),
+        .tactics-maps-page #tactics-maps-table td:nth-child(4) {
+            width: 12%;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(5),
+        .tactics-maps-page #tactics-maps-table td:nth-child(5) {
+            width: 14%;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(6),
+        .tactics-maps-page #tactics-maps-table td:nth-child(6) {
+            width: 96px;
+            min-width: 96px;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(7),
+        .tactics-maps-page #tactics-maps-table td:nth-child(7) {
+            width: 8%;
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(8),
+        .tactics-maps-page #tactics-maps-table td:nth-child(8) {
+            width: 180px;
+            min-width: 180px;
+            overflow: visible;
+            text-overflow: clip;
+            position: sticky;
+            right: 0;
+            z-index: 2;
+            background: #14181c;
+            box-shadow: -6px 0 10px rgba(0, 0, 0, 0.28);
+        }
+        .tactics-maps-page #tactics-maps-table th:nth-child(8) {
+            background: #1a1f24;
+            z-index: 3;
+        }
+        .tactics-maps-page #tactics-maps-table tr:hover td:nth-child(8) {
+            background: #1f262c;
+        }
+        .tactics-maps-page #tactics-maps-table .action-buttons {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            gap: 4px;
+        }
+        .tactics-maps-page #tactics-maps-table .action-btn {
+            min-width: 32px;
+            height: 32px;
+            padding: 5px 6px;
+            flex-shrink: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 0;
             text-decoration: none;
         }
-        .tactics-maps-page .action-buttons .action-btn.delete:hover {
+        .tactics-maps-page #tactics-maps-table .action-btn.delete:hover {
             background: rgba(255, 138, 138, 0.1);
         }
         .tactics-map-thumb {
@@ -235,6 +302,146 @@ try {
         }
         .tactics-edit-file-field {
             margin-top: 4px;
+        }
+        .tactics-spawn-editor-modal .modal-content {
+            max-width: 1100px;
+            width: min(96vw, 1100px);
+            max-height: 92vh;
+            padding: 20px 22px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .tactics-spawn-editor-modal .modal-content h2 {
+            margin-bottom: 8px;
+            flex: 0 0 auto;
+        }
+        .tactics-spawn-editor-modal #tacticsSpawnEditorMeta {
+            margin-bottom: 12px;
+            flex: 0 0 auto;
+        }
+        .tactics-spawn-editor-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 16px;
+            align-items: stretch;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        @media (max-width: 900px) {
+            .tactics-spawn-editor-layout { grid-template-columns: 1fr; }
+        }
+        .tactics-spawn-editor-preview {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            max-height: min(68vh, 640px);
+            margin: 0 auto;
+            background: #10161d;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            overflow: hidden;
+            touch-action: none;
+        }
+        .tactics-spawn-editor-map {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            user-select: none;
+        }
+        .tactics-spawn-editor-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            touch-action: none;
+        }
+        .tactics-spawn-editor-point {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            cursor: grab;
+            user-select: none;
+            box-sizing: border-box;
+            padding: 0;
+            z-index: 1;
+        }
+        .tactics-spawn-editor-point.is-base { width: 56px; height: 56px; font-size: 22px; }
+        .tactics-spawn-editor-point.is-neutral { border-radius: 4px; transform: translate(-50%, -50%) rotate(45deg); width: 48px; height: 48px; }
+        .tactics-spawn-editor-point.is-green { background: #36c736; }
+        .tactics-spawn-editor-point.is-red { background: #e03c3c; }
+        .tactics-spawn-editor-point.is-neutral-color { background: #8b93a7; }
+        .tactics-spawn-editor-point.is-selected {
+            z-index: 3;
+            box-shadow: 0 0 0 2px #ffd966, 0 0 0 5px rgba(0, 0, 0, 0.35);
+        }
+        .tactics-spawn-editor-point.is-dragging { cursor: grabbing; z-index: 4; }
+        .tactics-spawn-editor-side {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+            min-width: 0;
+        }
+        .tactics-spawn-editor-toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            flex: 0 0 auto;
+        }
+        .tactics-spawn-editor-toolbar--compact {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .tactics-spawn-editor-toolbar .btn {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .tactics-spawn-editor-list {
+            flex: 1 1 auto;
+            min-height: 120px;
+            max-height: none;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .tactics-spawn-editor-list button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 8px 10px;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: transparent;
+            color: #d5dde5;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .tactics-spawn-editor-list button.is-active {
+            background: rgba(255, 217, 102, 0.12);
+            color: #ffd966;
+        }
+        .tactics-spawn-editor-hint {
+            font-size: 0.78rem;
+            color: #9aa7b2;
+            line-height: 1.45;
+            flex: 0 0 auto;
+        }
+        .tactics-spawn-editor-actions {
+            display: flex;
+            gap: 10px;
+            flex: 0 0 auto;
+            margin-top: auto;
         }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>
@@ -417,6 +624,38 @@ try {
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div class="modal tactics-spawn-editor-modal" id="tacticsSpawnEditorModal">
+                <div class="modal-content">
+                    <h2><i class="fas fa-map-pin"></i> Респы и базы</h2>
+                    <p class="tactics-spawn-editor-hint" id="tacticsSpawnEditorMeta"></p>
+                    <div class="tactics-spawn-editor-layout">
+                        <div class="tactics-spawn-editor-preview" id="tacticsSpawnEditorPreview">
+                            <img id="tacticsSpawnEditorMap" class="tactics-spawn-editor-map" src="" alt="">
+                            <div class="tactics-spawn-editor-overlay" id="tacticsSpawnEditorOverlay"></div>
+                        </div>
+                        <div class="tactics-spawn-editor-side">
+                            <div class="tactics-spawn-editor-toolbar">
+                                <button type="button" class="btn" data-spawn-add="base" data-spawn-team="team1">+ База 1</button>
+                                <button type="button" class="btn" data-spawn-add="base" data-spawn-team="team2">+ База 2</button>
+                                <button type="button" class="btn" data-spawn-add="spawn" data-spawn-team="team1">+ Респ 1</button>
+                                <button type="button" class="btn" data-spawn-add="spawn" data-spawn-team="team2">+ Респ 2</button>
+                                <button type="button" class="btn" data-spawn-add="control_point">+ Точка</button>
+                            </div>
+                            <div class="tactics-spawn-editor-toolbar tactics-spawn-editor-toolbar--compact">
+                                <button type="button" class="btn" id="tacticsSpawnEditorDelete" title="Удалить выбранную"><i class="fas fa-trash-alt"></i> Удалить</button>
+                                <button type="button" class="btn" id="tacticsSpawnEditorReset">Сброс</button>
+                            </div>
+                            <div class="tactics-spawn-editor-list" id="tacticsSpawnEditorList"></div>
+                            <p class="tactics-spawn-editor-hint">Перетаскивайте точки на карте. Изменения применяются ко всем комнатам после сохранения.</p>
+                            <div class="tactics-spawn-editor-actions">
+                                <button type="button" class="btn btn-primary" id="tacticsSpawnEditorSave" style="flex:1;"><i class="fas fa-save"></i> Сохранить</button>
+                                <button type="button" class="btn" id="tacticsSpawnEditorCancel"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>

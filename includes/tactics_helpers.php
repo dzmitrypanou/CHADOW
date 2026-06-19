@@ -401,6 +401,11 @@ function tactics_map_url(string $mapCode, string $game = 'wot', string $battleMo
     return tactics_map_asset_path($mapCode, $game, $battleMode);
 }
 
+function tactics_slide_spawn_swapped(array $slide): bool {
+    return is_array($slide['view'] ?? null)
+        && ($slide['view']['spawn_swapped'] ?? false) === true;
+}
+
 function tactics_slide_map_url(array $slide, ?string $publicId = null): string {
     if ($publicId !== null && tactics_is_custom_room_slide($slide)) {
         $rel = tactics_custom_room_map_rel_path(
@@ -421,11 +426,11 @@ function tactics_slide_map_url(array $slide, ?string $publicId = null): string {
         return '/assets/tactics/maps/placeholder.svg';
     }
 
-    return tactics_map_url(
-        (string) ($slide['map_code'] ?? 'cliff'),
-        (string) ($slide['game'] ?? 'wot'),
-        (string) ($slide['battle_mode'] ?? 'random')
-    );
+    $mapCode = (string) ($slide['map_code'] ?? 'cliff');
+    $game = (string) ($slide['game'] ?? 'wot');
+    $battleMode = (string) ($slide['battle_mode'] ?? 'random');
+
+    return tactics_map_url($mapCode, $game, $battleMode);
 }
 
 function tactics_build_slide_map_urls(array $roomData, string $publicId): array {
@@ -1425,6 +1430,14 @@ function tactics_normalize_room_data(array $roomData): array {
         } else {
             $roomData['slides'][$index]['view']['show_grid'] = ($roomData['slides'][$index]['view']['show_grid'] !== false);
         }
+        $roomData['slides'][$index]['view']['spawn_swapped'] =
+            ($roomData['slides'][$index]['view']['spawn_swapped'] ?? false) === true;
+        if (!array_key_exists('spawn_overlay', $roomData['slides'][$index]['view'])) {
+            $roomData['slides'][$index]['view']['spawn_overlay'] = true;
+        } else {
+            $roomData['slides'][$index]['view']['spawn_overlay'] =
+                ($roomData['slides'][$index]['view']['spawn_overlay'] !== false);
+        }
         foreach (['map_width_m', 'map_height_m'] as $scaleKey) {
             if (!array_key_exists($scaleKey, $slide)) {
                 continue;
@@ -1924,6 +1937,7 @@ function tactics_generate_unique_map_code($db, string $baseCode): string {
 
 function tactics_fetch_map_assignment_index($db): array {
     require_once __DIR__ . '/../config/ensure_tactics.php';
+    require_once __DIR__ . '/../config/tactics_map_catalog.php';
     ensure_tactics_map_assignments_table($db);
 
     try {
@@ -1944,8 +1958,15 @@ function tactics_fetch_map_assignment_index($db): array {
             if ($rawMode === 'custom' || tactics_is_variant_map_code($code)) {
                 continue;
             }
+            if ($rawMode === 'grand') {
+                continue;
+            }
         }
         $mode = tactics_sanitize_battle_mode($rawMode, $game);
+        if (in_array($game, ['wot', 'lesta'], true)
+            && !tactics_map_allowed_for_mode($code, $mode, $game)) {
+            continue;
+        }
         $index[$code][$game][$mode] = true;
     }
 

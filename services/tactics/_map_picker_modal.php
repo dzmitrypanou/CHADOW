@@ -23,6 +23,7 @@ $mapPickerModalId = $mapPickerModalId ?? 'tacticsMapPickerModal';
                             <span data-tactics-i18n="mapPreviewPlaceholder"><?php echo $lang === 'en' ? 'No preview' : 'Нет превью'; ?></span>
                         </div>
                         <img class="tactics-map-modal__preview" data-tactics-map-modal-preview alt="" width="320" height="320" decoding="async" hidden>
+                        <div class="tactics-map-modal__preview-spawns" data-tactics-map-modal-spawns hidden aria-hidden="true"></div>
                     </div>
                 </div>
                 <label class="tactics-map-modal__field tactics-map-modal__field--mode">

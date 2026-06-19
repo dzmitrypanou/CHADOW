@@ -1,0 +1,3762 @@
+{
+  "source": "https://tankist.net",
+  "fetched_at": "2026-06-19T18:07:26Z",
+  "maps": {
+    "br_battle_city3": {
+      "arena": "251_br_battle_city3",
+      "code": "br_battle_city3",
+      "name_ru": "Арзагир 4.04",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -1000.0,
+        "min_y": -1000.0,
+        "max_x": 1000.0,
+        "max_y": 1000.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/251_br_battle_city3/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "airfield": {
+      "arena": "31_airfield",
+      "code": "airfield",
+      "name_ru": "Аэродром",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/31_airfield/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 360.648,
+              "y": -154.437
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -324.048,
+              "y": -176.182
+            }
+          ]
+        }
+      }
+    },
+    "germany": {
+      "arena": "105_germany",
+      "code": "germany",
+      "name_ru": "Берлин",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -525.0,
+        "min_y": -550.0,
+        "max_x": 525.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/105_germany/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -350.882,
+              "y": -114.65
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -401.024,
+              "y": 176.662
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 335.795,
+              "y": -92.131
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 386.185,
+              "y": 146.242
+            }
+          ]
+        }
+      }
+    },
+    "germany_att": {
+      "arena": "105_germany_att",
+      "code": "germany_att",
+      "name_ru": "Берлин",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -525.0,
+        "min_y": -550.0,
+        "max_x": 525.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/105_germany_att/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "battle_for_moscow": {
+      "arena": "506_battle_for_moscow",
+      "code": "battle_for_moscow",
+      "name_ru": "Битва за Москву",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/506_battle_for_moscow/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -212.754,
+              "y": 130.691
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 413.975,
+              "y": 167.894
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -172.706,
+              "y": 456.147
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -204.148,
+              "y": -312.334
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/506_battle_for_moscow/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 195.065,
+              "y": 349.925
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -348.37,
+              "y": -194.132
+            }
+          ]
+        }
+      }
+    },
+    "poland_se22_def": {
+      "arena": "99_poland_se22_def",
+      "code": "poland_se22_def",
+      "name_ru": "Брянский фронт",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/99_poland_se22_def/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "westfeld": {
+      "arena": "23_westfeld",
+      "code": "westfeld",
+      "name_ru": "Вестфилд",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/23_westfeld/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -300.1,
+              "y": -339.6
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 339.4,
+              "y": 299.767
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/23_westfeld/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 57.8328,
+              "y": -26.8809
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -399.898,
+              "y": 57.212
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -33.142,
+              "y": 407.046
+            }
+          ]
+        }
+      }
+    },
+    "epic_random_valley_att": {
+      "arena": "212_epic_random_valley_att",
+      "code": "epic_random_valley_att",
+      "name_ru": "Восточные Альпы",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -550.0,
+        "min_y": -625.0,
+        "max_x": 650.0,
+        "max_y": 575.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/212_epic_random_valley_att/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "asia_great_wall": {
+      "arena": "59_asia_great_wall",
+      "code": "asia_great_wall",
+      "name_ru": "Граница империи",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/59_asia_great_wall/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -339.279,
+              "y": 387.88
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 396.877,
+              "y": -377.399
+            }
+          ]
+        }
+      }
+    },
+    "asia_miao": {
+      "arena": "60_asia_miao",
+      "code": "asia_miao",
+      "name_ru": "Жемчужная река",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/60_asia_miao/mmap_assault2.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -63.1741,
+              "y": 170.228
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -112.143,
+              "y": -164.796
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -431.559,
+              "y": 205.979
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 426.825,
+              "y": -343.259
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/60_asia_miao/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -317.6,
+              "y": 299.6
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 300.999,
+              "y": -304.5
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/60_asia_miao/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -265.74,
+              "y": -303.382
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -317,
+              "y": 300
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 300,
+              "y": -305
+            }
+          ]
+        }
+      }
+    },
+    "erlenberg_se22_def": {
+      "arena": "13_erlenberg_se22_def",
+      "code": "erlenberg_se22_def",
+      "name_ru": "Западная Двина",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.04998779297,
+        "max_x": 600.09997558594,
+        "max_y": 600.04998779297
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/13_erlenberg_se22_def/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "siegfried_line_nom": {
+      "arena": "14_siegfried_line_nom",
+      "code": "siegfried_line_nom",
+      "name_ru": "Западный вал",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -550.0,
+        "min_y": -250.0,
+        "max_x": 550.0,
+        "max_y": 250.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/14_siegfried_line_nom/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "last_frontier_v": {
+      "arena": "128_last_frontier_v",
+      "code": "last_frontier_v",
+      "name_ru": "Застава",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -600.0,
+        "max_x": 600.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/128_last_frontier_v/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 333.302,
+              "y": 177.749
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -198.58,
+              "y": -275.587
+            }
+          ]
+        }
+      }
+    },
+    "lost_city_ctf": {
+      "arena": "95_lost_city_ctf",
+      "code": "lost_city_ctf",
+      "name_ru": "Затерянный город",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/95_lost_city_ctf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 53.4634,
+              "y": 292.177
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -4.6e-05,
+              "y": 0
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -315.682,
+              "y": 121.161
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 315.682,
+              "y": -121.161
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/95_lost_city_ctf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 0,
+              "y": -350
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -0.561653,
+              "y": 350.284
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/95_lost_city_ctf/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -0.000137,
+              "y": 1.5e-05
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 350,
+              "y": -450
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 350,
+              "y": 450
+            }
+          ]
+        }
+      }
+    },
+    "siegfried_line_att": {
+      "arena": "14_siegfried_line_att",
+      "code": "siegfried_line_att",
+      "name_ru": "Зееловские высоты",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -550.0,
+        "max_x": 600.0,
+        "max_y": 550.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/14_siegfried_line_att/mmap.webp",
+          "points": []
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/14_siegfried_line_att/mmap.webp",
+          "points": []
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/14_siegfried_line_att/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "br_battle_city2-1": {
+      "arena": "250_br_battle_city2-1",
+      "code": "br_battle_city2-1",
+      "name_ru": "Зона 404",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 1500.0,
+        "max_y": 1500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/250_br_battle_city2-1/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "cosmic_2026": {
+      "arena": "280_cosmic_2026",
+      "code": "cosmic_2026",
+      "name_ru": "Зона столкновения",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "",
+          "points": [
+            {
+              "label": "poi_1_1",
+              "point_type": "poi",
+              "team": "",
+              "x": -232.347,
+              "y": 5.07045
+            },
+            {
+              "label": "poi_1_2",
+              "point_type": "poi",
+              "team": "",
+              "x": -119.597,
+              "y": 36.482
+            },
+            {
+              "label": "poi_1_3",
+              "point_type": "poi",
+              "team": "",
+              "x": 13.4856,
+              "y": 201.793
+            },
+            {
+              "label": "poi_1_4",
+              "point_type": "poi",
+              "team": "",
+              "x": 182.679,
+              "y": 83.8656
+            },
+            {
+              "label": "poi_1_5",
+              "point_type": "poi",
+              "team": "",
+              "x": 151.982,
+              "y": -81.5996
+            },
+            {
+              "label": "poi_1_6",
+              "point_type": "poi",
+              "team": "",
+              "x": 76.9773,
+              "y": -226.971
+            },
+            {
+              "label": "poi_1_7",
+              "point_type": "poi",
+              "team": "",
+              "x": -21.8658,
+              "y": -6.1224
+            },
+            {
+              "label": "poi_1_8",
+              "point_type": "poi",
+              "team": "",
+              "x": -204.238,
+              "y": -136.853
+            },
+            {
+              "label": "poi_1_9",
+              "point_type": "poi",
+              "team": "",
+              "x": -44.3489,
+              "y": -220.341
+            }
+          ]
+        }
+      }
+    },
+    "caucasus": {
+      "arena": "505_caucasus",
+      "code": "caucasus",
+      "name_ru": "Кавказ",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -550.0,
+        "max_x": 700.0,
+        "max_y": 650.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/505_caucasus/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 27.1172,
+              "y": 439.508
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 46.1621,
+              "y": -336.538
+            }
+          ]
+        }
+      }
+    },
+    "kaliningrad": {
+      "arena": "503_kaliningrad",
+      "code": "kaliningrad",
+      "name_ru": "Калининград",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/503_kaliningrad/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 343.118,
+              "y": -89.7538
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -2.93224,
+              "y": 301.597
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 437.237,
+              "y": 237.977
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -307.833,
+              "y": -196.688
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/503_kaliningrad/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -47.9346,
+              "y": 395.878
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -105.52,
+              "y": -426.458
+            }
+          ]
+        }
+      }
+    },
+    "kamchatka": {
+      "arena": "502_kamchatka",
+      "code": "kamchatka",
+      "name_ru": "Камчатка",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/502_kamchatka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -278.407,
+              "y": -286.039
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 276.262,
+              "y": 298.382
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/502_kamchatka/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 130.011,
+              "y": -114.495
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -167.8,
+              "y": -403.95
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 383.224,
+              "y": 220.35
+            }
+          ]
+        }
+      }
+    },
+    "karelia": {
+      "arena": "01_karelia",
+      "code": "karelia",
+      "name_ru": "Карелия",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/01_karelia/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 44.3247,
+              "y": 445.058
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -374.883,
+              "y": 157.304
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -429.608,
+              "y": 420.933
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 254.495,
+              "y": -300.979
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/01_karelia/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 397.524,
+              "y": 402.612
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -401.34,
+              "y": -399.975
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/01_karelia/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -284.114,
+              "y": 227.256
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 316.212,
+              "y": 266.048
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -283.829,
+              "y": -372.661
+            }
+          ]
+        }
+      }
+    },
+    "ruinberg_att": {
+      "arena": "08_ruinberg_att",
+      "code": "ruinberg_att",
+      "name_ru": "Кюстрин",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -425.0,
+        "min_y": -400.0,
+        "max_x": 425.0,
+        "max_y": 450.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/08_ruinberg_att/mmap.webp",
+          "points": []
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/08_ruinberg_att/mmap.webp",
+          "points": []
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/08_ruinberg_att/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "north_america": {
+      "arena": "44_north_america",
+      "code": "north_america",
+      "name_ru": "Лайв Окс",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/44_north_america/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -295.443,
+              "y": 131.008
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 250.921,
+              "y": 187.415
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 24.4998,
+              "y": 460.759
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 136.65,
+              "y": -331.063
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/44_north_america/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -356.987,
+              "y": -329.784
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 300.916,
+              "y": 362.276
+            }
+          ]
+        }
+      }
+    },
+    "lakeville": {
+      "arena": "07_lakeville",
+      "code": "lakeville",
+      "name_ru": "Ласвилль",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/07_lakeville/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -265.002,
+              "y": -289.331
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 224.682,
+              "y": -204.98
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 55.6507,
+              "y": -347.694
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 50.3857,
+              "y": 362.939
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/07_lakeville/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -169.513,
+              "y": 319.351
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -169.513,
+              "y": -319.049
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/07_lakeville/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 258.893,
+              "y": -4.20023
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -3,
+              "y": 355
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -3,
+              "y": -355
+            }
+          ]
+        }
+      }
+    },
+    "siegfried_line": {
+      "arena": "14_siegfried_line",
+      "code": "siegfried_line",
+      "name_ru": "Линия Зигфрида",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/14_siegfried_line/mmap_assault2.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -117.917,
+              "y": 355.497
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 289.604,
+              "y": -11.8185
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 230.392,
+              "y": 418.034
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -415.759,
+              "y": -188.136
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/14_siegfried_line/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 255.8,
+              "y": -439.83
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 284.239,
+              "y": 434.602
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/14_siegfried_line/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 334.887,
+              "y": 42.8609
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -81,
+              "y": -415
+            },
+            {
+              "label": "team1_spawn_2",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 179,
+              "y": -422
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -127,
+              "y": 414
+            },
+            {
+              "label": "team2_spawn_2",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 100,
+              "y": 397
+            }
+          ]
+        }
+      }
+    },
+    "mannerheim_line": {
+      "arena": "38_mannerheim_line",
+      "code": "mannerheim_line",
+      "name_ru": "Линия Маннергейма",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/38_mannerheim_line/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -129.228,
+              "y": 141.742
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 129.995,
+              "y": -256.598
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -307.362,
+              "y": -300.617
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 427.453,
+              "y": 264.62
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/38_mannerheim_line/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 398.135,
+              "y": 293.875
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -338.198,
+              "y": -306.268
+            }
+          ]
+        }
+      }
+    },
+    "malinovka": {
+      "arena": "02_malinovka",
+      "code": "malinovka",
+      "name_ru": "Малиновка",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/02_malinovka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 254.375,
+              "y": 211.524
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -336.161,
+              "y": -65.243
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -213.914,
+              "y": 410.605
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 362.776,
+              "y": -203.781
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/02_malinovka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 75.5994,
+              "y": -391.915
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -372.468,
+              "y": 108.085
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/02_malinovka/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -44.2648,
+              "y": -87.2512
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 430.1,
+              "y": 1.5
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 46.1,
+              "y": 449
+            }
+          ]
+        }
+      }
+    },
+    "minsk": {
+      "arena": "90_minsk",
+      "code": "minsk",
+      "name_ru": "Минск",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -506.21890258789,
+        "min_y": -520.71990966797,
+        "max_x": 527.31134033203,
+        "max_y": 512.81030273438
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/90_minsk/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -188.718,
+              "y": 203.762
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 372.08,
+              "y": 24.4198
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 101.529,
+              "y": 410.418
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -264.881,
+              "y": -308.229
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/90_minsk/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 133.1,
+              "y": 400.478
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 99.5292,
+              "y": -424.443
+            }
+          ]
+        }
+      }
+    },
+    "turningpoint_def": {
+      "arena": "513_turningpoint_def",
+      "code": "turningpoint_def",
+      "name_ru": "Можайский рубеж",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/513_turningpoint_def/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "monastery": {
+      "arena": "19_monastery",
+      "code": "monastery",
+      "name_ru": "Монастырь",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/19_monastery/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 20.0618,
+              "y": -387.907
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -0.393303,
+              "y": 397.376
+            }
+          ]
+        }
+      }
+    },
+    "murovanka": {
+      "arena": "11_murovanka",
+      "code": "murovanka",
+      "name_ru": "Мурованка",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/11_murovanka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -253.17,
+              "y": 5.2329
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 283.024,
+              "y": 278.136
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -23.8559,
+              "y": 422.237
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -28.34,
+              "y": -401.56
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/11_murovanka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -55.0002,
+              "y": 417.3
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -55.0003,
+              "y": -407.2
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/11_murovanka/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -373.27,
+              "y": 9.96181
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -144.346,
+              "y": 428.046
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -183.126,
+              "y": -387.177
+            }
+          ]
+        }
+      }
+    },
+    "dday": {
+      "arena": "101_dday",
+      "code": "dday",
+      "name_ru": "Оверлорд",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -500.0,
+        "max_x": 600.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/101_dday/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 146.446,
+              "y": -398.866
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 150.791,
+              "y": 398.076
+            }
+          ]
+        }
+      }
+    },
+    "normandy_nom": {
+      "arena": "108_normandy_nom",
+      "code": "normandy_nom",
+      "name_ru": "Одер",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -200.0,
+        "min_y": -535.0,
+        "max_x": 300.0,
+        "max_y": 515.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/108_normandy_nom/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "er_clime": {
+      "arena": "222_er_clime",
+      "code": "er_clime",
+      "name_ru": "Орловский выступ",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -700.0,
+        "min_y": -800.0,
+        "max_x": 700.0,
+        "max_y": 600.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/222_er_clime/mmap_assault2.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -441.086,
+              "y": -510.008
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 51.3286,
+              "y": -191.839
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -25.2206,
+              "y": -584.548
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -455.498,
+              "y": 96.2936
+            }
+          ]
+        }
+      }
+    },
+    "eiffel_tower_ctf": {
+      "arena": "112_eiffel_tower_ctf",
+      "code": "eiffel_tower_ctf",
+      "name_ru": "Париж",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/112_eiffel_tower_ctf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -346.074,
+              "y": -22.5229
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 341.269,
+              "y": -19.8638
+            }
+          ]
+        }
+      }
+    },
+    "desert": {
+      "arena": "28_desert",
+      "code": "desert",
+      "name_ru": "Песчаная река",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/28_desert/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 249.901,
+              "y": -208.7
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 116.864,
+              "y": 310.117
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 430,
+              "y": 186
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -433.379,
+              "y": 152.272
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/28_desert/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 373.485,
+              "y": -178.961
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -405.038,
+              "y": 137.526
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/28_desert/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -89.697,
+              "y": -323.644
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 421.218,
+              "y": 152.382
+            },
+            {
+              "label": "team1_spawn_2",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 448.546,
+              "y": -58.1144
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -254.095,
+              "y": 394.12
+            },
+            {
+              "label": "team2_spawn_2",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -456.017,
+              "y": 229.98
+            }
+          ]
+        }
+      }
+    },
+    "campania_big": {
+      "arena": "03_campania_big",
+      "code": "campania_big",
+      "name_ru": "Провинция",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 450.0,
+        "max_y": 450.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/03_campania_big/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 22.1453,
+              "y": -255.633
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -258.2,
+              "y": -275.89
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -14.8723,
+              "y": 284.153
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 269.34,
+              "y": 254.94
+            }
+          ]
+        }
+      }
+    },
+    "czech": {
+      "arena": "114_czech",
+      "code": "czech",
+      "name_ru": "Промзона",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -500.0,
+        "max_x": 600.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/114_czech/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 30.5001,
+              "y": 406.307
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 27.8591,
+              "y": -413.105
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/114_czech/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -83.4123,
+              "y": -3.48244
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -51.654,
+              "y": 406.415
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -75.449,
+              "y": -404.036
+            }
+          ]
+        }
+      }
+    },
+    "prohorovka": {
+      "arena": "05_prohorovka",
+      "code": "prohorovka",
+      "name_ru": "Прохоровка",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/05_prohorovka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -163.606,
+              "y": 256.278
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 156.716,
+              "y": 151.554
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -122.312,
+              "y": 425.031
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 48.913,
+              "y": -435.87
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/05_prohorovka/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -125.1,
+              "y": 448.3
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 51.5997,
+              "y": -447
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/05_prohorovka/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 171.058,
+              "y": 16.3514
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -123.78,
+              "y": 446.538
+            },
+            {
+              "label": "team1_spawn_2",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 27.1665,
+              "y": 450.83
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -139.921,
+              "y": -436.844
+            },
+            {
+              "label": "team2_spawn_2",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 194.177,
+              "y": -423.173
+            }
+          ]
+        }
+      }
+    },
+    "redshire": {
+      "arena": "34_redshire",
+      "code": "redshire",
+      "name_ru": "Редшир",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/34_redshire/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -410.01,
+              "y": -155.523
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 196.023,
+              "y": 351.159
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -330.686,
+              "y": 359.32
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 301.464,
+              "y": -171.248
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/34_redshire/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -3.332,
+              "y": -426.451
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -0.017403,
+              "y": 410.253
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/34_redshire/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -199.817,
+              "y": 39.7716
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 183.086,
+              "y": -325.564
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 123.043,
+              "y": 441.046
+            }
+          ]
+        }
+      }
+    },
+    "hills": {
+      "arena": "10_hills",
+      "code": "hills",
+      "name_ru": "Рудники",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/10_hills/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 195.065,
+              "y": -18.8735
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -222.886,
+              "y": -81.2801
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 86.705,
+              "y": -311.497
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -172.927,
+              "y": 264.269
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/10_hills/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 175.784,
+              "y": -305.848
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -236.649,
+              "y": 329.638
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/10_hills/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 258.449,
+              "y": 132.453
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -14,
+              "y": -330
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -177,
+              "y": 305
+            }
+          ]
+        }
+      }
+    },
+    "ruinberg": {
+      "arena": "08_ruinberg",
+      "code": "ruinberg",
+      "name_ru": "Руинберг",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -425.0,
+        "min_y": -400.0,
+        "max_x": 425.0,
+        "max_y": 450.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/08_ruinberg/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -63.9456,
+              "y": -262.439
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 195.954,
+              "y": 101.284
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 390.07,
+              "y": -349.753
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -342.735,
+              "y": -40.3121
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/08_ruinberg/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -66.4,
+              "y": 306.1
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -83,
+              "y": -290.9
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/08_ruinberg/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -346.377,
+              "y": -60.447
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -49,
+              "y": 337
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -9,
+              "y": -282
+            }
+          ]
+        }
+      }
+    },
+    "fishing_bay": {
+      "arena": "36_fishing_bay",
+      "code": "fishing_bay",
+      "name_ru": "Рыбацкая бухта",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/36_fishing_bay/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -212.174,
+              "y": -37.92
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 88.1441,
+              "y": 322.696
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -287.886,
+              "y": 378.857
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 133.373,
+              "y": -380.875
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/36_fishing_bay/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -84.874,
+              "y": 397.811
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -16.986,
+              "y": -396.058
+            }
+          ]
+        }
+      }
+    },
+    "stalingrad": {
+      "arena": "500_stalingrad",
+      "code": "stalingrad",
+      "name_ru": "Сталинград",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 450.0,
+        "max_y": 450.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/500_stalingrad/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -105.624,
+              "y": 309.455
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -104.486,
+              "y": -405.878
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/500_stalingrad/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 131.101,
+              "y": -29.6217
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -133.888,
+              "y": 331.186
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -155.241,
+              "y": -454.396
+            }
+          ]
+        }
+      }
+    },
+    "japort": {
+      "arena": "127_japort",
+      "code": "japort",
+      "name_ru": "Старая гавань",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/127_japort/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -132.765,
+              "y": 197.782
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 48.9331,
+              "y": -142.073
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -279.975,
+              "y": -451.633
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 364.11,
+              "y": 192.922
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/127_japort/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -367.279,
+              "y": 156.182
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 337.413,
+              "y": 152.014
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/127_japort/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 36.6524,
+              "y": -206.954
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -425.191,
+              "y": -137.128
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 435.862,
+              "y": -50.1267
+            }
+          ]
+        }
+      }
+    },
+    "steppes": {
+      "arena": "35_steppes",
+      "code": "steppes",
+      "name_ru": "Степи",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/35_steppes/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -244.551,
+              "y": 245.041
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 278.234,
+              "y": 150.823
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 38.3849,
+              "y": 431.054
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -125.561,
+              "y": -358.942
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/35_steppes/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 228.22,
+              "y": -341.928
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -88.8185,
+              "y": 361.898
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/35_steppes/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 386.097,
+              "y": 213.927
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -158.896,
+              "y": -390.26
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -443.229,
+              "y": 187.249
+            }
+          ]
+        }
+      }
+    },
+    "poland": {
+      "arena": "99_poland",
+      "code": "poland",
+      "name_ru": "Студзянки",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/99_poland/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -391.19,
+              "y": -32.9408
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 403.926,
+              "y": -44.0923
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/99_poland/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 13.0351,
+              "y": 203.235
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -392.413,
+              "y": 44.051
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 392.566,
+              "y": 24.851
+            }
+          ]
+        }
+      }
+    },
+    "steppes_def": {
+      "arena": "35_steppes_def",
+      "code": "steppes_def",
+      "name_ru": "Тамань",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/35_steppes_def/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "canada_a": {
+      "arena": "47_canada_a",
+      "code": "canada_a",
+      "name_ru": "Тихий берег",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/47_canada_a/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -109.528,
+              "y": 396.999
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 44.2572,
+              "y": 72.06
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 322.122,
+              "y": 270.395
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -189.871,
+              "y": -417.875
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/47_canada_a/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -126.841,
+              "y": -305.554
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 213.172,
+              "y": 328.462
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/47_canada_a/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -132.513,
+              "y": 87.5705
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 113.589,
+              "y": 420.483
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -352.919,
+              "y": -251.755
+            }
+          ]
+        }
+      }
+    },
+    "tundra": {
+      "arena": "63_tundra",
+      "code": "tundra",
+      "name_ru": "Тундра",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -400.0,
+        "min_y": -400.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/63_tundra/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -41.3472,
+              "y": 224.069
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -215.285,
+              "y": -235.364
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -325.562,
+              "y": 96.459
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 316.803,
+              "y": 0.031
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/63_tundra/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 85.4165,
+              "y": -167.155
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 13.326,
+              "y": -306.419
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -72.2026,
+              "y": 141.256
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -3.164,
+              "y": 282.311
+            }
+          ]
+        }
+      }
+    },
+    "munchen": {
+      "arena": "17_munchen",
+      "code": "munchen",
+      "name_ru": "Уайдпарк",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -300.0,
+        "min_y": -300.0,
+        "max_x": 300.0,
+        "max_y": 300.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/17_munchen/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -83.6166,
+              "y": -197.318
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 61.9298,
+              "y": 242.775
+            }
+          ]
+        }
+      }
+    },
+    "lost_paradise_v": {
+      "arena": "121_lost_paradise_v",
+      "code": "lost_paradise_v",
+      "name_ru": "Устричный залив",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -600.0,
+        "min_y": -600.0,
+        "max_x": 700.0,
+        "max_y": 700.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/121_lost_paradise_v/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -309.24,
+              "y": -296.056
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 370.678,
+              "y": 431.027
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/121_lost_paradise_v/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": 23.041,
+              "y": 60.6922
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -408.214,
+              "y": -238.048
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 252.971,
+              "y": 521.575
+            }
+          ]
+        }
+      }
+    },
+    "cliff": {
+      "arena": "18_cliff",
+      "code": "cliff",
+      "name_ru": "Утёс",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/18_cliff/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -252.067,
+              "y": 434.82
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 228.185,
+              "y": 176.507
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -285.944,
+              "y": -451.039
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/18_cliff/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -273.786,
+              "y": -436.601
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -251.607,
+              "y": 434.591
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/18_cliff/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -6.69036,
+              "y": 0.17583
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -286,
+              "y": -450
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -248,
+              "y": 449
+            }
+          ]
+        }
+      }
+    },
+    "br_battle_city4": {
+      "arena": "252_br_battle_city4",
+      "code": "br_battle_city4",
+      "name_ru": "Фирнульфир",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -1000.0,
+        "min_y": -1000.0,
+        "max_x": 1000.0,
+        "max_y": 1000.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/252_br_battle_city4/mmap.webp",
+          "points": []
+        }
+      }
+    },
+    "fjord": {
+      "arena": "33_fjord",
+      "code": "fjord",
+      "name_ru": "Фьорды",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/33_fjord/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 399.096,
+              "y": -42.1432
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -392.068,
+              "y": 127.515
+            }
+          ]
+        }
+      }
+    },
+    "highway": {
+      "arena": "45_north_america",
+      "code": "highway",
+      "name_ru": "Хайвей",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/45_north_america/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -262.367,
+              "y": 19.475
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 209.515,
+              "y": 341.561
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -227.989,
+              "y": 454.194
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 415.281,
+              "y": -426.633
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/45_north_america/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 195.851,
+              "y": 352.782
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -343.188,
+              "y": -327.37
+            }
+          ]
+        }
+      }
+    },
+    "kharkiv": {
+      "arena": "83_kharkiv",
+      "code": "kharkiv",
+      "name_ru": "Харьков",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -550.0,
+        "min_y": -500.0,
+        "max_x": 450.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/83_kharkiv/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -3.01576,
+              "y": -436.144
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -8.66837,
+              "y": 419.295
+            }
+          ]
+        }
+      }
+    },
+    "himmelsdorf": {
+      "arena": "04_himmelsdorf",
+      "code": "himmelsdorf",
+      "name_ru": "Химмельсдорф",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -300.0,
+        "min_y": -300.0,
+        "max_x": 400.0,
+        "max_y": 400.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/04_himmelsdorf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -214.139,
+              "y": 18.4977
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": 103.041,
+              "y": 335.7
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -123.776,
+              "y": 356.64
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 374.261,
+              "y": -241.209
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/04_himmelsdorf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 2.49999,
+              "y": -252.601
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 69.0996,
+              "y": 349
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/04_himmelsdorf/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -223.101,
+              "y": 64.9995
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 243.678,
+              "y": 359.279
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 222.201,
+              "y": -271.347
+            }
+          ]
+        }
+      }
+    },
+    "sweden": {
+      "arena": "115_sweden",
+      "code": "sweden",
+      "name_ru": "Штиль",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/115_sweden/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": -303.161,
+              "y": -345.729
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 356.137,
+              "y": 246.011
+            }
+          ]
+        }
+      }
+    },
+    "el_hallouf": {
+      "arena": "29_el_hallouf",
+      "code": "el_hallouf",
+      "name_ru": "Эль-Халлуф",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/29_el_hallouf/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 301.447,
+              "y": 316.446
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -338.937,
+              "y": -320.331
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/29_el_hallouf/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -194.928,
+              "y": 204.044
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 337.233,
+              "y": 305.599
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": -318.29,
+              "y": -347.465
+            }
+          ]
+        }
+      }
+    },
+    "ensk": {
+      "arena": "06_ensk",
+      "code": "ensk",
+      "name_ru": "Энск",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -300.0,
+        "min_y": -300.0,
+        "max_x": 300.0,
+        "max_y": 300.0
+      },
+      "modes": {
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/06_ensk/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 20.2999,
+              "y": 249.7
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": 19.0999,
+              "y": -248.7
+            }
+          ]
+        },
+        "encounter": {
+          "tankist_mode": "domination",
+          "label_ru": "Встречный бой",
+          "minimap_rel": "minimaps/06_ensk/mmap.webp",
+          "points": [
+            {
+              "label": "control_point_1",
+              "point_type": "control_point",
+              "team": "",
+              "x": -82.7687,
+              "y": 0.675796
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": 18.6987,
+              "y": 262.115
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 28.9511,
+              "y": -264.862
+            }
+          ]
+        }
+      }
+    },
+    "erlenberg": {
+      "arena": "13_erlenberg",
+      "code": "erlenberg",
+      "name_ru": "Эрленберг",
+      "version": "1.42.0.0",
+      "bounds": {
+        "min_x": -500.0,
+        "min_y": -500.0,
+        "max_x": 500.0,
+        "max_y": 500.0
+      },
+      "modes": {
+        "assault": {
+          "tankist_mode": "assault2",
+          "label_ru": "Атака/Оборона",
+          "minimap_rel": "minimaps/13_erlenberg/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 186.184,
+              "y": 414.649
+            },
+            {
+              "label": "team1_base_2",
+              "point_type": "base",
+              "team": "team1",
+              "x": -189.753,
+              "y": 8.29151
+            },
+            {
+              "label": "team1_spawn_1",
+              "point_type": "spawn",
+              "team": "team1",
+              "x": -289.331,
+              "y": 432.29
+            },
+            {
+              "label": "team2_spawn_1",
+              "point_type": "spawn",
+              "team": "team2",
+              "x": 232.293,
+              "y": -416.74
+            }
+          ]
+        },
+        "random": {
+          "tankist_mode": "ctf",
+          "label_ru": "Стандартный бой",
+          "minimap_rel": "minimaps/13_erlenberg/mmap.webp",
+          "points": [
+            {
+              "label": "team1_base_1",
+              "point_type": "base",
+              "team": "team1",
+              "x": 100.746,
+              "y": -411.833
+            },
+            {
+              "label": "team2_base_1",
+              "point_type": "base",
+              "team": "team2",
+              "x": -98.5109,
+              "y": 404.362
+            }
+          ]
+        }
+      }
+    }
+  },
+  "errors": [
+    "217_er_alaska: no tactical modes",
+    "209_epic_suburbia: no tactical modes",
+    "212_epic_random_valley: no tactical modes",
+    "208_bf_epic_normandy: no tactical modes",
+    "210_bf_epic_desert: no tactical modes"
+  ]
+}

@@ -12938,7 +12938,7 @@ html.tactics-auth-pending .tactics-room-layout--locked {
 
 .page-tactics-room .tactics-room-controls {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 4px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--tactics-panel-border);
@@ -15328,6 +15328,90 @@ body.tactics-map-modal-open {
     border-radius: 0;
     overflow: hidden;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tactics-map-modal__preview-spawns,
+.tactics-spawn-layer,
+.tactics-slide-preview-spawns {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tactics-spawn-layer {
+    z-index: 3;
+}
+
+.tactics-slide-preview {
+    position: relative;
+}
+
+.tactics-slide-preview-spawns {
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.tactics-spawn-layer .tactics-map-point,
+.tactics-map-modal__preview-spawns .tactics-map-point {
+    width: clamp(16px, 4.8%, 30px);
+    height: clamp(16px, 4.8%, 30px);
+}
+
+.tactics-slide-preview-spawns .tactics-map-point {
+    width: clamp(10px, 36%, 20px);
+    height: clamp(10px, 36%, 20px);
+    border-width: 2px;
+}
+
+.tactics-map-point {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    box-sizing: border-box;
+}
+
+.tactics-map-point--base-green,
+.tactics-map-point--base-red {
+    border-radius: 50%;
+    width: clamp(28px, 8.4%, 48px);
+    height: clamp(28px, 8.4%, 48px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tactics-map-point__label {
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.tactics-map-point--spawn-green,
+.tactics-map-point--base-green {
+    background: #36c736;
+}
+
+.tactics-map-point--spawn-red,
+.tactics-map-point--base-red {
+    background: #e03c3c;
+}
+
+.tactics-map-point--neutral {
+    background: #8b93a7;
+    border-radius: 2px;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tactics-map-point--other {
+    background: #6b7280;
 }
 
 .tactics-map-modal__preview-placeholder {

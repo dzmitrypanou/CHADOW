@@ -62,6 +62,7 @@
                 || this.modalEl?.querySelector('[data-tactics-map-field]');
             this.modalPreviewEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview]');
             this.modalPreviewPlaceholderEl = this.modalEl?.querySelector('[data-tactics-map-modal-preview-placeholder]');
+            this.modalPreviewSpawnsEl = this.modalEl?.querySelector('[data-tactics-map-modal-spawns]');
             this.modalModeEl = this.modalEl?.querySelector('[data-tactics-map-modal-mode]');
             this.modalModeLabelEl = this.modalEl?.querySelector('[data-tactics-map-modal-mode-label]');
             this.modalMapFieldEl = this.modalEl?.querySelector('[data-tactics-map-modal-map-field]');
@@ -673,6 +674,23 @@
             if (this.modalPreviewPlaceholderEl) {
                 this.modalPreviewPlaceholderEl.hidden = !!hasImage;
             }
+            if (!hasImage && this.modalPreviewSpawnsEl) {
+                this.modalPreviewSpawnsEl.innerHTML = '';
+                this.modalPreviewSpawnsEl.hidden = true;
+            }
+        }
+
+        updateModalSpawnOverlay(mapCode) {
+            if (!this.modalPreviewSpawnsEl || this.shouldShowCustomUpload()) {
+                if (this.modalPreviewSpawnsEl) {
+                    this.modalPreviewSpawnsEl.innerHTML = '';
+                    this.modalPreviewSpawnsEl.hidden = true;
+                }
+                return;
+            }
+            if (typeof maps().renderSpawnOverlay === 'function') {
+                maps().renderSpawnOverlay(this.modalPreviewSpawnsEl, mapCode, this.battleMode);
+            }
         }
 
         bindModalPreviewImage() {
@@ -706,6 +724,7 @@
                 if (img?.src) {
                     this.modalPreviewEl.src = img.src;
                     this.setModalPreviewVisible(true);
+                    this.updateModalSpawnOverlay(code);
                     return;
                 }
                 this.setModalPreviewVisible(false);
@@ -849,6 +868,7 @@
             this.buildModeTabs();
             this.renderSelect(this.firstMapCode());
             this.onChange(this.getValue());
+            this.updateModalPreview();
             this.notifyModalUpdate();
         }
 

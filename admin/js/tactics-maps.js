@@ -215,6 +215,11 @@ function renderTable() {
         const sideLen = mapSideLength(a.map_code);
         const attrs = sideLengthInputAttrs(a.game || 'wot');
         const sideVal = formatSideLengthDisplay(sideLen, a.game || 'wot');
+        const canEditSpawns = (a.game === 'wot' || a.game === 'lesta')
+            && ['random', 'encounter', 'assault'].includes(a.battle_mode);
+        const spawnsBtn = canEditSpawns
+            ? `<button type="button" class="action-btn spawns" data-game="${escapeHtml(a.game)}" data-mode="${escapeHtml(a.battle_mode)}" data-code="${escapeHtml(a.map_code)}" title="Респы и базы"><i class="fas fa-map-pin" aria-hidden="true"></i></button>`
+            : '';
         return `<tr>
             <td><img src="${escapeHtml(a.url + cacheBust)}" alt="" class="tactics-map-thumb" loading="lazy"></td>
             <td>${escapeHtml(gameLabels[a.game] || a.game)}</td>
@@ -228,6 +233,7 @@ function renderTable() {
             <td>
                 <div class="action-buttons">
                     <button type="button" class="action-btn edit" data-game="${escapeHtml(a.game)}" data-mode="${escapeHtml(a.battle_mode)}" data-code="${escapeHtml(a.map_code)}" title="Редактировать"><i class="fas fa-edit" aria-hidden="true"></i></button>
+                    ${spawnsBtn}
                     <a href="${escapeHtml(a.url)}" class="action-btn" target="_blank" rel="noopener" title="Открыть"><i class="fas fa-external-link-alt"></i></a>
                     <button type="button" class="action-btn delete" data-game="${escapeHtml(a.game)}" data-mode="${escapeHtml(a.battle_mode)}" data-code="${escapeHtml(a.map_code)}" title="Удалить"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </div>
@@ -594,7 +600,308 @@ function updateFileNameLabel() {
     label.style.color = file ? '#e8eef2' : '';
 }
 
+const spawnEditor = {
+    asset: null,
+    bounds: null,
+    points: [],
+    defaults: { bounds: null, points: [] },
+    selectedIndex: -1,
+    drag: null,
+};
+
+function spawnPointLabel(point, index) {
+    const type = String(point?.point_type || '');
+    const team = String(point?.team || '');
+    const names = {
+        base: 'База',
+        spawn: 'Респ',
+        control_point: 'Точка',
+    };
+    const teamLabel = team === 'team1' ? '1' : (team === 'team2' ? '2' : '');
+    return `${index + 1}. ${names[type] || type}${teamLabel ? ' (' + teamLabel + ')' : ''}`;
+}
+
+function spawnPointClassNames(point) {
+    const type = String(point?.point_type || '');
+    const team = String(point?.team || '');
+    const classes = ['tactics-spawn-editor-point'];
+    if (type === 'base') classes.push('is-base');
+    if (type === 'control_point') classes.push('is-neutral', 'is-neutral-color');
+    else if (team === 'team1') classes.push('is-green');
+    else if (team === 'team2') classes.push('is-red');
+    else classes.push('is-neutral-color');
+    return classes.join(' ');
+}
+
+function spawnPointToPercent(point, bounds) {
+    if (!bounds || !point) return null;
+    const x = Number(point.x);
+    const y = Number(point.y);
+    const dx = bounds.max_x - bounds.min_x;
+    const dy = bounds.max_y - bounds.min_y;
+    if (!dx || !dy || Number.isNaN(x) || Number.isNaN(y)) return null;
+    return {
+        left: ((x - bounds.min_x) / dx) * 100,
+        top: (1 - ((y - bounds.min_y) / dy)) * 100,
+    };
+}
+
+function spawnPercentToWorld(left, top, bounds) {
+    return {
+        x: bounds.min_x + (left / 100) * (bounds.max_x - bounds.min_x),
+        y: bounds.min_y + (1 - (top / 100)) * (bounds.max_y - bounds.min_y),
+    };
+}
+
+function renderSpawnEditorList() {
+    const list = document.getElementById('tacticsSpawnEditorList');
+    if (!list) return;
+    list.innerHTML = spawnEditor.points.map((point, index) => {
+        const active = index === spawnEditor.selectedIndex ? ' is-active' : '';
+        return `<button type="button" class="spawn-list-item${active}" data-index="${index}">${escapeHtml(spawnPointLabel(point, index))}</button>`;
+    }).join('');
+}
+
+function createSpawnEditorMarkerEl(point, index) {
+    const pos = spawnPointToPercent(point, spawnEditor.bounds);
+    if (!pos) return null;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = spawnPointClassNames(point);
+    if (index === spawnEditor.selectedIndex) el.classList.add('is-selected');
+    el.style.left = `${pos.left}%`;
+    el.style.top = `${pos.top}%`;
+    el.dataset.index = String(index);
+    if (String(point.point_type) === 'base') {
+        el.textContent = point.team === 'team2' ? '2' : '1';
+    }
+    el.addEventListener('pointerdown', (ev) => startSpawnPointDrag(ev, index));
+    return el;
+}
+
+function updateSpawnMarkerPosition(index) {
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    const point = spawnEditor.points[index];
+    if (!overlay || !point) return;
+    const pos = spawnPointToPercent(point, spawnEditor.bounds);
+    if (!pos) return;
+    const el = overlay.querySelector(`[data-index="${index}"]`);
+    if (!el) return;
+    el.style.left = `${pos.left}%`;
+    el.style.top = `${pos.top}%`;
+}
+
+function highlightSpawnSelection() {
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    if (!overlay) return;
+    overlay.querySelectorAll('.tactics-spawn-editor-point').forEach((el) => {
+        const idx = parseInt(el.dataset.index, 10);
+        el.classList.toggle('is-selected', idx === spawnEditor.selectedIndex);
+    });
+    renderSpawnEditorList();
+}
+
+function renderSpawnEditorPoints() {
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    if (!overlay || !spawnEditor.bounds) return;
+
+    overlay.innerHTML = '';
+    spawnEditor.points.forEach((point, index) => {
+        const el = createSpawnEditorMarkerEl(point, index);
+        if (el) overlay.appendChild(el);
+    });
+    renderSpawnEditorList();
+}
+
+function selectSpawnPoint(index) {
+    spawnEditor.selectedIndex = Number.isFinite(index) ? index : -1;
+    highlightSpawnSelection();
+}
+
+function startSpawnPointDrag(ev, index) {
+    if (!spawnEditor.bounds) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    spawnEditor.selectedIndex = index;
+    highlightSpawnSelection();
+
+    const overlay = document.getElementById('tacticsSpawnEditorOverlay');
+    const target = overlay?.querySelector(`[data-index="${index}"]`);
+    const rect = overlay?.getBoundingClientRect();
+    if (!overlay || !target || !rect?.width || !rect?.height) return;
+
+    spawnEditor.drag = {
+        index,
+        overlay,
+        rect,
+        pointerId: ev.pointerId,
+        target,
+    };
+    if (target.setPointerCapture) {
+        target.setPointerCapture(ev.pointerId);
+    }
+    target.classList.add('is-dragging');
+
+    const onMove = (moveEv) => {
+        if (!spawnEditor.drag || moveEv.pointerId !== spawnEditor.drag.pointerId) return;
+        moveEv.preventDefault();
+        const drag = spawnEditor.drag;
+        const left = Math.max(0, Math.min(100, ((moveEv.clientX - drag.rect.left) / drag.rect.width) * 100));
+        const top = Math.max(0, Math.min(100, ((moveEv.clientY - drag.rect.top) / drag.rect.height) * 100));
+        const world = spawnPercentToWorld(left, top, spawnEditor.bounds);
+        const point = spawnEditor.points[drag.index];
+        if (!point) return;
+        point.x = Math.round(world.x * 1000) / 1000;
+        point.y = Math.round(world.y * 1000) / 1000;
+        updateSpawnMarkerPosition(drag.index);
+    };
+
+    const onUp = (upEv) => {
+        if (!spawnEditor.drag || upEv.pointerId !== spawnEditor.drag.pointerId) return;
+        spawnEditor.drag.target?.classList.remove('is-dragging');
+        if (spawnEditor.drag.target?.releasePointerCapture) {
+            try {
+                spawnEditor.drag.target.releasePointerCapture(upEv.pointerId);
+            } catch (err) { /* ignore */ }
+        }
+        spawnEditor.drag = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+}
+
+function closeSpawnEditorModal() {
+    const modal = document.getElementById('tacticsSpawnEditorModal');
+    if (modal) modal.classList.remove('active');
+    spawnEditor.asset = null;
+    spawnEditor.points = [];
+    spawnEditor.selectedIndex = -1;
+    spawnEditor.drag = null;
+}
+
+async function openSpawnEditorModal(asset) {
+    if (!asset) return;
+    const modal = document.getElementById('tacticsSpawnEditorModal');
+    const mapImg = document.getElementById('tacticsSpawnEditorMap');
+    const meta = document.getElementById('tacticsSpawnEditorMeta');
+    if (!modal || !mapImg) return;
+
+    spawnEditor.asset = asset;
+    const cacheBust = asset.mtime ? `?t=${asset.mtime}` : '';
+    mapImg.src = asset.url + cacheBust;
+    if (meta) {
+        meta.textContent = `${mapDisplayName(asset.map_code)} · ${modeLabelForAsset(asset)} · ${asset.map_code}`;
+    }
+
+    try {
+        const res = await fetch(`/admin/ajax/tactics_map_spawns_get.php?map_code=${encodeURIComponent(asset.map_code)}&battle_mode=${encodeURIComponent(asset.battle_mode)}`);
+        const json = await res.json();
+        if (!json.success || !json.data) {
+            showNotification(json.error || 'Не удалось загрузить респы', 'error');
+            return;
+        }
+        spawnEditor.bounds = json.data.bounds;
+        spawnEditor.points = JSON.parse(JSON.stringify(json.data.points || []));
+        spawnEditor.defaults = json.data.defaults || { bounds: json.data.bounds, points: [] };
+        spawnEditor.selectedIndex = spawnEditor.points.length ? 0 : -1;
+        renderSpawnEditorPoints();
+        modal.classList.add('active');
+    } catch (e) {
+        showNotification('Ошибка загрузки респов', 'error');
+    }
+}
+
+function addSpawnEditorPoint(type, team) {
+    if (!spawnEditor.bounds) return;
+    const center = spawnPercentToWorld(50, 50, spawnEditor.bounds);
+    const point = {
+        point_type: type,
+        x: Math.round(center.x * 10) / 10,
+        y: Math.round(center.y * 10) / 10,
+        label: `${team || 'neutral'}_${type}_${Date.now()}`,
+    };
+    if (type !== 'control_point') {
+        point.team = team;
+    }
+    spawnEditor.points.push(point);
+    spawnEditor.selectedIndex = spawnEditor.points.length - 1;
+    renderSpawnEditorPoints();
+}
+
+function deleteSelectedSpawnPoint() {
+    if (spawnEditor.selectedIndex < 0) return;
+    spawnEditor.points.splice(spawnEditor.selectedIndex, 1);
+    spawnEditor.selectedIndex = Math.min(spawnEditor.selectedIndex, spawnEditor.points.length - 1);
+    renderSpawnEditorPoints();
+}
+
+function resetSpawnEditorPoints() {
+    spawnEditor.bounds = spawnEditor.defaults?.bounds || spawnEditor.bounds;
+    spawnEditor.points = JSON.parse(JSON.stringify(spawnEditor.defaults?.points || []));
+    spawnEditor.selectedIndex = spawnEditor.points.length ? 0 : -1;
+    renderSpawnEditorPoints();
+}
+
+async function saveSpawnEditorPoints() {
+    if (!spawnEditor.asset) return;
+    const btn = document.getElementById('tacticsSpawnEditorSave');
+    const formData = new FormData();
+    formData.append('map_code', spawnEditor.asset.map_code);
+    formData.append('battle_mode', spawnEditor.asset.battle_mode);
+    formData.append('points', JSON.stringify(spawnEditor.points));
+    if (spawnEditor.bounds) {
+        formData.append('bounds', JSON.stringify(spawnEditor.bounds));
+    }
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) formData.append('csrf_token', csrfMeta.getAttribute('content') || '');
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/admin/ajax/tactics_map_spawns_save.php', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (!json.success) {
+            showNotification(json.error || 'Ошибка сохранения', 'error');
+            return;
+        }
+        showNotification('Респы сохранены');
+        spawnEditor.bounds = json.data.bounds;
+        spawnEditor.points = JSON.parse(JSON.stringify(json.data.points || []));
+        spawnEditor.defaults = json.data.defaults || spawnEditor.defaults;
+        renderSpawnEditorPoints();
+    } catch (e) {
+        showNotification('Ошибка сервера', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function bindSpawnEditorUi() {
+    document.querySelectorAll('[data-spawn-add]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            addSpawnEditorPoint(btn.dataset.spawnAdd, btn.dataset.spawnTeam || '');
+        });
+    });
+    document.getElementById('tacticsSpawnEditorDelete')?.addEventListener('click', deleteSelectedSpawnPoint);
+    document.getElementById('tacticsSpawnEditorReset')?.addEventListener('click', resetSpawnEditorPoints);
+    document.getElementById('tacticsSpawnEditorSave')?.addEventListener('click', saveSpawnEditorPoints);
+    document.getElementById('tacticsSpawnEditorCancel')?.addEventListener('click', closeSpawnEditorModal);
+    document.getElementById('tacticsSpawnEditorModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'tacticsSpawnEditorModal') closeSpawnEditorModal();
+    });
+    document.getElementById('tacticsSpawnEditorList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.spawn-list-item');
+        if (!btn) return;
+        selectSpawnPoint(parseInt(btn.dataset.index, 10));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    bindSpawnEditorUi();
     syncUploadSideLengthLabel({ isInit: true });
     loadMaps();
 
@@ -624,6 +931,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('tacticsMapsTableBody')?.addEventListener('click', (e) => {
+        const spawnsBtn = e.target.closest('.action-btn.spawns');
+        if (spawnsBtn) {
+            const asset = assets.find((a) => a.map_code === spawnsBtn.dataset.code
+                && a.game === spawnsBtn.dataset.game
+                && a.battle_mode === spawnsBtn.dataset.mode);
+            if (asset) {
+                void openSpawnEditorModal(asset);
+            }
+            return;
+        }
         const editBtn = e.target.closest('.action-btn.edit');
         if (editBtn) {
             const asset = assets.find((a) => a.map_code === editBtn.dataset.code

@@ -68,7 +68,6 @@ const TACTICS_ENCOUNTER_MAPS = [
 ];
 
 const TACTICS_ASSAULT_MAPS = [
-    'karelia',
     'murovanka',
     'ruinberg',
     'siegfried_line',
@@ -84,6 +83,33 @@ const TACTICS_ASSAULT_MAPS = [
     'highway',
     'er_clime',
 ];
+
+function tactics_map_allowed_for_mode(string $code, string $mode, string $game = 'wot'): bool {
+    $game = tactics_sanitize_game($game);
+    $code = strtolower(trim($code));
+    if ($code === '' || tactics_is_variant_map_code($code)) {
+        return false;
+    }
+    if (!tactics_game_uses_legacy_catalog($game)) {
+        return true;
+    }
+    $mode = tactics_sanitize_battle_mode($mode, $game);
+
+    return in_array($code, tactics_filter_maps_for_mode([$code], $mode), true);
+}
+
+function tactics_sort_map_rows(array $rows, string $lang = 'ru'): array {
+    $isEn = $lang === 'en';
+    usort($rows, static function (array $a, array $b) use ($isEn): int {
+        $nameA = $isEn ? ($a['display_name_en'] ?? $a['map_code']) : ($a['display_name_ru'] ?? $a['map_code']);
+        $nameB = $isEn ? ($b['display_name_en'] ?? $b['map_code']) : ($b['display_name_ru'] ?? $b['map_code']);
+        $cmp = strcasecmp((string) $nameA, (string) $nameB);
+
+        return $cmp !== 0 ? $cmp : strcasecmp((string) ($a['map_code'] ?? ''), (string) ($b['map_code'] ?? ''));
+    });
+
+    return $rows;
+}
 
 function tactics_sanitize_game(string $game): string {
     $game = strtolower(trim($game));
@@ -297,6 +323,383 @@ function tactics_cs2_custom_map_row(string $lang = 'ru'): array {
     return tactics_custom_map_row('cs2', $lang);
 }
 
+function tactics_map_names_index(): array {
+    static $index = null;
+    if ($index !== null) {
+        return $index;
+    }
+    $path = __DIR__ . '/tactics_map_names.json';
+    if (!is_file($path)) {
+        $index = ['by_code' => [], 'by_arena' => []];
+
+        return $index;
+    }
+    $json = json_decode((string) file_get_contents($path), true);
+    $index = is_array($json) ? $json : ['by_code' => [], 'by_arena' => []];
+
+    return $index;
+}
+
+function tactics_map_lookup_code(string $mapCode): string {
+    $mapCode = strtolower(trim($mapCode));
+    if ($mapCode === '') {
+        return '';
+    }
+    if (preg_match('/_sw$/', $mapCode)) {
+        $mapCode = substr($mapCode, 0, -3);
+    }
+    if (preg_match('/^\d+_(.+)$/', $mapCode, $m)) {
+        return $m[1];
+    }
+
+    return $mapCode;
+}
+
+function tactics_map_name_entry(string $mapCode): ?array {
+    $mapCode = strtolower(trim($mapCode));
+    if ($mapCode === '') {
+        return null;
+    }
+    $index = tactics_map_names_index();
+    $byCode = $index['by_code'] ?? [];
+    $byArena = $index['by_arena'] ?? [];
+    if (isset($byCode[$mapCode])) {
+        return $byCode[$mapCode];
+    }
+    if (isset($byArena[$mapCode])) {
+        return $byArena[$mapCode];
+    }
+    $lookup = tactics_map_lookup_code($mapCode);
+    if ($lookup !== $mapCode && isset($byCode[$lookup])) {
+        return $byCode[$lookup];
+    }
+
+    return null;
+}
+
+function tactics_map_display_name(string $mapCode, string $lang = 'ru'): ?string {
+    $entry = tactics_map_name_entry($mapCode);
+    if ($entry === null) {
+        return null;
+    }
+    $isEn = $lang === 'en';
+    $name = $isEn ? (string) ($entry['en'] ?? '') : (string) ($entry['ru'] ?? '');
+    if ($name === '') {
+        $name = $isEn ? (string) ($entry['ru'] ?? '') : (string) ($entry['en'] ?? '');
+    }
+
+    return $name !== '' ? $name : null;
+}
+
+function tactics_apply_map_display_names(array $row): array {
+    $code = (string) ($row['map_code'] ?? '');
+    $resolved = tactics_map_name_entry($code);
+    if ($resolved === null) {
+        return $row;
+    }
+    $row['display_name_ru'] = (string) ($resolved['ru'] ?? $row['display_name_ru'] ?? $code);
+    $row['display_name_en'] = (string) ($resolved['en'] ?? $row['display_name_en'] ?? $code);
+
+    return $row;
+}
+
+function tactics_spawn_overrides_path(): string {
+    return __DIR__ . '/tactics_map_spawns_overrides.json';
+}
+
+function tactics_load_spawn_overrides_raw(): array {
+    $path = tactics_spawn_overrides_path();
+    if (!is_file($path)) {
+        return [];
+    }
+    $json = json_decode((string) file_get_contents($path), true);
+
+    return is_array($json) ? $json : [];
+}
+
+function tactics_tankist_spawn_entry(string $mapCode): ?array {
+    static $maps = null;
+    if ($maps === null) {
+        $path = __DIR__ . '/tactics_tankist_spawns.json';
+        if (!is_file($path)) {
+            $maps = [];
+
+            return null;
+        }
+        $json = json_decode((string) file_get_contents($path), true);
+        $maps = is_array($json['maps'] ?? null) ? $json['maps'] : [];
+    }
+    $code = strtolower(trim($mapCode));
+    if ($code === '') {
+        return null;
+    }
+    $entry = $maps[$code] ?? null;
+
+    return is_array($entry) ? $entry : null;
+}
+
+function tactics_normalize_spawn_points(array $points): array {
+    $out = [];
+    foreach ($points as $point) {
+        if (!is_array($point)) {
+            continue;
+        }
+        $type = strtolower(trim((string) ($point['point_type'] ?? '')));
+        $team = strtolower(trim((string) ($point['team'] ?? '')));
+        if (!in_array($type, ['spawn', 'base', 'control_point'], true)) {
+            continue;
+        }
+        if ($type !== 'control_point' && $team === '') {
+            continue;
+        }
+        if (!is_numeric($point['x'] ?? null) || !is_numeric($point['y'] ?? null)) {
+            continue;
+        }
+        $row = [
+            'point_type' => $type,
+            'x' => (float) $point['x'],
+            'y' => (float) $point['y'],
+        ];
+        if ($team !== '') {
+            $row['team'] = $team;
+        }
+        $label = trim((string) ($point['label'] ?? ''));
+        if ($label !== '') {
+            $row['label'] = $label;
+        }
+        $out[] = $row;
+    }
+
+    return $out;
+}
+
+function tactics_spawn_bounds_from_entry(?array $entry): ?array {
+    if (!is_array($entry)) {
+        return null;
+    }
+    $bounds = $entry['bounds'] ?? null;
+    if (!is_array($bounds)) {
+        return null;
+    }
+    foreach (['min_x', 'min_y', 'max_x', 'max_y'] as $key) {
+        if (!is_numeric($bounds[$key] ?? null)) {
+            return null;
+        }
+    }
+
+    return [
+        'min_x' => (float) $bounds['min_x'],
+        'min_y' => (float) $bounds['min_y'],
+        'max_x' => (float) $bounds['max_x'],
+        'max_y' => (float) $bounds['max_y'],
+    ];
+}
+
+function tactics_spawn_mode_defaults(string $mapCode, string $battleMode): array {
+    $entry = tactics_tankist_spawn_entry($mapCode);
+    $mode = strtolower(trim($battleMode));
+    if ($entry === null || $mode === '') {
+        return ['bounds' => null, 'points' => []];
+    }
+    $modeEntry = $entry['modes'][$mode] ?? null;
+    if (!is_array($modeEntry)) {
+        return ['bounds' => null, 'points' => []];
+    }
+
+    return [
+        'bounds' => tactics_spawn_bounds_from_entry($entry),
+        'points' => tactics_normalize_spawn_points(is_array($modeEntry['points'] ?? null) ? $modeEntry['points'] : []),
+    ];
+}
+
+function tactics_spawn_points_equal(array $left, array $right): bool {
+    return json_encode($left, JSON_UNESCAPED_UNICODE) === json_encode($right, JSON_UNESCAPED_UNICODE);
+}
+
+function tactics_admin_get_map_spawns(string $mapCode, string $battleMode): array {
+    $code = strtolower(trim($mapCode));
+    $mode = strtolower(trim($battleMode));
+    $defaults = tactics_spawn_mode_defaults($code, $mode);
+    $overrides = tactics_load_spawn_overrides_raw();
+    $custom = $overrides[$code][$mode] ?? null;
+    $bounds = $defaults['bounds'];
+    $points = $defaults['points'];
+    $hasOverride = false;
+    if (is_array($custom)) {
+        if (is_array($custom['bounds'] ?? null)) {
+            $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $custom['bounds']]);
+            if ($parsedBounds !== null) {
+                $bounds = $parsedBounds;
+            }
+        }
+        if (array_key_exists('points', $custom) && is_array($custom['points'])) {
+            $points = tactics_normalize_spawn_points($custom['points']);
+            $hasOverride = !tactics_spawn_points_equal($points, $defaults['points'])
+                || ($bounds !== null && $defaults['bounds'] !== null
+                    && json_encode($bounds) !== json_encode($defaults['bounds']));
+        }
+    }
+
+    return [
+        'map_code' => $code,
+        'battle_mode' => $mode,
+        'bounds' => $bounds,
+        'points' => $points,
+        'defaults' => $defaults,
+        'has_override' => $hasOverride,
+    ];
+}
+
+function tactics_admin_save_map_spawns(string $mapCode, string $battleMode, array $points, ?array $bounds = null): array {
+    require_once __DIR__ . '/../includes/tactics_helpers.php';
+
+    $code = strtolower(trim($mapCode));
+    $mode = strtolower(trim($battleMode));
+    if ($code === '' || $mode === '') {
+        return ['ok' => false, 'error' => 'invalid_map'];
+    }
+    if (!in_array($mode, TACTICS_WOT_MODES, true)) {
+        return ['ok' => false, 'error' => 'invalid_mode'];
+    }
+
+    $defaults = tactics_spawn_mode_defaults($code, $mode);
+    $normalized = tactics_normalize_spawn_points($points);
+    $boundsOut = $defaults['bounds'];
+    if (is_array($bounds)) {
+        $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $bounds]);
+        if ($parsedBounds !== null) {
+            $boundsOut = $parsedBounds;
+        }
+    }
+
+    $overrides = tactics_load_spawn_overrides_raw();
+    $sameAsDefault = tactics_spawn_points_equal($normalized, $defaults['points'])
+        && ($boundsOut === null || $defaults['bounds'] === null
+            || json_encode($boundsOut) === json_encode($defaults['bounds']));
+
+    if ($sameAsDefault) {
+        if (isset($overrides[$code][$mode])) {
+            unset($overrides[$code][$mode]);
+            if ($overrides[$code] === []) {
+                unset($overrides[$code]);
+            }
+        }
+    } else {
+        if (!isset($overrides[$code]) || !is_array($overrides[$code])) {
+            $overrides[$code] = [];
+        }
+        $overrides[$code][$mode] = [
+            'points' => $normalized,
+        ];
+        if ($boundsOut !== null) {
+            $overrides[$code][$mode]['bounds'] = $boundsOut;
+        }
+    }
+
+    $path = tactics_spawn_overrides_path();
+    $dir = dirname($path);
+    if (!tactics_admin_ensure_writable_dir($dir)) {
+        return ['ok' => false, 'error' => 'mkdir_failed'];
+    }
+
+    $encoded = json_encode($overrides, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if ($encoded === false || file_put_contents($path, $encoded . "\n", LOCK_EX) === false) {
+        return ['ok' => false, 'error' => 'write_failed'];
+    }
+
+    return ['ok' => true, 'data' => tactics_admin_get_map_spawns($code, $mode)];
+}
+
+function tactics_load_tankist_spawns_for_client(): array {
+    static $cache = null;
+    static $cacheMtime = null;
+
+    $paths = [
+        __DIR__ . '/tactics_tankist_spawns.json',
+        tactics_spawn_overrides_path(),
+    ];
+    $mtime = 0;
+    foreach ($paths as $path) {
+        if (is_file($path)) {
+            $mtime = max($mtime, (int) filemtime($path));
+        }
+    }
+    if ($cache !== null && $cacheMtime === $mtime) {
+        return $cache;
+    }
+
+    $path = __DIR__ . '/tactics_tankist_spawns.json';
+    if (!is_file($path)) {
+        $cache = [];
+        $cacheMtime = $mtime;
+
+        return $cache;
+    }
+
+    $json = json_decode((string) file_get_contents($path), true);
+    $maps = is_array($json['maps'] ?? null) ? $json['maps'] : [];
+    $overrides = tactics_load_spawn_overrides_raw();
+    $out = [];
+    foreach ($maps as $code => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $modes = [];
+        $mapBounds = is_array($entry['bounds'] ?? null) ? $entry['bounds'] : null;
+        foreach (($entry['modes'] ?? []) as $mode => $modeEntry) {
+            if (!is_array($modeEntry)) {
+                continue;
+            }
+            $points = is_array($modeEntry['points'] ?? null) ? $modeEntry['points'] : [];
+            $custom = $overrides[$code][$mode] ?? null;
+            if (is_array($custom)) {
+                if (is_array($custom['points'] ?? null)) {
+                    $points = tactics_normalize_spawn_points($custom['points']);
+                }
+                if (is_array($custom['bounds'] ?? null)) {
+                    $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $custom['bounds']]);
+                    if ($parsedBounds !== null) {
+                        $mapBounds = $parsedBounds;
+                    }
+                }
+            }
+            $modes[$mode] = [
+                'label_ru' => (string) ($modeEntry['label_ru'] ?? ''),
+                'points' => $points,
+            ];
+        }
+        if ($modes === []) {
+            continue;
+        }
+        $out[(string) $code] = [
+            'bounds' => $mapBounds,
+            'modes' => $modes,
+        ];
+        if (is_array($overrides[$code] ?? null)) {
+            foreach ($overrides[$code] as $mode => $custom) {
+                if (!is_array($custom) || isset($modes[$mode])) {
+                    continue;
+                }
+                $modes[$mode] = [
+                    'label_ru' => '',
+                    'points' => tactics_normalize_spawn_points(is_array($custom['points'] ?? null) ? $custom['points'] : []),
+                ];
+                if (is_array($custom['bounds'] ?? null)) {
+                    $parsedBounds = tactics_spawn_bounds_from_entry(['bounds' => $custom['bounds']]);
+                    if ($parsedBounds !== null) {
+                        $out[(string) $code]['bounds'] = $parsedBounds;
+                    }
+                }
+            }
+        }
+    }
+
+    $cache = $out;
+    $cacheMtime = $mtime;
+
+    return $cache;
+}
+
 function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null): array {
     require_once __DIR__ . '/../includes/tactics_helpers.php';
 
@@ -308,14 +711,14 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
             continue;
         }
         $allCodes[] = $code;
-        $byCode[$code] = [
+        $byCode[$code] = tactics_apply_map_display_names([
             'map_code' => $code,
             'display_name_ru' => (string) ($row['display_name_ru'] ?? $code),
             'display_name_en' => (string) ($row['display_name_en'] ?? $code),
             'side_length' => isset($row['side_length']) && (int) $row['side_length'] > 0
                 ? (int) $row['side_length']
                 : null,
-        ];
+        ]);
     }
 
     $assignmentIndex = [];
@@ -347,11 +750,13 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
                 if (!tactics_map_has_mode_asset($code, $game, $mode)) {
                     continue;
                 }
+                if (!tactics_map_allowed_for_mode($code, $mode, $game)) {
+                    continue;
+                }
                 $modeCodes[] = $code;
             }
             $modeCodes = array_values(array_unique($modeCodes));
-            sort($modeCodes, SORT_STRING);
-            $modes[$mode] = array_values(array_map(
+            $modes[$mode] = tactics_sort_map_rows(array_values(array_map(
                 static fn (string $code) => $byCode[$code] ?? [
                     'map_code' => $code,
                     'display_name_ru' => $code,
@@ -359,7 +764,7 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
                     'side_length' => null,
                 ],
                 $modeCodes
-            ));
+            )), $lang);
         }
         $gameModes = tactics_game_modes($game);
         $games[$game] = [
@@ -383,6 +788,7 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
     return [
         'games' => $games,
         'mode_labels' => $modeLabels,
+        'map_spawns' => tactics_load_tankist_spawns_for_client(),
         'default_game' => 'wot',
         'default_mode' => 'random',
     ];

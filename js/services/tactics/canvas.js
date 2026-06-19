@@ -161,6 +161,8 @@
             this.remoteCursors = new Map();
             this.cursorsLayerEl = null;
             this.pingsLayerEl = null;
+            this.activeSlide = null;
+            this.spawnOverlayGeneration = 0;
             this.cellFlashesLayerEl = null;
             this.pendingCursorPayload = null;
             this.lastCursorPayload = null;
@@ -621,6 +623,177 @@
             }
         }
 
+        removeSpawnMarkers() {
+            if (!this.fabric) return;
+            this.fabric.getObjects().filter((obj) => obj.isSpawnMarker).forEach((obj) => {
+                this.fabric.remove(obj);
+            });
+        }
+
+        applySpawnMarkerLock(obj) {
+            if (!obj) return;
+            obj.set({
+                selectable: false,
+                evented: false,
+                hasControls: false,
+                hasBorders: false,
+                lockMovementX: true,
+                lockMovementY: true,
+                lockScalingX: true,
+                lockScalingY: true,
+                lockRotation: true,
+                objectCaching: false,
+                excludeFromExport: true,
+            });
+            obj.isSpawnMarker = true;
+        }
+
+        createSpawnMarkerObject(point, normX, normY, canvasSize, displayTeam) {
+            const mapsApi = window.AbsTacticsMaps;
+            const type = String(point?.point_type || '').toLowerCase();
+            const team = displayTeam !== undefined && mapsApi?.normalizeSpawnTeam
+                ? mapsApi.normalizeSpawnTeam(displayTeam)
+                : (mapsApi?.normalizeSpawnTeam
+                    ? mapsApi.normalizeSpawnTeam(point?.team)
+                    : '');
+            const cx = normX * canvasSize;
+            const cy = normY * canvasSize;
+            const baseRadius = Math.max(28, canvasSize * 0.044);
+            const spawnRadius = Math.max(16, canvasSize * 0.028);
+            const strokeWidth = Math.max(3, Math.round(baseRadius * 0.14));
+
+            if (type === 'control_point') {
+                const size = baseRadius * 1.35;
+                const marker = new fabric.Rect({
+                    left: cx,
+                    top: cy,
+                    width: size,
+                    height: size,
+                    fill: '#8b93a7',
+                    angle: 45,
+                    originX: 'center',
+                    originY: 'center',
+                    stroke: '#ffffff',
+                    strokeWidth,
+                });
+                this.applySpawnMarkerLock(marker);
+                return marker;
+            }
+
+            const isGreen = team === 'team1';
+            const color = isGreen ? '#36c736' : '#e03c3c';
+            const radius = type === 'base' ? baseRadius : spawnRadius;
+            const circle = new fabric.Circle({
+                left: cx,
+                top: cy,
+                radius,
+                fill: color,
+                originX: 'center',
+                originY: 'center',
+                stroke: '#ffffff',
+                strokeWidth,
+            });
+
+            if (type === 'base') {
+                const label = mapsApi?.spawnBaseLabelForTeam
+                    ? mapsApi.spawnBaseLabelForTeam(team)
+                    : (mapsApi?.spawnBaseLabel
+                        ? mapsApi.spawnBaseLabel(point)
+                        : (isGreen ? '1' : '2'));
+                const text = new fabric.Text(label, {
+                    left: cx,
+                    top: cy,
+                    originX: 'center',
+                    originY: 'center',
+                    fontSize: Math.max(12, Math.round(radius * 1.05)),
+                    fontWeight: 'bold',
+                    fill: '#ffffff',
+                    fontFamily: 'Arial, Helvetica, sans-serif',
+                });
+                const group = new fabric.Group([circle, text], {
+                    left: cx,
+                    top: cy,
+                    originX: 'center',
+                    originY: 'center',
+                });
+                this.applySpawnMarkerLock(group);
+                return group;
+            }
+
+            this.applySpawnMarkerLock(circle);
+            return circle;
+        }
+
+        syncSpawnOverlay(slide) {
+            if (slide) {
+                this.activeSlide = slide;
+            }
+            const generation = ++this.spawnOverlayGeneration;
+            this.removeSpawnMarkers();
+            if (!this.fabric) return;
+
+            const mapsApi = window.AbsTacticsMaps;
+            if (!mapsApi || typeof mapsApi.getSpawnPointsForSlide !== 'function') {
+                return;
+            }
+
+            const render = () => {
+                if (generation !== this.spawnOverlayGeneration || !this.fabric) return;
+                const target = this.activeSlide;
+                const payload = mapsApi.getSpawnPointsForSlide(target);
+                if (!payload || payload.opts?.showOverlay === false) {
+                    this.fabric.requestRenderAll();
+                    return;
+                }
+
+                const size = this.fabric.getWidth();
+                if (!size) return;
+
+                const swapped = payload.opts?.spawnSwapped === true;
+                const displayOpts = {
+                    spawnSwapped: swapped,
+                    battleMode: payload.mode || target?.battle_mode || 'random',
+                    bounds: payload.bounds,
+                };
+                payload.points.forEach((point) => {
+                    const display = mapsApi.resolveSpawnDisplay
+                        ? mapsApi.resolveSpawnDisplay(point, payload.points, displayOpts)
+                        : {
+                            point: mapsApi.resolveSpawnDisplayPoint
+                                ? mapsApi.resolveSpawnDisplayPoint(point, payload.points, swapped)
+                                : point,
+                            team: point?.team,
+                        };
+                    const norm = mapsApi.spawnPointToNormalized(display.point, payload.bounds);
+                    if (!norm) return;
+                    const marker = this.createSpawnMarkerObject(
+                        point,
+                        norm.x,
+                        norm.y,
+                        size,
+                        display.team,
+                    );
+                    if (!marker) return;
+                    this.isRemote = true;
+                    this.fabric.add(marker);
+                    this.isRemote = false;
+                });
+                this.consolidateLayerOrder();
+                this.fabric.requestRenderAll();
+            };
+
+            const catalog = typeof mapsApi.getCatalog === 'function' ? mapsApi.getCatalog() : null;
+            if (catalog?.map_spawns) {
+                render();
+                return;
+            }
+            if (typeof mapsApi.loadCatalog === 'function') {
+                void mapsApi.loadCatalog().then(render).catch(render);
+                return;
+            }
+            render();
+        }
+
         pinMapBoxElement(el, size) {
             if (!el || !size) return;
             el.style.inset = 'auto';
@@ -678,6 +851,10 @@
 
         static GRID_DIVISIONS = 10;
         static COORD_SPACE = 1000;
+
+        static isMapDecoration(obj) {
+            return !!(obj?.isGridLine || obj?.isSpawnMarker);
+        }
         static MAP_CSS_ZOOM_MIN = 1;
         static MAP_CSS_ZOOM_MAX = 4;
         static MAP_CSS_ZOOM_WHEEL_FACTOR = 1.08;
@@ -1052,6 +1229,7 @@
             this.syncMapContentLayerGeometry(this.cursorsLayerEl);
             this.syncMapContentLayerGeometry(this.pingsLayerEl);
             this.syncMapContentLayerGeometry(this.rulerLayerEl);
+            this.syncSpawnOverlay();
         }
 
         formatRulerDistance(distance) {
@@ -1603,7 +1781,7 @@
             let overDrawing = false;
             if (opt?.e) {
                 const target = this.fabric.findTarget(opt.e, false);
-                overDrawing = !!(target && !target.isBackground && !target.isGridLine && !this.isPreviewObject(target));
+                overDrawing = !!(target && !target.isBackground && !TacticsCanvas.isMapDecoration(target) && !this.isPreviewObject(target));
             }
 
             upper.style.cursor = overDrawing
@@ -1912,7 +2090,7 @@
         }
 
         isTextObject(obj) {
-            if (!obj || obj.isBackground || obj.isGridLine || obj.isDrawingPreview) {
+            if (!obj || obj.isBackground || TacticsCanvas.isMapDecoration(obj) || obj.isDrawingPreview) {
                 return false;
             }
             return obj.tacticsType === 'text' || obj.type === 'i-text' || obj.type === 'textbox';
@@ -2513,12 +2691,26 @@
             this.fabric.renderAll();
         }
 
+        placeSpawnAboveMap() {
+            if (!this.fabric) return;
+
+            const objects = this.fabric.getObjects();
+            const bg = objects.find((o) => o.isBackground);
+            let targetIndex = bg ? objects.indexOf(bg) + 1 : 0;
+
+            objects.filter((o) => o.isSpawnMarker).forEach((marker) => {
+                this.fabric.moveTo(marker, targetIndex);
+                targetIndex += 1;
+            });
+        }
+
         placeGridAboveMap() {
             if (!this.fabric || !this.showGrid) return;
 
             const objects = this.fabric.getObjects();
             const bg = objects.find((o) => o.isBackground);
             let targetIndex = bg ? objects.indexOf(bg) + 1 : 0;
+            targetIndex += objects.filter((o) => o.isSpawnMarker).length;
 
             objects.filter((o) => o.isGridLine).forEach((line) => {
                 this.fabric.moveTo(line, targetIndex);
@@ -2540,6 +2732,7 @@
             if (bg) {
                 this.fabric.sendToBack(bg);
             }
+            this.placeSpawnAboveMap();
             this.placeGridAboveMap();
         }
 
@@ -2639,7 +2832,7 @@
             this.fabric.skipTargetFind = (readonly && !canOverlayTool) || canOverlayTool;
 
             this.fabric.forEachObject((obj) => {
-                if (obj.isDrawingPreview || obj.isRemoteStrokePreview || obj.isCellFlash || obj.isGridLine) {
+                if (obj.isDrawingPreview || obj.isRemoteStrokePreview || obj.isCellFlash || TacticsCanvas.isMapDecoration(obj)) {
                     obj.selectable = false;
                     obj.evented = false;
                     return;
@@ -2657,7 +2850,7 @@
                 obj.lockScalingX = !canMove;
                 obj.lockScalingY = !canMove;
                 obj.lockRotation = !canMove;
-                if (!obj.isBackground && !obj.isGridLine && !obj.isDrawingPreview) {
+                if (!obj.isBackground && !TacticsCanvas.isMapDecoration(obj) && !obj.isDrawingPreview) {
                     if (canErase) {
                         obj.hoverCursor = TacticsCanvas.getEraserTargetCursor();
                     } else if (canMove) {
@@ -2835,7 +3028,7 @@
         sampleColorFromObject(domEvent) {
             if (!this.fabric || !domEvent) return null;
             const target = this.fabric.findTarget(domEvent, false);
-            if (!target || target.isGridLine) return null;
+            if (!target || TacticsCanvas.isMapDecoration(target)) return null;
 
             if (!target.isBackground) {
                 const stroke = this.normalizeFabricColor(target.stroke);
@@ -5389,7 +5582,7 @@
         }
 
         isPreviewObject(obj) {
-            return !!(obj?.isDrawingPreview || obj?.isRemoteStrokePreview || obj?.isCellFlash || obj?.isGridLine || obj?.isBackground);
+            return !!(obj?.isDrawingPreview || obj?.isRemoteStrokePreview || obj?.isCellFlash || TacticsCanvas.isMapDecoration(obj) || obj?.isBackground);
         }
 
         clearShapePreview() {
@@ -5559,7 +5752,7 @@
             if (!this.fabric || !tacticsId) return null;
             const id = String(tacticsId).trim();
             if (!id) return null;
-            return this.fabric.getObjects().find((o) => !o.isBackground && !o.isGridLine
+            return this.fabric.getObjects().find((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o)
                 && String(o.tacticsId || '').trim() === id) || null;
         }
 
@@ -5567,7 +5760,7 @@
             if (!this.fabric || !payload) return null;
             const left = Math.round(payload.left);
             const top = Math.round(payload.top);
-            return this.fabric.getObjects().find((o) => !o.isBackground && !o.isGridLine
+            return this.fabric.getObjects().find((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o)
                 && o.type === payload.type
                 && Math.round(o.left) === left
                 && Math.round(o.top) === top) || null;
@@ -5687,7 +5880,7 @@
             if (!this.fabric) return;
             const selfId = String(this.clientId || '').trim();
             this.fabric.getObjects().forEach((obj) => {
-                if (this.isPreviewObject(obj) || obj.isBackground || obj.isGridLine) return;
+                if (this.isPreviewObject(obj) || obj.isBackground || TacticsCanvas.isMapDecoration(obj)) return;
                 const authorId = String(obj.tacticsAuthorId || '').trim();
                 if (!authorId || authorId === selfId || !obj.tacticsId) return;
                 this.foreignObjectAuthors.set(obj.tacticsId, authorId);
@@ -6584,7 +6777,7 @@
             return this.withExportCoordSpace((coordSpace) => {
                 if (!this.fabric) return null;
                 const objects = this.fabric.getObjects()
-                    .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !o.isGridLine
+                    .filter((o) => !this.isPreviewObject(o) && !o.isBackground && !TacticsCanvas.isMapDecoration(o)
                         && !o.tacticsArrowHead && !o.tacticsBarEnd)
                     .map((o) => {
                         const data = o.toObject(TacticsCanvas.EXPORT_PROPS);
@@ -6647,7 +6840,7 @@
         clearSlide() {
             if (!this.drawEnabled || !this.fabric) return;
             this.fabric.getObjects().forEach((obj) => {
-                if (!obj.isBackground && !obj.isGridLine) {
+                if (!obj.isBackground && !TacticsCanvas.isMapDecoration(obj)) {
                     this.fabric.remove(obj);
                 }
             });
@@ -6742,7 +6935,7 @@
                 this.removeObjectsByAuthor(authorId);
 
                 const objects = (json && Array.isArray(json.objects) ? json.objects : [])
-                    .filter((o) => !o.isBackground && !o.isGridLine);
+                    .filter((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o));
                 if (!objects.length) {
                     this.consolidateLayerOrder();
                     this.relinkArrowHeads();
@@ -6780,7 +6973,7 @@
                 this.removeOwnDrawingObjects();
 
                 const objects = (json && Array.isArray(json.objects) ? json.objects : [])
-                    .filter((o) => !o.isBackground && !o.isGridLine);
+                    .filter((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o));
                 if (!objects.length) {
                     this.consolidateLayerOrder();
                     this.relinkArrowHeads();
@@ -6894,7 +7087,7 @@
 
             const parents = [];
             this.fabric.getObjects().forEach((obj) => {
-                if (obj.isDrawingPreview || obj.isGridLine || obj.isBackground) return;
+                if (obj.isDrawingPreview || TacticsCanvas.isMapDecoration(obj) || obj.isBackground) return;
                 if (obj.tacticsArrowHead || obj.tacticsBarEnd) return;
 
                 const isLine = obj.type === 'line'
@@ -6936,11 +7129,11 @@
             if (!this.fabric || !json) return;
             this.syncFabricLayoutSize();
             this.isRemote = true;
-            this.fabric.getObjects().filter((o) => !o.isBackground && !o.isGridLine).forEach((o) => {
+            this.fabric.getObjects().filter((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o)).forEach((o) => {
                 this.fabric.remove(o);
             });
             const objects = (Array.isArray(json.objects) ? json.objects : [])
-                .filter((o) => !o.isBackground && !o.isGridLine);
+                .filter((o) => !o.isBackground && !TacticsCanvas.isMapDecoration(o));
             await new Promise((resolve) => {
                 if (!objects.length) {
                     resolve();
@@ -6974,6 +7167,7 @@
             this.bgImageEl = img;
             this.fitBackground();
             this.syncGridOverlay();
+            this.syncSpawnOverlay();
             this.fabric.requestRenderAll();
         }
 
@@ -7012,6 +7206,7 @@
                 this.bgLayout = null;
                 this.isRemote = false;
                 this.slideId = slide.id;
+                this.activeSlide = slide;
 
                 const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
                 const resolvedUrl = mapUrl || maps().slideMapUrl(slide, publicId);
@@ -7048,6 +7243,7 @@
                 this.rebuildForeignObjectRegistry();
                 this.scheduleResize();
                 this.updateGridToggleBtn();
+                this.syncSpawnOverlay(slide);
                 if (this.drawEnabled && !this.interactionLocked) {
                     this.setTool(this.tool || 'select');
                 } else {
@@ -7067,7 +7263,7 @@
             if (!json || !Array.isArray(json.objects)) return json;
             return {
                 ...json,
-                objects: json.objects.filter((obj) => !obj.isBackground && !obj.isGridLine),
+                objects: json.objects.filter((obj) => !obj.isBackground && !obj.isGridLine && !obj.isSpawnMarker),
             };
         }
 
@@ -7117,7 +7313,7 @@
             try {
                 if (msg.op === 'clear') {
                     this.fabric.getObjects().forEach((obj) => {
-                        if (!obj.isBackground && !obj.isGridLine) this.fabric.remove(obj);
+                        if (!obj.isBackground && !TacticsCanvas.isMapDecoration(obj)) this.fabric.remove(obj);
                     });
                     this.consolidateLayerOrder();
                     if (remoteClientId) {

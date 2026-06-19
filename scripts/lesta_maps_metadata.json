@@ -2,11 +2,11 @@
   "airfield": {
     "arena": "31_airfield",
     "display_name_ru": "Аэродром",
-    "display_name_en": "Аэрадром",
+    "display_name_en": "Airfield",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -15,11 +15,11 @@
   "asia_great_wall": {
     "arena": "59_asia_great_wall",
     "display_name_ru": "Граница империи",
-    "display_name_en": "Мяжа імперыі",
+    "display_name_en": "Empire's Border",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -28,11 +28,11 @@
   "asia_miao": {
     "arena": "60_asia_miao",
     "display_name_ru": "Жемчужная река",
-    "display_name_en": "Жамчужная рака",
+    "display_name_en": "Pearl River",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -42,7 +42,7 @@
   "battle_for_moscow": {
     "arena": "506_battle_for_moscow",
     "display_name_ru": "Битва за Москву",
-    "display_name_en": "Бітва за Маскву",
+    "display_name_en": "Battle for Moscow",
     "side_length": 1000,
     "games": [
       "lesta"
@@ -54,7 +54,7 @@
   "campania_big": {
     "arena": "03_campania_big",
     "display_name_ru": "Провинция",
-    "display_name_en": "Правінцыя",
+    "display_name_en": "Province",
     "side_length": 850,
     "games": [
       "wot"
@@ -66,11 +66,11 @@
   "canada_a": {
     "arena": "47_canada_a",
     "display_name_ru": "Тихий берег",
-    "display_name_en": "Ціхі бераг",
+    "display_name_en": "Quiet Coast",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -80,7 +80,7 @@
   "caucasus": {
     "arena": "505_caucasus",
     "display_name_ru": "Кавказ",
-    "display_name_en": "Каўказ",
+    "display_name_en": "Caucasus",
     "side_length": 1200,
     "games": [
       "lesta"
@@ -92,11 +92,11 @@
   "cliff": {
     "arena": "18_cliff",
     "display_name_ru": "Утёс",
-    "display_name_en": "Стромкі бераг",
+    "display_name_en": "Cliff",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -107,11 +107,11 @@
   "czech": {
     "arena": "114_czech",
     "display_name_ru": "Промзона",
-    "display_name_en": "Прамысловая зона",
+    "display_name_en": "Industrial District",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -120,7 +120,7 @@
   "dday": {
     "arena": "101_dday",
     "display_name_ru": "Оверлорд",
-    "display_name_en": "Оўвэрлорд",
+    "display_name_en": "Overlord",
     "side_length": 1000,
     "games": [
       "wot"
@@ -132,11 +132,11 @@
   "desert": {
     "arena": "28_desert",
     "display_name_ru": "Песчаная река",
-    "display_name_en": "Пясчаная рака",
+    "display_name_en": "Sand River",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -146,7 +146,7 @@
   "eiffel_tower_ctf": {
     "arena": "112_eiffel_tower_ctf",
     "display_name_ru": "Париж",
-    "display_name_en": "Парыж",
+    "display_name_en": "Paris",
     "side_length": 800,
     "games": [
       "wot"
@@ -158,11 +158,11 @@
   "el_hallouf": {
     "arena": "29_el_hallouf",
     "display_name_ru": "Эль-Халлуф",
-    "display_name_en": "Эль-Халуф",
+    "display_name_en": "El Hallouf",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -171,11 +171,11 @@
   "ensk": {
     "arena": "06_ensk",
     "display_name_ru": "Энск",
-    "display_name_en": "Энск",
+    "display_name_en": "Ensk",
     "side_length": 600,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -185,7 +185,7 @@
   "er_clime": {
     "arena": "222_er_clime",
     "display_name_ru": "Орловский выступ",
-    "display_name_en": "Арлоўскі выступ",
+    "display_name_en": "Malinovski Gap",
     "side_length": 1400,
     "games": [
       "lesta"
@@ -197,11 +197,11 @@
   "erlenberg": {
     "arena": "13_erlenberg",
     "display_name_ru": "Эрленберг",
-    "display_name_en": "Эрленбэрг",
+    "display_name_en": "Erlenberg",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -211,11 +211,11 @@
   "fishing_bay": {
     "arena": "36_fishing_bay",
     "display_name_ru": "Рыбацкая бухта",
-    "display_name_en": "Рыбацкая затока",
+    "display_name_en": "Fisherman's Bay",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -224,11 +224,11 @@
   "fjord": {
     "arena": "33_fjord",
     "display_name_ru": "Фьорды",
-    "display_name_en": "Фіёрды",
+    "display_name_en": "Fjords",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -237,11 +237,11 @@
   "germany": {
     "arena": "105_germany",
     "display_name_ru": "Берлин",
-    "display_name_en": "Берлін",
+    "display_name_en": "Berlin",
     "side_length": 1050,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -250,7 +250,7 @@
   "germany_att": {
     "arena": "105_germany",
     "display_name_ru": "Берлин",
-    "display_name_en": "Берлін",
+    "display_name_en": "Berlin",
     "side_length": 1050,
     "games": [
       "wot",
@@ -264,8 +264,8 @@
     "display_name_en": "Highway",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -275,11 +275,11 @@
   "hills": {
     "arena": "10_hills",
     "display_name_ru": "Рудники",
-    "display_name_en": "Капальні",
+    "display_name_en": "Mines",
     "side_length": 800,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -289,11 +289,11 @@
   "himmelsdorf": {
     "arena": "04_himmelsdorf",
     "display_name_ru": "Химмельсдорф",
-    "display_name_en": "Гімэльсдорф",
+    "display_name_en": "Himmelsdorf",
     "side_length": 700,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -304,7 +304,7 @@
   "japort": {
     "arena": "127_japort",
     "display_name_ru": "Старая гавань",
-    "display_name_en": "Старая гавань",
+    "display_name_en": "Old Port",
     "side_length": 1000,
     "games": [
       "lesta"
@@ -316,11 +316,11 @@
   "kaliningrad": {
     "arena": "503_kaliningrad",
     "display_name_ru": "Калининград",
-    "display_name_en": "Калінінград",
+    "display_name_en": "Kaliningrad",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -329,7 +329,7 @@
   "kamchatka": {
     "arena": "502_kamchatka",
     "display_name_ru": "Камчатка",
-    "display_name_en": "Камчатка",
+    "display_name_en": "Kamchatka",
     "side_length": 1000,
     "games": [
       "lesta"
@@ -340,17 +340,16 @@
   },
   "karelia": {
     "arena": "01_karelia",
-    "display_name_ru": "Карелия",
-    "display_name_en": "Карэлія",
+    "display_name_ru": "Орловский выступ",
+    "display_name_en": "Karelia",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
-      "encounter",
-      "assault"
+      "encounter"
     ]
   },
   "kharkiv": {
@@ -359,8 +358,8 @@
     "display_name_en": "Kharkov",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -369,11 +368,11 @@
   "lakeville": {
     "arena": "07_lakeville",
     "display_name_ru": "Ласвилль",
-    "display_name_en": "Лэйквіл",
+    "display_name_en": "Lakeville",
     "side_length": 800,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -383,7 +382,7 @@
   "last_frontier_v": {
     "arena": "128_last_frontier_v",
     "display_name_ru": "Застава",
-    "display_name_en": "Застава",
+    "display_name_en": "Outpost",
     "side_length": 1000,
     "games": [
       "wot"
@@ -395,11 +394,11 @@
   "lost_city_ctf": {
     "arena": "95_lost_city_ctf",
     "display_name_ru": "Затерянный город",
-    "display_name_en": "Закінуты горад",
+    "display_name_en": "Lost City",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -409,7 +408,7 @@
   "lost_paradise_v": {
     "arena": "121_lost_paradise_v",
     "display_name_ru": "Устричный залив",
-    "display_name_en": "Вустрычны заліў",
+    "display_name_en": "Oyster Bay",
     "side_length": 1300,
     "games": [
       "wot"
@@ -421,11 +420,11 @@
   "malinovka": {
     "arena": "02_malinovka",
     "display_name_ru": "Малиновка",
-    "display_name_en": "Малінаўка",
+    "display_name_en": "Malinovka",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -435,11 +434,11 @@
   "mannerheim_line": {
     "arena": "38_mannerheim_line",
     "display_name_ru": "Линия Маннергейма",
-    "display_name_en": "Лінія Манэргейма",
+    "display_name_en": "Mannerheim Line",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -449,7 +448,7 @@
   "minsk": {
     "arena": "90_minsk",
     "display_name_ru": "Минск",
-    "display_name_en": "Мінск",
+    "display_name_en": "Minsk",
     "side_length": 1034,
     "games": [
       "lesta"
@@ -461,7 +460,7 @@
   "monastery": {
     "arena": "19_monastery",
     "display_name_ru": "Монастырь",
-    "display_name_en": "Кляштар",
+    "display_name_en": "Abbey",
     "side_length": 1000,
     "games": [
       "wot"
@@ -476,8 +475,8 @@
     "display_name_en": "Widepark",
     "side_length": 600,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random"
@@ -486,11 +485,11 @@
   "murovanka": {
     "arena": "11_murovanka",
     "display_name_ru": "Мурованка",
-    "display_name_en": "Мураванка",
+    "display_name_en": "Murovanka",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -504,8 +503,8 @@
     "display_name_en": "Live Oaks",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -515,11 +514,11 @@
   "poland": {
     "arena": "99_poland",
     "display_name_ru": "Студзянки",
-    "display_name_en": "Студзянкі",
+    "display_name_en": "Studzianki",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -529,11 +528,11 @@
   "prohorovka": {
     "arena": "05_prohorovka",
     "display_name_ru": "Прохоровка",
-    "display_name_en": "Прохараўка",
+    "display_name_en": "Prokhorovka",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -543,11 +542,11 @@
   "redshire": {
     "arena": "34_redshire",
     "display_name_ru": "Редшир",
-    "display_name_en": "Рэдшыр",
+    "display_name_en": "Redshire",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -557,11 +556,11 @@
   "ruinberg": {
     "arena": "08_ruinberg",
     "display_name_ru": "Руинберг",
-    "display_name_en": "Руінбэрг",
+    "display_name_en": "Ruinberg",
     "side_length": 850,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -572,7 +571,7 @@
   "ruinberg_att": {
     "arena": "08_ruinberg",
     "display_name_ru": "Руинберг",
-    "display_name_en": "Руінбэрг",
+    "display_name_en": "Ruinberg",
     "side_length": 850,
     "games": [
       "wot",
@@ -583,11 +582,11 @@
   "siegfried_line": {
     "arena": "14_siegfried_line",
     "display_name_ru": "Линия Зигфрида",
-    "display_name_en": "Лінія Зігфрыда",
+    "display_name_en": "Siegfried Line",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -598,7 +597,7 @@
   "siegfried_line_att": {
     "arena": "14_siegfried_line",
     "display_name_ru": "Линия Зигфрида",
-    "display_name_en": "Лінія Зігфрыда",
+    "display_name_en": "Siegfried Line",
     "side_length": 1000,
     "games": [
       "wot",
@@ -609,11 +608,11 @@
   "stalingrad": {
     "arena": "500_stalingrad",
     "display_name_ru": "Сталинград",
-    "display_name_en": "Сталінград",
+    "display_name_en": "Stalingrad",
     "side_length": 950,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -623,11 +622,11 @@
   "steppes": {
     "arena": "35_steppes",
     "display_name_ru": "Степи",
-    "display_name_en": "Стэп",
+    "display_name_en": "Steppes",
     "side_length": 1000,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -638,7 +637,7 @@
   "steppes_def": {
     "arena": "35_steppes",
     "display_name_ru": "Степи",
-    "display_name_en": "Стэп",
+    "display_name_en": "Steppes",
     "side_length": 1000,
     "games": [
       "wot",
@@ -649,7 +648,7 @@
   "sweden": {
     "arena": "115_sweden",
     "display_name_ru": "Штиль",
-    "display_name_en": "Штыль",
+    "display_name_en": "Windstorm",
     "side_length": 1000,
     "games": [
       "wot"
@@ -661,11 +660,11 @@
   "tundra": {
     "arena": "63_tundra",
     "display_name_ru": "Тундра",
-    "display_name_en": "Тундра",
+    "display_name_en": "Tundra",
     "side_length": 800,
     "games": [
-      "wot",
-      "lesta"
+      "lesta",
+      "wot"
     ],
     "modes": [
       "random",
@@ -675,7 +674,7 @@
   "westfeld": {
     "arena": "23_westfeld",
     "display_name_ru": "Вестфилд",
-    "display_name_en": "Вэстфільд",
+    "display_name_en": "Westfield",
     "side_length": 1000,
     "games": [
       "wot"

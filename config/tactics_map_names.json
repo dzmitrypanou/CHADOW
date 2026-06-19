@@ -1,0 +1,490 @@
+{
+  "by_code": {
+    "karelia": {
+      "ru": "Орловский выступ",
+      "en": "Karelia"
+    },
+    "malinovka": {
+      "ru": "Малиновка",
+      "en": "Malinovka"
+    },
+    "himmelsdorf": {
+      "ru": "Химмельсдорф",
+      "en": "Himmelsdorf"
+    },
+    "prohorovka": {
+      "ru": "Прохоровка",
+      "en": "Prokhorovka"
+    },
+    "lakeville": {
+      "ru": "Ласвилль",
+      "en": "Lakeville"
+    },
+    "ensk": {
+      "ru": "Энск",
+      "en": "Ensk"
+    },
+    "murovanka": {
+      "ru": "Мурованка",
+      "en": "Murovanka"
+    },
+    "erlenberg": {
+      "ru": "Эрленберг",
+      "en": "Erlenberg"
+    },
+    "hills": {
+      "ru": "Рудники",
+      "en": "Mines"
+    },
+    "cliff": {
+      "ru": "Утёс",
+      "en": "Cliff"
+    },
+    "monastery": {
+      "ru": "Монастырь",
+      "en": "Abbey"
+    },
+    "desert": {
+      "ru": "Песчаная река",
+      "en": "Sand River"
+    },
+    "steppes": {
+      "ru": "Степи",
+      "en": "Steppes"
+    },
+    "caucasus": {
+      "ru": "Кавказ",
+      "en": "Caucasus"
+    },
+    "fjord": {
+      "ru": "Фьорды",
+      "en": "Fjords"
+    },
+    "redshire": {
+      "ru": "Редшир",
+      "en": "Redshire"
+    },
+    "fishing_bay": {
+      "ru": "Рыбацкая бухта",
+      "en": "Fisherman's Bay"
+    },
+    "mannerheim_line": {
+      "ru": "Линия Маннергейма",
+      "en": "Mannerheim Line"
+    },
+    "ruinberg": {
+      "ru": "Руинберг",
+      "en": "Ruinberg"
+    },
+    "siegfried_line": {
+      "ru": "Линия Зигфрида",
+      "en": "Siegfried Line"
+    },
+    "westfeld": {
+      "ru": "Вестфилд",
+      "en": "Westfield"
+    },
+    "el_hallouf": {
+      "ru": "Эль-Халлуф",
+      "en": "El Hallouf"
+    },
+    "airfield": {
+      "ru": "Аэродром",
+      "en": "Airfield"
+    },
+    "munchen": {
+      "ru": "Уайдпарк",
+      "en": "Widepark"
+    },
+    "north_america": {
+      "ru": "Лайв Окс",
+      "en": "Live Oaks"
+    },
+    "highway": {
+      "ru": "Хайвей",
+      "en": "Highway"
+    },
+    "canada_a": {
+      "ru": "Тихий берег",
+      "en": "Quiet Coast"
+    },
+    "asia_great_wall": {
+      "ru": "Граница империи",
+      "en": "Empire's Border"
+    },
+    "tundra": {
+      "ru": "Тундра",
+      "en": "Tundra"
+    },
+    "asia_miao": {
+      "ru": "Жемчужная река",
+      "en": "Pearl River"
+    },
+    "dday": {
+      "ru": "Оверлорд",
+      "en": "Overlord"
+    },
+    "czech": {
+      "ru": "Промзона",
+      "en": "Industrial District"
+    },
+    "eiffel_tower_ctf": {
+      "ru": "Париж",
+      "en": "Paris"
+    },
+    "sweden": {
+      "ru": "Штиль",
+      "en": "Windstorm"
+    },
+    "campania_big": {
+      "ru": "Провинция",
+      "en": "Province"
+    },
+    "epic_random_valley": {
+      "ru": "Небельбург",
+      "en": "Небельбург"
+    },
+    "er_alaska": {
+      "ru": "Клондайк",
+      "en": "Клондайк"
+    },
+    "poland": {
+      "ru": "Студзянки",
+      "en": "Studzianki"
+    },
+    "minsk": {
+      "ru": "Минск",
+      "en": "Minsk"
+    },
+    "er_clime": {
+      "ru": "Орловский выступ",
+      "en": "Malinovski Gap"
+    },
+    "br_battle_city2-1": {
+      "ru": "Зона 404",
+      "en": "Зона 404"
+    },
+    "lost_city_ctf": {
+      "ru": "Затерянный город",
+      "en": "Lost City"
+    },
+    "kharkiv": {
+      "ru": "Харьков",
+      "en": "Kharkov"
+    },
+    "germany": {
+      "ru": "Берлин",
+      "en": "Berlin"
+    },
+    "bf_epic_normandy": {
+      "ru": "Нормандия",
+      "en": "Нормандия"
+    },
+    "br_battle_city3": {
+      "ru": "Арзагир 4.04",
+      "en": "Арзагир 4.04"
+    },
+    "br_battle_city4": {
+      "ru": "Фирнульфир",
+      "en": "Фирнульфир"
+    },
+    "japort": {
+      "ru": "Старая гавань",
+      "en": "Old Port"
+    },
+    "siegfried_line_nom": {
+      "ru": "Западный вал",
+      "en": "Западный вал"
+    },
+    "normandy_nom": {
+      "ru": "Одер",
+      "en": "Одер"
+    },
+    "lost_paradise_v": {
+      "ru": "Устричный залив",
+      "en": "Oyster Bay"
+    },
+    "last_frontier_v": {
+      "ru": "Застава",
+      "en": "Outpost"
+    },
+    "epic_suburbia": {
+      "ru": "Крафтверк",
+      "en": "Крафтверк"
+    },
+    "bf_epic_desert": {
+      "ru": "Фата-моргана",
+      "en": "Фата-моргана"
+    },
+    "stalingrad": {
+      "ru": "Сталинград",
+      "en": "Stalingrad"
+    },
+    "kamchatka": {
+      "ru": "Камчатка",
+      "en": "Kamchatka"
+    },
+    "kaliningrad": {
+      "ru": "Калининград",
+      "en": "Kaliningrad"
+    },
+    "qa_content_01": {
+      "ru": "QA_Content_01",
+      "en": "QA_Content_01"
+    },
+    "cosmic_2026": {
+      "ru": "Зона столкновения",
+      "en": "Зона столкновения"
+    },
+    "battle_for_moscow": {
+      "ru": "Битва за Москву",
+      "en": "Battle for Moscow"
+    }
+  },
+  "by_arena": {
+    "01_karelia": {
+      "ru": "Карелия",
+      "en": "Karelia"
+    },
+    "02_malinovka": {
+      "ru": "Малиновка",
+      "en": "Malinovka"
+    },
+    "04_himmelsdorf": {
+      "ru": "Химмельсдорф",
+      "en": "Himmelsdorf"
+    },
+    "05_prohorovka": {
+      "ru": "Прохоровка",
+      "en": "Prokhorovka"
+    },
+    "07_lakeville": {
+      "ru": "Ласвилль",
+      "en": "Lakeville"
+    },
+    "06_ensk": {
+      "ru": "Энск",
+      "en": "Ensk"
+    },
+    "11_murovanka": {
+      "ru": "Мурованка",
+      "en": "Murovanka"
+    },
+    "13_erlenberg": {
+      "ru": "Эрленберг",
+      "en": "Erlenberg"
+    },
+    "10_hills": {
+      "ru": "Рудники",
+      "en": "Mines"
+    },
+    "18_cliff": {
+      "ru": "Утёс",
+      "en": "Cliff"
+    },
+    "19_monastery": {
+      "ru": "Монастырь",
+      "en": "Abbey"
+    },
+    "28_desert": {
+      "ru": "Песчаная река",
+      "en": "Sand River"
+    },
+    "35_steppes": {
+      "ru": "Степи",
+      "en": "Steppes"
+    },
+    "37_caucasus": {
+      "ru": "Перевал",
+      "en": "Caucasus"
+    },
+    "33_fjord": {
+      "ru": "Фьорды",
+      "en": "Fjords"
+    },
+    "34_redshire": {
+      "ru": "Редшир",
+      "en": "Redshire"
+    },
+    "36_fishing_bay": {
+      "ru": "Рыбацкая бухта",
+      "en": "Fisherman's Bay"
+    },
+    "38_mannerheim_line": {
+      "ru": "Линия Маннергейма",
+      "en": "Mannerheim Line"
+    },
+    "08_ruinberg": {
+      "ru": "Руинберг",
+      "en": "Ruinberg"
+    },
+    "14_siegfried_line": {
+      "ru": "Линия Зигфрида",
+      "en": "Siegfried Line"
+    },
+    "23_westfeld": {
+      "ru": "Вестфилд",
+      "en": "Westfield"
+    },
+    "29_el_hallouf": {
+      "ru": "Эль-Халлуф",
+      "en": "El Hallouf"
+    },
+    "31_airfield": {
+      "ru": "Аэродром",
+      "en": "Airfield"
+    },
+    "17_munchen": {
+      "ru": "Уайдпарк",
+      "en": "Widepark"
+    },
+    "44_north_america": {
+      "ru": "Лайв Окс",
+      "en": "Live Oaks"
+    },
+    "45_north_america": {
+      "ru": "Хайвей",
+      "en": "Highway"
+    },
+    "47_canada_a": {
+      "ru": "Тихий берег",
+      "en": "Quiet Coast"
+    },
+    "59_asia_great_wall": {
+      "ru": "Граница империи",
+      "en": "Empire's Border"
+    },
+    "63_tundra": {
+      "ru": "Тундра",
+      "en": "Tundra"
+    },
+    "60_asia_miao": {
+      "ru": "Жемчужная река",
+      "en": "Pearl River"
+    },
+    "101_dday": {
+      "ru": "Оверлорд",
+      "en": "Overlord"
+    },
+    "114_czech": {
+      "ru": "Промзона",
+      "en": "Industrial District"
+    },
+    "112_eiffel_tower_ctf": {
+      "ru": "Париж",
+      "en": "Paris"
+    },
+    "115_sweden": {
+      "ru": "Штиль",
+      "en": "Windstorm"
+    },
+    "03_campania_big": {
+      "ru": "Провинция",
+      "en": "Province"
+    },
+    "212_epic_random_valley": {
+      "ru": "Небельбург",
+      "en": "Небельбург"
+    },
+    "217_er_alaska": {
+      "ru": "Клондайк",
+      "en": "Клондайк"
+    },
+    "99_poland": {
+      "ru": "Студзянки",
+      "en": "Studzianki"
+    },
+    "90_minsk": {
+      "ru": "Минск",
+      "en": "Minsk"
+    },
+    "222_er_clime": {
+      "ru": "Орловский выступ",
+      "en": "Malinovski Gap"
+    },
+    "250_br_battle_city2-1": {
+      "ru": "Зона 404",
+      "en": "Зона 404"
+    },
+    "95_lost_city_ctf": {
+      "ru": "Затерянный город",
+      "en": "Lost City"
+    },
+    "83_kharkiv": {
+      "ru": "Харьков",
+      "en": "Kharkov"
+    },
+    "105_germany": {
+      "ru": "Берлин",
+      "en": "Berlin"
+    },
+    "208_bf_epic_normandy": {
+      "ru": "Нормандия",
+      "en": "Нормандия"
+    },
+    "251_br_battle_city3": {
+      "ru": "Арзагир 4.04",
+      "en": "Арзагир 4.04"
+    },
+    "252_br_battle_city4": {
+      "ru": "Фирнульфир",
+      "en": "Фирнульфир"
+    },
+    "127_japort": {
+      "ru": "Старая гавань",
+      "en": "Old Port"
+    },
+    "14_siegfried_line_nom": {
+      "ru": "Западный вал",
+      "en": "Западный вал"
+    },
+    "108_normandy_nom": {
+      "ru": "Одер",
+      "en": "Одер"
+    },
+    "121_lost_paradise_v": {
+      "ru": "Устричный залив",
+      "en": "Oyster Bay"
+    },
+    "128_last_frontier_v": {
+      "ru": "Застава",
+      "en": "Outpost"
+    },
+    "209_epic_suburbia": {
+      "ru": "Крафтверк",
+      "en": "Крафтверк"
+    },
+    "210_bf_epic_desert": {
+      "ru": "Фата-моргана",
+      "en": "Фата-моргана"
+    },
+    "500_stalingrad": {
+      "ru": "Сталинград",
+      "en": "Stalingrad"
+    },
+    "502_kamchatka": {
+      "ru": "Камчатка",
+      "en": "Kamchatka"
+    },
+    "503_kaliningrad": {
+      "ru": "Калининград",
+      "en": "Kaliningrad"
+    },
+    "qa_content_01": {
+      "ru": "QA_Content_01",
+      "en": "QA_Content_01"
+    },
+    "505_caucasus": {
+      "ru": "Кавказ",
+      "en": "Caucasus"
+    },
+    "280_cosmic_2026": {
+      "ru": "Зона столкновения",
+      "en": "Зона столкновения"
+    },
+    "506_battle_for_moscow": {
+      "ru": "Битва за Москву",
+      "en": "Battle for Moscow"
+    }
+  }
+}
