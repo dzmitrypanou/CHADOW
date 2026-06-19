@@ -511,39 +511,56 @@ try {
             white-space: nowrap;
             flex-shrink: 0;
         }
-        .tactics-spawn-editor-point-props__group input[type="range"].tactics-spawn-editor-point-props__slider {
+        .tactics-spawn-editor-point-props__slider-wrap {
             flex: 1 1 auto;
             min-width: 42px;
+            height: var(--spawn-props-h);
+            display: flex;
+            align-items: center;
+        }
+        .tactics-spawn-editor-point-props__slider {
+            -webkit-appearance: none;
+            appearance: none;
             width: 100%;
             height: var(--spawn-props-h);
             margin: 0;
             padding: 0;
-            cursor: pointer;
-            accent-color: #ffd966;
+            border: none;
             background: transparent;
+            cursor: pointer;
+            outline: none;
         }
         .tactics-spawn-editor-point-props__slider::-webkit-slider-runnable-track {
             height: 4px;
             border-radius: 2px;
-            background: #2a3138;
+            background: linear-gradient(
+                to right,
+                #ffd966 0%,
+                #ffd966 var(--range-pct, 50%),
+                #2a3138 var(--range-pct, 50%),
+                #2a3138 100%
+            );
         }
         .tactics-spawn-editor-point-props__slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 12px;
-            height: 12px;
-            margin-top: -4px;
+            box-sizing: border-box;
+            width: 14px;
+            height: 14px;
+            margin-top: -5px;
             border-radius: 50%;
             background: #ffd966;
-            border: 2px solid #0f1215;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-            transition: transform 0.12s ease, box-shadow 0.12s ease;
+            border: 2px solid #14181c;
+            box-shadow: 0 0 0 1px rgba(255, 217, 102, 0.4);
+            cursor: grab;
+            transition: box-shadow 0.15s ease;
         }
-        .tactics-spawn-editor-point-props__slider:hover::-webkit-slider-thumb {
-            transform: scale(1.08);
+        .tactics-spawn-editor-point-props__slider:active::-webkit-slider-thumb {
+            cursor: grabbing;
+            box-shadow: 0 0 0 3px rgba(255, 217, 102, 0.22);
         }
         .tactics-spawn-editor-point-props__slider:focus-visible::-webkit-slider-thumb {
-            box-shadow: 0 0 0 2px rgba(255, 217, 102, 0.35);
+            box-shadow: 0 0 0 3px rgba(255, 217, 102, 0.28);
         }
         .tactics-spawn-editor-point-props__slider::-moz-range-track {
             height: 4px;
@@ -553,17 +570,22 @@ try {
         }
         .tactics-spawn-editor-point-props__slider::-moz-range-progress {
             height: 4px;
-            border-radius: 2px;
+            border-radius: 2px 0 0 2px;
             background: #ffd966;
+            border: none;
         }
         .tactics-spawn-editor-point-props__slider::-moz-range-thumb {
-            width: 12px;
-            height: 12px;
-            border: 2px solid #0f1215;
+            box-sizing: border-box;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #14181c;
             border-radius: 50%;
             background: #ffd966;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-            cursor: pointer;
+            box-shadow: 0 0 0 1px rgba(255, 217, 102, 0.4);
+            cursor: grab;
+        }
+        .tactics-spawn-editor-point-props__slider:active::-moz-range-thumb {
+            cursor: grabbing;
         }
         .tactics-spawn-editor-point-props__value {
             min-width: 30px;
@@ -603,6 +625,14 @@ try {
             background: #22282e;
             transform: none;
             box-shadow: none;
+        }
+        .tactics-spawn-editor-point-props__reset:focus {
+            outline: none;
+        }
+        .tactics-spawn-editor-point-props__reset:focus-visible {
+            outline: none;
+            border-color: #ffd966;
+            box-shadow: 0 0 0 2px rgba(255, 217, 102, 0.28);
         }
         .tactics-spawn-editor-point-props__reset i {
             font-size: 10px;
@@ -920,13 +950,17 @@ try {
                             <div class="tactics-spawn-editor-point-props" id="tacticsSpawnEditorSizeBlock" hidden>
                                 <div class="tactics-spawn-editor-point-props__group" title="Размер маркера">
                                     <span class="tactics-spawn-editor-point-props__label">Разм.</span>
-                                    <input type="range" id="tacticsSpawnEditorSize" class="tactics-spawn-editor-point-props__slider" min="50" max="200" step="5" value="100" aria-label="Размер маркера">
+                                    <span class="tactics-spawn-editor-point-props__slider-wrap">
+                                        <input type="range" id="tacticsSpawnEditorSize" class="tactics-spawn-editor-point-props__slider" min="50" max="200" step="5" value="100" aria-label="Размер маркера">
+                                    </span>
                                     <span class="tactics-spawn-editor-point-props__value" id="tacticsSpawnEditorSizeValue">100%</span>
                                     <button type="button" class="tactics-spawn-editor-point-props__reset" id="tacticsSpawnEditorSizeReset" title="Сбросить размер" aria-label="Сбросить размер"><i class="fas fa-undo" aria-hidden="true"></i></button>
                                 </div>
                                 <div class="tactics-spawn-editor-point-props__group" title="Прозрачность маркера">
                                     <span class="tactics-spawn-editor-point-props__label">Прозр.</span>
-                                    <input type="range" id="tacticsSpawnEditorOpacity" class="tactics-spawn-editor-point-props__slider" min="20" max="100" step="5" value="80" aria-label="Прозрачность маркера">
+                                    <span class="tactics-spawn-editor-point-props__slider-wrap">
+                                        <input type="range" id="tacticsSpawnEditorOpacity" class="tactics-spawn-editor-point-props__slider" min="20" max="100" step="5" value="80" aria-label="Прозрачность маркера">
+                                    </span>
                                     <span class="tactics-spawn-editor-point-props__value" id="tacticsSpawnEditorOpacityValue">80%</span>
                                     <button type="button" class="tactics-spawn-editor-point-props__reset" id="tacticsSpawnEditorOpacityReset" title="Сбросить прозрачность" aria-label="Сбросить прозрачность"><i class="fas fa-undo" aria-hidden="true"></i></button>
                                 </div>

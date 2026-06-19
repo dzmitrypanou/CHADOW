@@ -647,6 +647,21 @@ function applySpawnEditorPointVisuals(index) {
     }
 }
 
+function syncSpawnEditorSliderStyle(input) {
+    if (!input) return;
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const value = Number(input.value);
+    const span = max - min;
+    const pct = span > 0 ? ((value - min) / span) * 100 : 0;
+    input.style.setProperty('--range-pct', `${pct}%`);
+}
+
+function syncSpawnEditorSliders() {
+    syncSpawnEditorSliderStyle(document.getElementById('tacticsSpawnEditorSize'));
+    syncSpawnEditorSliderStyle(document.getElementById('tacticsSpawnEditorOpacity'));
+}
+
 function updateSpawnEditorSelectionPanel() {
     const index = spawnEditor.selectedIndex;
     const point = spawnEditor.points[index];
@@ -673,6 +688,7 @@ function updateSpawnEditorSelectionPanel() {
     }
 
     updateSpawnEditorPropsPanel();
+    syncSpawnEditorSliders();
 }
 
 function setSelectedSpawnPointScale(scale) {
@@ -686,6 +702,14 @@ function setSelectedSpawnPointScale(scale) {
     }
     applySpawnEditorPointVisuals(spawnEditor.selectedIndex);
     renderSpawnEditorList();
+    const slider = document.getElementById('tacticsSpawnEditorSize');
+    const output = document.getElementById('tacticsSpawnEditorSizeValue');
+    const pct = Math.round(normalized * 100);
+    if (slider) {
+        slider.value = String(pct);
+        syncSpawnEditorSliderStyle(slider);
+    }
+    if (output) output.textContent = `${pct}%`;
 }
 
 function resetSelectedSpawnPointScale() {
@@ -703,6 +727,14 @@ function setSelectedSpawnPointOpacity(opacity) {
     }
     applySpawnEditorPointVisuals(spawnEditor.selectedIndex);
     renderSpawnEditorList();
+    const slider = document.getElementById('tacticsSpawnEditorOpacity');
+    const output = document.getElementById('tacticsSpawnEditorOpacityValue');
+    const pct = Math.round(normalized * 100);
+    if (slider) {
+        slider.value = String(pct);
+        syncSpawnEditorSliderStyle(slider);
+    }
+    if (output) output.textContent = `${pct}%`;
 }
 
 function resetSelectedSpawnPointOpacity() {
@@ -1098,10 +1130,12 @@ function bindSpawnEditorUi() {
     document.getElementById('tacticsSpawnEditorReset')?.addEventListener('click', resetSpawnEditorPoints);
     document.getElementById('tacticsSpawnEditorSizeReset')?.addEventListener('click', resetSelectedSpawnPointScale);
     document.getElementById('tacticsSpawnEditorSize')?.addEventListener('input', (e) => {
+        syncSpawnEditorSliderStyle(e.target);
         setSelectedSpawnPointScale(Number(e.target.value) / 100);
     });
     document.getElementById('tacticsSpawnEditorOpacityReset')?.addEventListener('click', resetSelectedSpawnPointOpacity);
     document.getElementById('tacticsSpawnEditorOpacity')?.addEventListener('input', (e) => {
+        syncSpawnEditorSliderStyle(e.target);
         setSelectedSpawnPointOpacity(Number(e.target.value) / 100);
     });
     document.getElementById('tacticsSpawnEditorBaseNumber')?.addEventListener('input', (e) => {
@@ -1118,6 +1152,7 @@ function bindSpawnEditorUi() {
         selectSpawnPoint(parseInt(btn.dataset.index, 10));
     });
     document.addEventListener('keydown', handleSpawnEditorKeydown);
+    syncSpawnEditorSliders();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
