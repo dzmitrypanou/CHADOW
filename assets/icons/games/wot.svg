@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="World of Tanks">
+  <path fill="#8bc34a" d="M12 38h40l-3 8H15l-3-8z"/>
+  <rect x="18" y="28" width="28" height="10" rx="2" fill="#558b2f"/>
+  <rect x="38" y="24" width="14" height="6" rx="1.5" fill="#aed581"/>
+  <circle cx="44" cy="27" r="2.5" fill="#33691e"/>
+</svg>
