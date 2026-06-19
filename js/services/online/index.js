@@ -625,12 +625,27 @@
         return maxTs || Date.now();
     }
 
-    function chartRangeBounds(endMs) {
+    function chartRangeBounds(endMs, dataMinMs) {
         const end = Number.isFinite(endMs) && endMs > 0 ? endMs : Date.now();
-        return {
-            startMs: end - chartRangeDays * 24 * 60 * 60 * 1000,
-            endMs: end,
-        };
+        const idealStart = end - chartRangeDays * 24 * 60 * 60 * 1000;
+        let startMs = idealStart;
+        if (Number.isFinite(dataMinMs) && dataMinMs > idealStart && dataMinMs < end) {
+            startMs = dataMinMs;
+        }
+        return { startMs, endMs: end };
+    }
+
+    function dataMinTimestampInRange(seriesList, rangeStartMs, rangeEndMs) {
+        if (!Array.isArray(seriesList) || !seriesList.length) return null;
+        let minTs = null;
+        seriesList.forEach((series) => {
+            (series.data || []).forEach((point) => {
+                const ts = normalizeChartTimestamp(point[0]);
+                if (ts === null || ts < rangeStartMs || ts > rangeEndMs) return;
+                minTs = minTs === null ? ts : Math.min(minTs, ts);
+            });
+        });
+        return minTs;
     }
 
     function chartTimeUnit() {
@@ -664,7 +679,7 @@
     function isSeriesVisible(realm, seriesName) {
         const realmState = chartLegendState[realm];
         if (!realmState || !Object.prototype.hasOwnProperty.call(realmState, seriesName)) {
-            return true;
+            return seriesName === 'chart_total';
         }
         return realmState[seriesName] !== false;
     }
@@ -698,12 +713,16 @@
             plugins: {
                 legend: {
                     display: true,
-                    maxHeight: 140,
+                    position: 'bottom',
+                    align: 'start',
                     labels: {
                         color: 'rgba(200, 220, 245, 0.9)',
-                        boxWidth: 12,
-                        boxHeight: 12,
-                        font: { size: 11 },
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        padding: 10,
+                        usePointStyle: true,
+                        pointStyle: 'line',
+                        font: { size: 10 },
                     },
                     onClick(_event, legendItem, legend) {
                         const chart = legend.chart;
@@ -779,7 +798,10 @@
         }
 
         const sortedSeries = sortChartSeries(seriesList, realm);
-        const range = chartRangeBounds(resolveChartEndMs(sortedSeries));
+        const endMs = resolveChartEndMs(sortedSeries);
+        const idealRange = chartRangeBounds(endMs);
+        const dataMinMs = dataMinTimestampInRange(sortedSeries, idealRange.startMs, idealRange.endMs);
+        const range = chartRangeBounds(endMs, dataMinMs);
         const datasets = [];
 
         sortedSeries.forEach((series, index) => {

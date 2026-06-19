@@ -4676,7 +4676,7 @@ footer {
 
 .page-online .online-chart-wrap {
     position: relative;
-    height: 168px;
+    height: 240px;
 }
 
 .page-online .online-clusters {
@@ -5012,7 +5012,7 @@ footer {
     }
 
     .page-online .online-chart-wrap {
-        height: 200px;
+        height: 260px;
     }
 }
 
