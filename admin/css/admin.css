@@ -482,6 +482,31 @@ body.login-page .notification {
     margin-top: 5px;
     font-size: 0.85rem;
 }
+
+/* Поля вне .form-group — те же цвета, что у основных инпутов админки */
+.tactics-upload-field input[type="number"],
+.tactics-upload-field input[type="text"],
+.tactics-side-length-input,
+.admin-inline-input {
+    background: #1a1f24;
+    border: 1px solid #2a3138;
+    color: #e8eef2;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.tactics-upload-field input[type="number"]:focus,
+.tactics-upload-field input[type="text"]:focus,
+.tactics-side-length-input:focus,
+.admin-inline-input:focus {
+    outline: none;
+    border-color: #ffd966;
+}
+.tactics-upload-field input[type="number"]::placeholder,
+.tactics-upload-field input[type="text"]::placeholder,
+.admin-inline-input::placeholder {
+    color: #5f6c7a;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -1218,7 +1243,7 @@ tr.unmoderated:hover td {
     max-height: 300px;
 }
 
-.admin-site-menu .site-menu-panels-footer {
+.admin-site-menu .site-menu-panels {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--layout-gap);
@@ -1258,7 +1283,7 @@ tr.unmoderated:hover td {
 }
 
 @media (max-width: 992px) {
-    .admin-site-menu .site-menu-panels-footer {
+    .admin-site-menu .site-menu-panels {
         grid-template-columns: 1fr;
     }
 }
@@ -1306,7 +1331,7 @@ tr.unmoderated:hover td {
 }
 
 .admin-site-menu .site-menu-table th {
-    color: #9aa7b2;
+    color: #ffd966;
     font-size: 0.85rem;
     font-weight: 600;
     white-space: nowrap;
@@ -1316,11 +1341,16 @@ tr.unmoderated:hover td {
     width: 100%;
     max-width: 100%;
     padding: 8px 10px;
-    background: #14181c;
+    background: #1a1f24;
     border: 1px solid #2a3138;
     color: #e8eef2;
     font-family: inherit;
     font-size: 0.9rem;
+    transition: border-color 0.2s;
+}
+.admin-site-menu .site-menu-table input[type="text"]:focus {
+    outline: none;
+    border-color: #ffd966;
 }
 
 .admin-site-menu .site-menu-table .site-menu-col-enabled {
@@ -1378,7 +1408,7 @@ tr.unmoderated:hover td {
 }
 
 .admin-site-menu .site-menu-table .site-menu-col-actions {
-    width: 52px;
+    width: 110px;
     text-align: center;
 }
 
@@ -1397,93 +1427,90 @@ tr.unmoderated:hover td {
     line-height: 1.5;
 }
 
-.admin-site-menu .site-menu-table thead {
-    display: none;
+.admin-site-menu .site-menu-hint code {
+    color: #ffd966;
 }
 
-.admin-site-menu .site-menu-table tbody,
-.admin-site-menu .site-menu-table tr,
-.admin-site-menu .site-menu-table td {
-    display: block;
-    width: 100%;
-}
+@media (max-width: 768px) {
+    .admin-site-menu .site-menu-table thead {
+        display: none;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row {
-    border: 1px solid #35507a;
-    background: linear-gradient(180deg, #151b27 0%, #121722 100%);
-    margin-bottom: 14px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(153, 194, 255, 0.08);
-}
+    .admin-site-menu .site-menu-table tbody,
+    .admin-site-menu .site-menu-table tr,
+    .admin-site-menu .site-menu-table td {
+        display: block;
+        width: 100%;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row:last-child {
-    margin-bottom: 0;
-}
+    .admin-site-menu .site-menu-table .site-menu-row {
+        border: 1px solid #2a3138;
+        background: #14181c;
+        margin-bottom: 14px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td {
-    border: 0;
-    border-bottom: 1px solid rgba(80, 106, 145, 0.45);
-    padding: 10px 12px;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
+    .admin-site-menu .site-menu-table .site-menu-row:last-child {
+        margin-bottom: 0;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(-n+3) {
-    grid-column: 1 / -1;
-}
+    .admin-site-menu .site-menu-table .site-menu-row td {
+        border: 0;
+        border-bottom: 1px solid #2a3138;
+        padding: 10px 12px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(4),
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(5) {
-    border-bottom: 0;
-    min-height: 52px;
-}
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(-n+3) {
+        grid-column: 1 / -1;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(4) {
-    border-right: 1px solid rgba(80, 106, 145, 0.45);
-}
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(4),
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(5) {
+        border-bottom: 0;
+        min-height: 52px;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:last-child {
-    border-bottom: 0;
-}
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(4) {
+        border-right: 1px solid #2a3138;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td::before {
-    color: #9aa7b2;
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    width: 150px;
-    flex: 0 0 150px;
-}
+    .admin-site-menu .site-menu-table .site-menu-row td:last-child {
+        border-bottom: 0;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(1)::before { content: "Текст (RU)"; }
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(2)::before { content: "Text (EN)"; }
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(3)::before { content: "Адрес"; }
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(4)::before { content: "Показывать"; }
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(5)::before { content: ""; width: 0; flex: 0 0 0; }
+    .admin-site-menu .site-menu-table .site-menu-row td::before {
+        color: #9aa7b2;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        width: 150px;
+        flex: 0 0 150px;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td input[type="text"] {
-    flex: 1 1 auto;
-    width: 100%;
-}
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(1)::before { content: "Текст (RU)"; }
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(2)::before { content: "Text (EN)"; }
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(3)::before { content: "Адрес"; }
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(4)::before { content: "Показывать"; }
+    .admin-site-menu .site-menu-table .site-menu-row td:nth-child(5)::before { width: 0; flex: 0 0 0; }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(odd) {
-    background: rgba(255, 255, 255, 0.01);
-}
+    .admin-site-menu .site-menu-table .site-menu-row td input[type="text"] {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
 
-.admin-site-menu .site-menu-table .site-menu-row td:nth-child(even) {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.admin-site-menu .site-menu-table .site-menu-row .site-menu-col-enabled,
-.admin-site-menu .site-menu-table .site-menu-row .site-menu-col-actions {
-    width: 100%;
-    text-align: left;
+    .admin-site-menu .site-menu-table .site-menu-row .site-menu-col-enabled,
+    .admin-site-menu .site-menu-table .site-menu-row .site-menu-col-actions {
+        width: 100%;
+        text-align: left;
+    }
 }
 
 @media (max-width: 640px) {
@@ -1498,7 +1525,7 @@ tr.unmoderated:hover td {
 }
 
 @media (max-width: 1280px) {
-    .admin-site-menu .site-menu-panels-footer {
+    .admin-site-menu .site-menu-panels {
         grid-template-columns: 1fr;
     }
 }

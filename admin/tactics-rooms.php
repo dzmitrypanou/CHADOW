@@ -43,14 +43,14 @@ try {
             font-size: 0.72rem;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color:
+            color: #90caf9;
         }
         .tactics-vis-badge.closed {
             background: rgba(255, 152, 0, 0.12);
             border-color: rgba(255, 183, 77, 0.35);
-            color:
+            color: #ffb74d;
         }
-        .tactics-maps-cell { font-size: 0.82rem; color:
+        .tactics-maps-cell { font-size: 0.82rem; color: #9aa7b2; }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>
 </head>

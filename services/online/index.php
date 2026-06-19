@@ -21,7 +21,8 @@ $metaDescription = $lang === 'en'
     : 'Актуальный статус серверов World of Tanks LESTA и Wargaming: доступность кластеров, онлайн по регионам и графики активности.';
 $bodyClass = 'page-online';
 $seoSlug = 'services/online';
-$extraHeadHtml = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>';
+$extraHeadHtml = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>'
+    . '<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js" defer></script>';
 
 $service = new OnlineService(Database::getInstance());
 $cachedRow = $service->getCachedRow();

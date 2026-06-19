@@ -42,13 +42,43 @@ function closeUserModal() {
     document.getElementById('userModal').classList.remove('active');
 }
 
+function adminCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        || window.__csrfToken
+        || '';
+}
+
+function adminPostBody(fields) {
+    const body = new URLSearchParams();
+    Object.entries(fields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            body.set(key, String(value));
+        }
+    });
+    const token = adminCsrfToken();
+    if (token) {
+        body.set('csrf_token', token);
+    }
+    return body;
+}
+
+async function adminPostJson(url, fields) {
+    const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: adminPostBody(fields),
+    });
+    const data = await r.json().catch(() => null);
+    if (!data) {
+        throw new Error(`Ошибка сервера (${r.status})`);
+    }
+    return data;
+}
+
 async function deleteUser(id, username) {
     if (!confirm(`Удалить пользователя «${username}»?`)) return;
-    const fd = new FormData();
-    fd.append('id', String(id));
     try {
-        const r = await fetch('/admin/ajax/users_delete.php', { method: 'POST', body: fd });
-        const data = await r.json();
+        const data = await adminPostJson('/admin/ajax/users_delete.php', { id: String(id) });
         if (data.success) {
             showNotification('Пользователь удалён');
             window.location.reload();
@@ -56,7 +86,7 @@ async function deleteUser(id, username) {
             showNotification(data.error || 'Ошибка', 'error');
         }
     } catch (e) {
-        showNotification('Ошибка сети', 'error');
+        showNotification(e.message || 'Ошибка сети', 'error');
     }
 }
 
@@ -64,12 +94,8 @@ async function resetUserPassword(id, username) {
     const ok = confirm(`Сбросить пароль для «${username}»?\nБудет создан временный пароль.`);
     if (!ok) return;
 
-    const fd = new FormData();
-    fd.append('id', String(id));
-
     try {
-        const r = await fetch('/admin/ajax/users_reset_password.php', { method: 'POST', body: fd });
-        const data = await r.json();
+        const data = await adminPostJson('/admin/ajax/users_reset_password.php', { id: String(id) });
         if (!data.success) {
             showNotification(data.error || 'Ошибка', 'error');
             return;
@@ -91,20 +117,19 @@ async function resetUserPassword(id, username) {
 
         window.prompt('Сохраните временный пароль и передайте пользователю:', message);
     } catch (e) {
-        showNotification('Ошибка сети', 'error');
+        showNotification(e.message || 'Ошибка сети', 'error');
     }
 }
 
 document.getElementById('userForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const id = fd.get('id');
-    if (!id) {
-        fd.delete('id');
+    const fields = Object.fromEntries(fd.entries());
+    if (!fields.id) {
+        delete fields.id;
     }
     try {
-        const r = await fetch('/admin/ajax/users_save.php', { method: 'POST', body: fd });
-        const data = await r.json();
+        const data = await adminPostJson('/admin/ajax/users_save.php', fields);
         if (data.success) {
             showNotification('Сохранено');
             closeUserModal();
@@ -113,7 +138,7 @@ document.getElementById('userForm')?.addEventListener('submit', async e => {
             showNotification(data.error || 'Ошибка', 'error');
         }
     } catch (err) {
-        showNotification('Ошибка сети', 'error');
+        showNotification(err.message || 'Ошибка сети', 'error');
     }
 });
 

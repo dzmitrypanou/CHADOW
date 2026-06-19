@@ -225,7 +225,7 @@
         if (!lastPayload || !lastPayload.data) return;
         renderSummary(lastPayload.data.summary || []);
         renderClusters(lastPayload.data.clusters || []);
-        renderCharts(lastPayload.charts || {}, { forceFullSync: true });
+        renderCharts(lastPayload.charts || {});
         updateCacheNote(lastPayload.fetched_at);
     }
 
@@ -614,27 +614,35 @@
         return n < 100000000000 ? n * 1000 : n;
     }
 
-    function chartRangeMinTimestamp(timestamps) {
-        if (!Array.isArray(timestamps) || !timestamps.length) return null;
-        const maxTs = timestamps[timestamps.length - 1];
-        if (!Number.isFinite(maxTs)) return null;
-        return maxTs - chartRangeDays * 24 * 60 * 60 * 1000;
+    function resolveChartEndMs(seriesList) {
+        if (!Array.isArray(seriesList) || !seriesList.length) return Date.now();
+        const totalSeries = seriesList.find((s) => s.name === 'chart_total') || seriesList[0];
+        let maxTs = 0;
+        (totalSeries?.data || []).forEach((point) => {
+            const ts = normalizeChartTimestamp(point[0]);
+            if (ts !== null && ts > maxTs) maxTs = ts;
+        });
+        return maxTs || Date.now();
     }
 
-    function extractSeriesTimestamps(seriesList) {
-        if (!Array.isArray(seriesList) || !seriesList.length) return [];
-        const totalSeries = seriesList.find((s) => s.name === 'chart_total');
-        const primary = totalSeries || seriesList[0];
-        return (primary?.data || [])
-            .map((point) => normalizeChartTimestamp(point[0]))
-            .filter((ts) => ts !== null);
+    function chartRangeBounds(endMs) {
+        const end = Number.isFinite(endMs) && endMs > 0 ? endMs : Date.now();
+        return {
+            startMs: end - chartRangeDays * 24 * 60 * 60 * 1000,
+            endMs: end,
+        };
     }
 
-    function timestampsPrefixEqual(prev, next, length) {
-        for (let i = 0; i < length; i++) {
-            if (prev[i] !== next[i]) return false;
+    function chartTimeUnit() {
+        if (chartRangeDays === 1) return 'hour';
+        return 'day';
+    }
+
+    function chartTimeDisplayFormats() {
+        if (chartRangeDays === 1) {
+            return { hour: 'HH:mm' };
         }
-        return true;
+        return { day: 'dd.MM' };
     }
 
     function destroyChart(realm) {
@@ -681,7 +689,7 @@
         });
     }
 
-    function buildChartOptions(realm) {
+    function buildChartOptions(realm, range) {
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -712,6 +720,10 @@
                 },
                 tooltip: {
                     callbacks: {
+                        title(items) {
+                            const ts = items[0]?.parsed?.x;
+                            return ts ? formatChartLabel(ts) : '';
+                        },
                         label(ctx) {
                             return `${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)}`;
                         },
@@ -720,6 +732,13 @@
             },
             scales: {
                 x: {
+                    type: 'time',
+                    min: range.startMs,
+                    max: range.endMs,
+                    time: {
+                        unit: chartTimeUnit(),
+                        displayFormats: chartTimeDisplayFormats(),
+                    },
                     ticks: {
                         color: 'rgba(160, 180, 210, 0.8)',
                         maxTicksLimit: 8,
@@ -755,68 +774,53 @@
     }
 
     function buildChartDatasets(seriesList, realm) {
-        if (!Array.isArray(seriesList) || !seriesList.length) return { labels: [], datasets: [], timestamps: [] };
+        if (!Array.isArray(seriesList) || !seriesList.length) {
+            return { datasets: [], range: chartRangeBounds(Date.now()) };
+        }
 
         const sortedSeries = sortChartSeries(seriesList, realm);
-        const allTimestamps = [...new Set(
-            sortedSeries.flatMap((series) => (series.data || [])
-                .map((point) => normalizeChartTimestamp(point[0]))
-                .filter((ts) => ts !== null))
-        )].sort((a, b) => a - b);
-        const minTs = chartRangeMinTimestamp(allTimestamps);
-        const filteredTimestamps = minTs === null
-            ? allTimestamps
-            : allTimestamps.filter((ts) => ts >= minTs);
-        const labels = filteredTimestamps.map((ts) => formatChartLabel(ts));
+        const range = chartRangeBounds(resolveChartEndMs(sortedSeries));
         const datasets = [];
 
         sortedSeries.forEach((series, index) => {
             const isTotal = series.name === 'chart_total';
             const color = palette[index % palette.length];
-            const pointMap = new Map((series.data || []).flatMap((point) => {
-                const ts = normalizeChartTimestamp(point[0]);
-                if (ts === null) return [];
-                return [[ts, point[1]]];
-            }));
+            const points = (series.data || [])
+                .map((point) => {
+                    const ts = normalizeChartTimestamp(point[0]);
+                    if (ts === null || ts < range.startMs || ts > range.endMs) return null;
+                    return { x: ts, y: point[1] };
+                })
+                .filter(Boolean)
+                .sort((a, b) => a.x - b.x);
             const visible = isSeriesVisible(realm, series.name);
             datasets.push({
                 label: seriesLabel(realm, series.name),
                 _absSeriesName: series.name,
-                data: filteredTimestamps.map((ts) => (pointMap.has(ts) ? pointMap.get(ts) : null)),
+                data: points,
                 borderColor: color,
                 backgroundColor: isTotal ? 'rgba(100, 181, 246, 0.12)' : 'transparent',
                 borderWidth: isTotal ? 2.5 : 1.2,
                 pointRadius: 0,
                 tension: 0,
                 fill: isTotal,
-                spanGaps: true,
+                spanGaps: false,
                 hidden: !visible,
             });
         });
 
-        return { labels, datasets, timestamps: filteredTimestamps };
+        return { datasets, range };
     }
 
     function applyBuiltChartData(chart, built) {
-        chart.data.labels = built.labels;
-        built.datasets.forEach((dataset, index) => {
-            const existing = chart.data.datasets[index];
-            if (existing) {
-                existing.label = dataset.label;
-                existing.data = dataset.data;
-                existing.hidden = dataset.hidden;
-                existing._absSeriesName = dataset._absSeriesName;
-            } else {
-                chart.data.datasets.push(dataset);
-            }
-        });
-        if (chart.data.datasets.length > built.datasets.length) {
-            chart.data.datasets.length = built.datasets.length;
-        }
-        chart.update('none');
+        chart.data.datasets = built.datasets;
+        chart.options.scales.x.min = built.range.startMs;
+        chart.options.scales.x.max = built.range.endMs;
+        chart.options.scales.x.time.unit = chartTimeUnit();
+        chart.options.scales.x.time.displayFormats = chartTimeDisplayFormats();
     }
 
-    function updateChartInstance(realm, seriesList, forceFullSync) {
+    function updateChartInstance(realm, seriesList) {
         const canvas = document.getElementById(`onlineChart-${realm}`);
         const card = canvas ? canvas.closest('.online-chart-card') : null;
         if (!canvas || !Array.isArray(seriesList) || !seriesList.length) {
@@ -827,55 +831,31 @@
         if (card) card.hidden = false;
 
         const built = buildChartDatasets(seriesList, realm);
-        const timestamps = built.timestamps.length ? built.timestamps : extractSeriesTimestamps(seriesList);
         const chart = chartInstances[realm];
 
         if (!chart) {
             const instance = new window.Chart(canvas, {
                 type: 'line',
                 data: {
-                    labels: built.labels,
                     datasets: built.datasets,
                 },
                 plugins: [legendCheckmarkPlugin],
-                options: buildChartOptions(realm),
+                options: buildChartOptions(realm, built.range),
             });
             applySavedVisibility(realm, instance);
             instance.update('none');
-            instance._absTimestamps = timestamps.slice();
             chartInstances[realm] = instance;
             return;
         }
 
-        const prevTimestamps = chart._absTimestamps || [];
-        const canAppend = !forceFullSync
-            && prevTimestamps.length > 0
-            && timestamps.length >= prevTimestamps.length
-            && timestampsPrefixEqual(prevTimestamps, timestamps, prevTimestamps.length)
-            && chart.data.datasets.length === built.datasets.length;
-
-        if (canAppend && timestamps.length > prevTimestamps.length) {
-            for (let i = prevTimestamps.length; i < timestamps.length; i++) {
-                chart.data.labels.push(built.labels[i]);
-                chart.data.datasets.forEach((dataset, datasetIndex) => {
-                    dataset.data.push(built.datasets[datasetIndex].data[i]);
-                });
-            }
-            chart._absTimestamps = timestamps.slice();
-            chart.update('none');
-            return;
-        }
-
-        chart._absTimestamps = timestamps.slice();
         applyBuiltChartData(chart, built);
         applySavedVisibility(realm, chart);
         chart.update('none');
     }
 
-    function renderCharts(charts, options) {
+    function renderCharts(charts) {
         if (!window.Chart || !charts) return;
 
-        const forceFullSync = !!(options && options.forceFullSync);
         const activeRealms = new Set();
 
         Object.keys(realmLabels).forEach((realm) => {
@@ -889,7 +869,7 @@
             }
 
             activeRealms.add(realm);
-            updateChartInstance(realm, chartData.series, forceFullSync);
+            updateChartInstance(realm, chartData.series);
         });
 
         Object.keys(chartInstances).forEach((realm) => {
@@ -909,7 +889,7 @@
 
         }
         if (lastPayload && lastPayload.charts) {
-            renderCharts(lastPayload.charts, { forceFullSync: true });
+            renderCharts(lastPayload.charts);
         }
     }
 
@@ -938,14 +918,19 @@
         syncChartRangeButtons();
     }
 
+    function chartsReady() {
+        return window.Chart && window.Chart.registry && typeof window.Chart.registry.getScale === 'function'
+            && window.Chart.registry.getScale('time');
+    }
+
     function initChartsWhenReady() {
         const start = () => renderCharts(window.ABS_ONLINE_CHARTS || {});
-        if (window.Chart) {
+        if (chartsReady()) {
             start();
             return;
         }
         const timer = setInterval(() => {
-            if (!window.Chart) return;
+            if (!chartsReady()) return;
             clearInterval(timer);
             start();
         }, 50);

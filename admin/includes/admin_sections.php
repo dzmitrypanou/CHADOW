@@ -76,6 +76,13 @@ function admin_panel_sections(): array {
             'icon' => 'fas fa-chart-line',
         ],
         [
+            'id' => 'site-users',
+            'href' => '/admin/site-users',
+            'label' => 'Пользователи сайта',
+            'icon' => 'fas fa-users',
+            'admin_only' => true,
+        ],
+        [
             'id' => 'users',
             'href' => '/admin/users',
             'label' => 'Пользователи админ-панели',

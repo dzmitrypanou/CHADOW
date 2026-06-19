@@ -50,7 +50,7 @@ try {
             text-align: center;
             background: rgba(255, 217, 102, 0.12);
             border: 1px solid rgba(255, 217, 102, 0.28);
-            color:
+            color: #ffd966;
         }
         .aim-scores-pagination {
             display: flex;
@@ -60,7 +60,7 @@ try {
             margin-top: 12px;
         }
         .aim-scores-page-info {
-            color:
+            color: #9aa7b2;
             font-size: 0.85rem;
             margin-right: 8px;
         }
@@ -68,12 +68,15 @@ try {
             min-width: 36px;
             padding: 6px 10px;
         }
-
+        .aim-leaderboards-page #aim-scores-table th:nth-child(8),
+        .aim-leaderboards-page #aim-scores-table td:nth-child(8) {
             min-width: 148px;
         }
-
+        .aim-leaderboards-page #aim-scores-table .action-buttons {
+            display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
+            gap: 4px;
         }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>

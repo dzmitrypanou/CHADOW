@@ -52,14 +52,57 @@ try {
             }
         }
 
-            width: 15%;
-            min-width: 132px;
+        .brackets-page #brackets-table {
+            table-layout: fixed;
+        }
+        .brackets-page #brackets-table th:nth-child(1),
+        .brackets-page #brackets-table td:nth-child(1) {
+            width: 10%;
+        }
+        .brackets-page #brackets-table th:nth-child(2),
+        .brackets-page #brackets-table td:nth-child(2) {
+            width: 24%;
+        }
+        .brackets-page #brackets-table th:nth-child(3),
+        .brackets-page #brackets-table td:nth-child(3) {
+            width: 12%;
+        }
+        .brackets-page #brackets-table th:nth-child(4),
+        .brackets-page #brackets-table td:nth-child(4) {
+            width: 11%;
             overflow: visible;
             text-overflow: clip;
-            white-space: nowrap;
-            padding-right: 12px;
         }
-
+        .brackets-page #brackets-table th:nth-child(5),
+        .brackets-page #brackets-table td:nth-child(5) {
+            width: 10%;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        .brackets-page #brackets-table th:nth-child(6),
+        .brackets-page #brackets-table td:nth-child(6) {
+            width: 11%;
+        }
+        .brackets-page #brackets-table th:nth-child(7),
+        .brackets-page #brackets-table td:nth-child(7) {
+            width: 13%;
+        }
+        .brackets-page #brackets-table th:nth-child(8),
+        .brackets-page #brackets-table td:nth-child(8) {
+            width: 9%;
+            min-width: 108px;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        .brackets-page #brackets-table td:nth-child(1) code {
+            display: block;
+            font-size: 0.68rem;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-all;
+            color: #ffd966;
+        }
+        .brackets-page #brackets-table .action-buttons {
             display: flex;
             flex-wrap: nowrap;
             justify-content: flex-start;
@@ -69,10 +112,6 @@ try {
             min-width: 28px;
             padding: 5px 7px;
             flex-shrink: 0;
-        }
-
-            overflow: visible;
-            text-overflow: clip;
         }
         .bracket-status-badge {
             display: inline-flex;
@@ -87,22 +126,23 @@ try {
         .bracket-status-badge.active {
             background: rgba(76, 175, 80, 0.18);
             border: 1px solid rgba(129, 199, 132, 0.5);
-            color:
+            color: #a5d6a7;
             font-weight: 600;
         }
         .bracket-status-badge.hidden {
             background: rgba(158, 158, 158, 0.15);
             border: 1px solid rgba(158, 158, 158, 0.3);
-            color:
+            color: #bdbdbd;
         }
         .bracket-vis-badge {
             display: inline-block;
             padding: 2px 6px;
             border-radius: 3px;
             font-size: 0.72rem;
+            white-space: nowrap;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color:
+            color: #90caf9;
         }
     </style>
     <?php require __DIR__ . '/includes/csrf_head.php'; ?>

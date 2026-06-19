@@ -69,34 +69,30 @@ try {
             }
         }
 
+        .recruiting-page #recruiting-table td {
             vertical-align: top;
         }
-
-            width: 15%;
-        }
-
-            width: 6%;
-        }
-
-            width: 24%;
-        }
-
-            width: 12%;
-        }
-
-            width: 10%;
-        }
-
-            width: 13%;
-        }
-
+        .recruiting-page #recruiting-table th:nth-child(1),
+        .recruiting-page #recruiting-table td:nth-child(1) { width: 15%; }
+        .recruiting-page #recruiting-table th:nth-child(2),
+        .recruiting-page #recruiting-table td:nth-child(2) { width: 6%; }
+        .recruiting-page #recruiting-table th:nth-child(3),
+        .recruiting-page #recruiting-table td:nth-child(3) { width: 24%; }
+        .recruiting-page #recruiting-table th:nth-child(4),
+        .recruiting-page #recruiting-table td:nth-child(4) { width: 12%; }
+        .recruiting-page #recruiting-table th:nth-child(5),
+        .recruiting-page #recruiting-table td:nth-child(5) { width: 10%; }
+        .recruiting-page #recruiting-table th:nth-child(6),
+        .recruiting-page #recruiting-table td:nth-child(6) { width: 13%; overflow: visible; text-overflow: clip; }
+        .recruiting-page #recruiting-table th:nth-child(7),
+        .recruiting-page #recruiting-table td:nth-child(7) {
             width: 20%;
             min-width: 188px;
             overflow: visible;
             white-space: normal;
             text-overflow: clip;
         }
-
+        .recruiting-page #recruiting-table .action-buttons {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
@@ -125,7 +121,7 @@ try {
         .recruiting-status-badge.pending {
             background: rgba(255, 217, 102, 0.15);
             border: 1px solid rgba(255, 217, 102, 0.35);
-            color:
+            color: #ffd966;
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -136,17 +132,17 @@ try {
         .recruiting-status-badge.approved {
             background: rgba(76, 175, 80, 0.15);
             border: 1px solid rgba(76, 175, 80, 0.3);
-            color:
+            color: #a5d6a7;
         }
         .recruiting-status-badge.rejected {
             background: rgba(255, 138, 138, 0.15);
             border: 1px solid rgba(255, 138, 138, 0.3);
-            color:
+            color: #ff8a8a;
         }
         .recruiting-status-badge.hidden {
             background: rgba(158, 158, 158, 0.15);
             border: 1px solid rgba(158, 158, 158, 0.3);
-            color:
+            color: #bdbdbd;
         }
         .recruiting-type-badge {
             display: inline-block;
@@ -155,13 +151,13 @@ try {
             font-size: 0.72rem;
             background: rgba(100, 181, 246, 0.12);
             border: 1px solid rgba(100, 181, 246, 0.25);
-            color:
+            color: #90caf9;
             white-space: nowrap;
         }
         .recruiting-realm-badge {
             font-weight: 600;
             font-size: 0.8rem;
-            color:
+            color: #e8eef2;
         }
         .recruiting-view-body {
             white-space: pre-wrap;
@@ -170,7 +166,7 @@ try {
             overflow-y: auto;
             padding: 12px;
             background: rgba(0, 0, 0, 0.2);
-            border: 1px solid
+            border: 1px solid #2a3138;
             border-radius: 4px;
             margin-top: 8px;
         }
@@ -180,7 +176,7 @@ try {
             margin-bottom: 12px;
         }
         .recruiting-view-meta dt {
-            color:
+            color: #9aa7b2;
             font-size: 0.8rem;
         }
         .recruiting-view-meta dd {
@@ -192,7 +188,7 @@ try {
             background: rgba(255, 138, 138, 0.1);
             border: 1px solid rgba(255, 138, 138, 0.25);
             border-radius: 4px;
-            color:
+            color: #ff8a8a;
             font-size: 0.9rem;
         }
     </style>
