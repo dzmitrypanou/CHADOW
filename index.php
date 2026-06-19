@@ -128,7 +128,7 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </div>
 
-                <a href="<?php echo htmlspecialchars($absServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" data-landing-id="abs">
+                <a href="<?php echo htmlspecialchars($absServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="abs">
                     <i class="fas fa-chart-bar project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">
@@ -154,7 +154,7 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </a>
 
-                <a href="<?php echo htmlspecialchars($recruitingServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" data-landing-id="recruiting">
+                <a href="<?php echo htmlspecialchars($recruitingServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="recruiting">
                     <i class="fas fa-users project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
                         <div class="project-card-head">

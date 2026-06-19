@@ -377,6 +377,26 @@ function tactics_map_has_uploaded_asset(string $mapCode, string $game = 'wot', s
     return tactics_map_asset_path($mapCode, $game, $battleMode) !== '/assets/tactics/maps/placeholder.svg';
 }
 
+function tactics_map_mode_asset_path(string $mapCode, string $game = 'wot', string $battleMode = 'random'): ?string {
+    $mapCode = tactics_sanitize_map_code($mapCode);
+    $game = tactics_sanitize_game($game);
+    $battleMode = tactics_sanitize_battle_mode($battleMode, $game);
+    $root = dirname(__DIR__);
+    $rel = "assets/tactics/maps/{$game}/{$battleMode}/{$mapCode}";
+    foreach (['webp', 'png', 'jpg', 'jpeg', 'svg'] as $ext) {
+        $path = $root . '/' . $rel . '.' . $ext;
+        if (is_file($path)) {
+            return '/' . $rel . '.' . $ext;
+        }
+    }
+
+    return null;
+}
+
+function tactics_map_has_mode_asset(string $mapCode, string $game = 'wot', string $battleMode = 'random'): bool {
+    return tactics_map_mode_asset_path($mapCode, $game, $battleMode) !== null;
+}
+
 function tactics_map_url(string $mapCode, string $game = 'wot', string $battleMode = 'random'): string {
     return tactics_map_asset_path($mapCode, $game, $battleMode);
 }
@@ -1916,10 +1936,16 @@ function tactics_fetch_map_assignment_index($db): array {
     foreach ($rows as $row) {
         $code = (string) ($row['map_code'] ?? '');
         $game = tactics_sanitize_game((string) ($row['game'] ?? ''));
-        $mode = tactics_sanitize_battle_mode((string) ($row['battle_mode'] ?? ''), $game);
+        $rawMode = strtolower(trim((string) ($row['battle_mode'] ?? '')));
         if ($code === '') {
             continue;
         }
+        if (in_array($game, ['wot', 'lesta'], true)) {
+            if ($rawMode === 'custom' || tactics_is_variant_map_code($code)) {
+                continue;
+            }
+        }
+        $mode = tactics_sanitize_battle_mode($rawMode, $game);
         $index[$code][$game][$mode] = true;
     }
 

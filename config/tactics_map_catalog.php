@@ -4,7 +4,7 @@ const TACTICS_GAMES = ['wot', 'lesta', 'dota2', 'cs2'];
 
 const TACTICS_BATTLE_MODES = ['random', 'encounter', 'assault', 'custom', 'standard', 'defuse', 'hostage', 'wingman'];
 
-const TACTICS_WOT_MODES = ['random', 'encounter', 'assault', 'custom'];
+const TACTICS_WOT_MODES = ['random', 'encounter', 'assault'];
 
 const TACTICS_DOTA2_MODES = ['standard', 'custom'];
 
@@ -21,14 +21,6 @@ const TACTICS_LESTA_ONLY_MAPS = [
     'minsk',
     'er_clime',
     'japort',
-    'erlenberg_se22_def',
-    'poland_se22_def',
-    'turningpoint_def',
-    'steppes_def',
-    'germany_att',
-    'ruinberg_att',
-    'siegfried_line_att',
-    'cosmic_2026',
 ];
 
 const TACTICS_WOT_ONLY_MAPS = [
@@ -37,35 +29,9 @@ const TACTICS_WOT_ONLY_MAPS = [
     'monastery',
     'eiffel_tower_ctf',
     'dday',
-    'bf_epic_desert',
-    'bf_epic_normandy',
-    'epic_random_valley_att',
-    'epic_suburbia',
     'lost_paradise_v',
     'campania_big',
     'last_frontier_v',
-];
-
-const TACTICS_OTHER_MAPS = [
-    'sweden',
-    'westfeld',
-    'monastery',
-    'eiffel_tower_ctf',
-    'dday',
-    'bf_epic_desert',
-    'bf_epic_normandy',
-    'epic_random_valley_att',
-    'epic_suburbia',
-    'lost_paradise_v',
-    'campania_big',
-    'last_frontier_v',
-    'cosmic_2026',
-    'battle_for_moscow',
-    'caucasus',
-    'kamchatka',
-    'minsk',
-    'er_clime',
-    'japort',
 ];
 
 const TACTICS_ENCOUNTER_MAPS = [
@@ -102,13 +68,6 @@ const TACTICS_ENCOUNTER_MAPS = [
 ];
 
 const TACTICS_ASSAULT_MAPS = [
-    'germany_att',
-    'ruinberg_att',
-    'siegfried_line_att',
-    'steppes_def',
-    'erlenberg_se22_def',
-    'poland_se22_def',
-    'turningpoint_def',
     'karelia',
     'murovanka',
     'ruinberg',
@@ -122,6 +81,8 @@ const TACTICS_ASSAULT_MAPS = [
     'himmelsdorf',
     'mannerheim_line',
     'north_america',
+    'highway',
+    'er_clime',
 ];
 
 function tactics_sanitize_game(string $game): string {
@@ -183,9 +144,6 @@ function tactics_battle_mode_label(string $mode, string $lang = 'ru', ?string $g
     if (in_array($game, ['cs2', 'dota2'], true) && $mode === 'custom') {
         return $isEn ? 'Custom' : 'Кастом';
     }
-    if (in_array($game, ['wot', 'lesta'], true) && $mode === 'custom') {
-        return $labels['custom'][$isEn ? 'en' : 'ru'];
-    }
 
     return $labels[$mode][$isEn ? 'en' : 'ru'] ?? $mode;
 }
@@ -200,6 +158,52 @@ function tactics_mode_field_label(string $game, string $lang = 'ru'): string {
 
 function tactics_game_uses_legacy_catalog(string $game): bool {
     return in_array(tactics_sanitize_game($game), ['wot', 'lesta'], true);
+}
+
+function tactics_load_map_metadata_games(): array {
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $cache = [];
+    $path = __DIR__ . '/../scripts/lesta_maps_metadata.json';
+    $raw = @file_get_contents($path);
+    $data = $raw ? json_decode($raw, true) : null;
+    if (!is_array($data)) {
+        return $cache;
+    }
+
+    foreach ($data as $code => $row) {
+        $code = strtolower(trim((string) $code));
+        if ($code === '') {
+            continue;
+        }
+        $games = [];
+        foreach ((array) ($row['games'] ?? []) as $game) {
+            $games[] = tactics_sanitize_game((string) $game);
+        }
+        $cache[$code] = array_values(array_unique($games));
+    }
+
+    return $cache;
+}
+
+function tactics_map_allowed_for_game(string $code, string $game): bool {
+    $game = tactics_sanitize_game($game);
+    if (!in_array($game, ['wot', 'lesta'], true)) {
+        return true;
+    }
+
+    $code = strtolower(trim($code));
+    $metaGames = tactics_load_map_metadata_games();
+    if (isset($metaGames[$code])) {
+        return in_array($game, $metaGames[$code], true);
+    }
+
+    $filtered = tactics_filter_maps_for_game([$code], $game);
+
+    return in_array($code, $filtered, true);
 }
 
 function tactics_is_variant_map_code(string $mapCode): bool {
@@ -250,11 +254,7 @@ function tactics_filter_maps_for_mode(array $mapCodes, string $mode): array {
         }));
     }
 
-    $other = array_flip(TACTICS_OTHER_MAPS);
-
-    return array_values(array_filter($mapCodes, static function (string $code) use ($other): bool {
-        return tactics_is_variant_map_code($code) || isset($other[$code]);
-    }));
+    return [];
 }
 
 function tactics_map_in_legacy_mode(string $code, array $gameCodes, string $mode, string $game = 'wot'): bool {
@@ -341,7 +341,10 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
                 if (empty($gameModes[$game][$mode])) {
                     continue;
                 }
-                if (!tactics_map_has_uploaded_asset($code, $game, $mode)) {
+                if (!tactics_map_allowed_for_game($code, $game)) {
+                    continue;
+                }
+                if (!tactics_map_has_mode_asset($code, $game, $mode)) {
                     continue;
                 }
                 $modeCodes[] = $code;

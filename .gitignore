@@ -1,5 +1,8 @@
 # Временные и локальные артефакты
 _wot-src-tmp/
+scripts/_wot_extract/
+scripts/_arena_list.json
+scripts/_test_malinovka.png
 node_modules/
 *.log
 .DS_Store

@@ -117,9 +117,6 @@
             if ((gameId === 'cs2' || gameId === 'dota2') && modeId === 'custom') {
                 return i18n().t('modeCs2Custom');
             }
-            if ((gameId === 'wot' || gameId === 'lesta') && modeId === 'custom') {
-                return i18n().t('modeCustom');
-            }
             const key = MODE_I18N[modeId];
             if (key) return i18n().t(key);
             const catalog = this.catalog || maps().getCatalog();

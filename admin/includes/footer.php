@@ -11,8 +11,6 @@ if (!isset($appVersion)) {
         <div class="footer-links">
             <a href="https://twitch.tv/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-twitch"></i> Twitch</a>
             <span class="separator">•</span>
-            <a href="https://t.me/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-telegram"></i> Telegram</a>
-            <span class="separator">•</span>
             <a href="https://vk.com/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fab fa-vk"></i> VK</a>
             <span class="separator">•</span>
             <a href="https://www.donationalerts.com/r/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link"><i class="fas fa-university"></i> Donation</a>

@@ -147,8 +147,6 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
             <div class="footer-links">
                 <a href="https://twitch.tv/immortal_emperor" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Twitch"><i class="fab fa-twitch" aria-hidden="true"></i><span class="social-link-label">Twitch</span></a>
                 <span class="separator" aria-hidden="true">•</span>
-                <a href="https://t.me/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Telegram"><i class="fab fa-telegram" aria-hidden="true"></i><span class="social-link-label">Telegram</span></a>
-                <span class="separator" aria-hidden="true">•</span>
                 <a href="https://vk.com/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="VK"><i class="fab fa-vk" aria-hidden="true"></i><span class="social-link-label">VK</span></a>
                 <span class="separator" aria-hidden="true">•</span>
                 <a href="https://www.donationalerts.com/r/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Donation"><i class="fas fa-university" aria-hidden="true"></i><span class="social-link-label">Donation</span></a>

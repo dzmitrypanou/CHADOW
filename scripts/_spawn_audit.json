@@ -1,0 +1,482 @@
+[
+  {
+    "code": "karelia",
+    "arena": "01_karelia",
+    "ru": "Карелия",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "malinovka",
+    "arena": "02_malinovka",
+    "ru": "Малиновка",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "himmelsdorf",
+    "arena": "04_himmelsdorf",
+    "ru": "Химмельсдорф",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "prohorovka",
+    "arena": "05_prohorovka",
+    "ru": "Прохоровка",
+    "spawn_mode": "encounter_battle",
+    "g": 2,
+    "r": 2
+  },
+  {
+    "code": "lakeville",
+    "arena": "07_lakeville",
+    "ru": "Ласвилль",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "ensk",
+    "arena": "06_ensk",
+    "ru": "Энск",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "murovanka",
+    "arena": "11_murovanka",
+    "ru": "Мурованка",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "erlenberg",
+    "arena": "13_erlenberg",
+    "ru": "Эрленберг",
+    "spawn_mode": "assault",
+    "g": 1,
+    "r": 2
+  },
+  {
+    "code": "hills",
+    "arena": "10_hills",
+    "ru": "Рудники",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "cliff",
+    "arena": "18_cliff",
+    "ru": "Утёс",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "monastery",
+    "arena": "19_monastery",
+    "ru": "Монастырь",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "desert",
+    "arena": "28_desert",
+    "ru": "Песчаная река",
+    "spawn_mode": "encounter_battle",
+    "g": 2,
+    "r": 2
+  },
+  {
+    "code": "steppes",
+    "arena": "35_steppes",
+    "ru": "Степи",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "caucasus",
+    "arena": "37_caucasus",
+    "ru": "Перевал",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "fjord",
+    "arena": "33_fjord",
+    "ru": "Фьорды",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "redshire",
+    "arena": "34_redshire",
+    "ru": "Редшир",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "fishing_bay",
+    "arena": "36_fishing_bay",
+    "ru": "Рыбацкая бухта",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "mannerheim_line",
+    "arena": "38_mannerheim_line",
+    "ru": "Линия Маннергейма",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "ruinberg",
+    "arena": "08_ruinberg",
+    "ru": "Руинберг",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "siegfried_line",
+    "arena": "14_siegfried_line",
+    "ru": "Линия Зигфрида",
+    "spawn_mode": "encounter_battle",
+    "g": 2,
+    "r": 2
+  },
+  {
+    "code": "westfeld",
+    "arena": "23_westfeld",
+    "ru": "Вестфилд",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "el_hallouf",
+    "arena": "29_el_hallouf",
+    "ru": "Эль-Халлуф",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "airfield",
+    "arena": "31_airfield",
+    "ru": "Аэродром",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "munchen",
+    "arena": "17_munchen",
+    "ru": "Уайдпарк",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "north_america",
+    "arena": "44_north_america",
+    "ru": "Лайв Окс",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "north_america",
+    "arena": "45_north_america",
+    "ru": "Хайвей",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "canada_a",
+    "arena": "47_canada_a",
+    "ru": "Тихий берег",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "asia_great_wall",
+    "arena": "59_asia_great_wall",
+    "ru": "Граница империи",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "tundra",
+    "arena": "63_tundra",
+    "ru": "Тундра",
+    "spawn_mode": "standard_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "asia_miao",
+    "arena": "60_asia_miao",
+    "ru": "Жемчужная река",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "dday",
+    "arena": "101_dday",
+    "ru": "Оверлорд",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "czech",
+    "arena": "114_czech",
+    "ru": "Промзона",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "eiffel_tower_ctf",
+    "arena": "112_eiffel_tower_ctf",
+    "ru": "Париж",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "sweden",
+    "arena": "115_sweden",
+    "ru": "Штиль",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "campania_big",
+    "arena": "03_campania_big",
+    "ru": "Провинция",
+    "spawn_mode": "standard_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "epic_random_valley",
+    "arena": "212_epic_random_valley",
+    "ru": "Небельбург",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "er_alaska",
+    "arena": "217_er_alaska",
+    "ru": "Клондайк",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "poland",
+    "arena": "99_poland",
+    "ru": "Студзянки",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "minsk",
+    "arena": "90_minsk",
+    "ru": "Минск",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "er_clime",
+    "arena": "222_er_clime",
+    "ru": "Орловский выступ",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "br_battle_city2-1",
+    "arena": "250_br_battle_city2-1",
+    "ru": "Зона 404",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "lost_city_ctf",
+    "arena": "95_lost_city_ctf",
+    "ru": "Затерянный город",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "kharkiv",
+    "arena": "83_kharkiv",
+    "ru": "Харьков",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "germany",
+    "arena": "105_germany",
+    "ru": "Берлин",
+    "spawn_mode": "standard_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "bf_epic_normandy",
+    "arena": "208_bf_epic_normandy",
+    "ru": "Нормандия",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "br_battle_city3",
+    "arena": "251_br_battle_city3",
+    "ru": "Арзагир 4.04",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "br_battle_city4",
+    "arena": "252_br_battle_city4",
+    "ru": "Фирнульфир",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "japort",
+    "arena": "127_japort",
+    "ru": "Старая гавань",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "siegfried_line_nom",
+    "arena": "14_siegfried_line_nom",
+    "ru": "Западный вал",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "normandy_nom",
+    "arena": "108_normandy_nom",
+    "ru": "Одер",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "lost_paradise_v",
+    "arena": "121_lost_paradise_v",
+    "ru": "Устричный залив",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "last_frontier_v",
+    "arena": "128_last_frontier_v",
+    "ru": "Застава",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "epic_suburbia",
+    "arena": "209_epic_suburbia",
+    "ru": "Крафтверк",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "bf_epic_desert",
+    "arena": "210_bf_epic_desert",
+    "ru": "Фата-моргана",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "stalingrad",
+    "arena": "500_stalingrad",
+    "ru": "Сталинград",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "kamchatka",
+    "arena": "502_kamchatka",
+    "ru": "Камчатка",
+    "spawn_mode": "encounter_battle",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "kaliningrad",
+    "arena": "503_kaliningrad",
+    "ru": "Калининград",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  },
+  {
+    "code": "caucasus",
+    "arena": "505_caucasus",
+    "ru": "Кавказ",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "cosmic_2026",
+    "arena": "280_cosmic_2026",
+    "ru": "Зона столкновения",
+    "spawn_mode": null,
+    "g": 0,
+    "r": 0
+  },
+  {
+    "code": "battle_for_moscow",
+    "arena": "506_battle_for_moscow",
+    "ru": "Битва за Москву",
+    "spawn_mode": "att_def",
+    "g": 1,
+    "r": 1
+  }
+]

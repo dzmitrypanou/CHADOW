@@ -144,9 +144,10 @@ function modeLabelForAsset(asset) {
 
 function populateModeSelect(selectEl, game, selectedMode) {
     if (!selectEl) return;
-    const modes = (gameModes[game] || []).filter((m) => !(
-        (game === 'cs2' || game === 'dota2') && m.id === 'custom'
-    ));
+    const modes = (gameModes[game] || []).filter((m) => {
+        if (m.id !== 'custom') return true;
+        return game === 'cs2' || game === 'dota2';
+    });
     selectEl.innerHTML = modes.map((m) => {
         const selected = m.id === selectedMode ? ' selected' : '';
         return `<option value="${escapeHtml(m.id)}"${selected}>${escapeHtml(m.label)}</option>`;
