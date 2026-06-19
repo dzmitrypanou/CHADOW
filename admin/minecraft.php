@@ -39,7 +39,7 @@ require __DIR__ . '/includes/admin_head.php';
     <div class="container">
         <div class="header">
             <h1>
-                <i class="fas fa-rocket" style="color: #64b5f6;"></i>
+                <i class="fas fa-rocket" aria-hidden="true"></i>
                 Chadow Games Launcher
             </h1>
             <?php include __DIR__ . '/includes/header_nav.php'; ?>

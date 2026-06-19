@@ -152,13 +152,13 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
                 <a href="https://www.donationalerts.com/r/chadowfriend" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Donation"><i class="fas fa-university" aria-hidden="true"></i><span class="social-link-label">Donation</span></a>
             </div>
             <div class="footer-text">
-                Copyright (c) 2026 Analysis ABS replays <span class="version">ver. <span id="siteVersion"><?php echo htmlspecialchars($siteVersion); ?></span></span> by <a href="https://tanki.su/ru/community/accounts/282194247" target="_blank" rel="noopener noreferrer" class="version footer-author-link">Immortal_Emperor</a>.
+                Copyright (c) 2026 CHADOW <span class="version">ver. <span id="siteVersion"><?php echo htmlspecialchars($siteVersion); ?></span></span> Oleg Olegovich by <a href="https://tanki.su/ru/community/accounts/282194247" target="_blank" rel="noopener noreferrer" class="version footer-author-link">Immortal_Emperor</a>.
             </div>
             <div class="footer-text">
-                I will make them and the places all around My hill a blessing; and I will cause showers to come down in their season; there shall be showers of blessing.
+                As smoke is driven away, So drive them away; As wax melts before the fire,
             </div>
             <div class="footer-text">
-                Ezekiel 34:26 (NKJV)
+                So let the wicked perish at the presence of God. Psalms 67:2 (NKJV)
             </div>
         </footer>
 <?php endif; ?>

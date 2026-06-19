@@ -97,6 +97,10 @@ h1 {
     gap: 10px;
     margin: 0;
 }
+h1 i,
+h2 i {
+    color: #ffd966;
+}
 h2 {
     color: #ffd966;
     font-size: 1.5rem;
@@ -778,8 +782,8 @@ th:nth-child(8) { width: 10%; }
     background: #ffd966;
 }
 .modal .switcher-option.collectible.active {
-    background: #64b5f6;
-    color: #fff;
+    background: #c9a227;
+    color: #0a0c0f;
 }
 .modal .switcher-option.regular.active {
     background: #4caf50;
@@ -865,9 +869,9 @@ th:nth-child(8) { width: 10%; }
     color: #4caf50;
 }
 .badge-collectible {
-    background: rgba(100, 181, 246, 0.15);
-    border-color: rgba(100, 181, 246, 0.3);
-    color: #64b5f6;
+    background: rgba(255, 217, 102, 0.12);
+    border-color: rgba(255, 217, 102, 0.28);
+    color: #e8c878;
 }
 .moderation-status {
     display: inline-flex;
@@ -1071,6 +1075,14 @@ footer {
     border-top: 1px solid #2a3138;
     width: 100%;
     box-sizing: border-box;
+}
+footer .footer-author-link {
+    color: #ffd966;
+    text-decoration: none;
+}
+footer .footer-author-link:hover {
+    color: #ffe699;
+    text-decoration: underline;
 }
 .footer-links {
     margin-bottom: calc(var(--layout-gap) / 2);
