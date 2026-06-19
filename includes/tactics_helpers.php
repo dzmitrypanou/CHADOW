@@ -1449,6 +1449,13 @@ function tactics_normalize_room_data(array $roomData): array {
                 $roomData['slides'][$index][$scaleKey] = $meters;
             }
         }
+        $slideGame = tactics_sanitize_game((string) ($slide['game'] ?? 'wot'));
+        $slideMode = tactics_sanitize_battle_mode((string) ($slide['battle_mode'] ?? 'random'), $slideGame);
+        $slideCode = tactics_sanitize_map_code((string) ($slide['map_code'] ?? ''));
+        if (!tactics_is_custom_room_slide($slide)
+            && !tactics_map_allowed_for_mode($slideCode, $slideMode, $slideGame)) {
+            $roomData['slides'][$index]['battle_mode'] = 'random';
+        }
     }
 
     if (!is_array($roomData['settings'] ?? null)) {

@@ -44,7 +44,6 @@ const TACTICS_ENCOUNTER_MAPS = [
     'fjord',
     'hills',
     'himmelsdorf',
-    'karelia',
     'lakeville',
     'malinovka',
     'mannerheim_line',
@@ -81,7 +80,11 @@ const TACTICS_ASSAULT_MAPS = [
     'mannerheim_line',
     'north_america',
     'highway',
-    'er_clime',
+];
+
+/** Maps that exist only in random battle (never encounter/assault). */
+const TACTICS_RANDOM_ONLY_MAPS = [
+    'karelia',
 ];
 
 function tactics_map_allowed_for_mode(string $code, string $mode, string $game = 'wot'): bool {
@@ -94,6 +97,9 @@ function tactics_map_allowed_for_mode(string $code, string $mode, string $game =
         return true;
     }
     $mode = tactics_sanitize_battle_mode($mode, $game);
+    if ($mode !== 'random' && in_array($code, TACTICS_RANDOM_ONLY_MAPS, true)) {
+        return false;
+    }
 
     return in_array($code, tactics_filter_maps_for_mode([$code], $mode), true);
 }
@@ -650,6 +656,9 @@ function tactics_load_tankist_spawns_for_client(): array {
             if (!is_array($modeEntry)) {
                 continue;
             }
+            if ($mode !== 'random' && in_array($code, TACTICS_RANDOM_ONLY_MAPS, true)) {
+                continue;
+            }
             $points = is_array($modeEntry['points'] ?? null) ? $modeEntry['points'] : [];
             $custom = $overrides[$code][$mode] ?? null;
             if (is_array($custom)) {
@@ -789,6 +798,7 @@ function tactics_build_map_catalog(array $rows, string $lang = 'ru', $db = null)
         'games' => $games,
         'mode_labels' => $modeLabels,
         'map_spawns' => tactics_load_tankist_spawns_for_client(),
+        'random_only_maps' => TACTICS_RANDOM_ONLY_MAPS,
         'default_game' => 'wot',
         'default_mode' => 'random',
     ];

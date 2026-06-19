@@ -543,6 +543,7 @@ require __DIR__ . '/../../includes/site_footer.php';
 ?>
     <script>
         window.ABS_TACTICS_LANG = <?php echo json_encode($lang); ?>;
+        window.ABS_APP_VERSION = <?php echo json_encode($siteVersion); ?>;
         window.ABS_TACTICS_CSRF = <?php echo json_encode(user_csrf_token()); ?>;
         window.ABS_TACTICS_PUBLIC_ID = <?php echo json_encode($publicId); ?>;
         window.ABS_TACTICS_NEEDS_PASSWORD = <?php echo json_encode($needsPassword); ?>;

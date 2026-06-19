@@ -82,7 +82,7 @@ def main() -> None:
         if arena:
             by_arena[arena] = entry
 
-    by_code["karelia"] = {"ru": "Орловский выступ", "en": "Karelia"}
+    by_code["karelia"] = {"ru": "Карелия", "en": "Karelia"}
     by_code["highway"] = {"ru": "Хайвей", "en": "Highway"}
     by_code["north_america"] = {"ru": "Лайв Окс", "en": "Live Oaks"}
     by_code["kharkiv"] = {"ru": "Харьков", "en": "Kharkov"}

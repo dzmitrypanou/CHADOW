@@ -57,7 +57,7 @@ CANONICAL_NAMES = {
     "highway": ("Хайвей", "Highway"),
     "kharkiv": ("Харьков", "Kharkov"),
     "munchen": ("Уайдпарк", "Widepark"),
-    "karelia": ("Орловский выступ", "Karelia"),
+    "karelia": ("Карелия", "Karelia"),
 }
 
 MAP_NAMES_PATH = ROOT / "config" / "tactics_map_names.json"
@@ -178,7 +178,6 @@ ENCOUNTER = {
     "fjord",
     "hills",
     "himmelsdorf",
-    "karelia",
     "lakeville",
     "malinovka",
     "mannerheim_line",
@@ -215,7 +214,6 @@ ASSAULT = {
     "mannerheim_line",
     "north_america",
     "highway",
-    "er_clime",
 }
 
 
@@ -231,7 +229,11 @@ def modes_for_arena(gameplay_tags: set[str], code: str) -> list[str]:
     if is_variant_code(code):
         return []
     modes: list[str] = []
-    has_ctf = "ctf" in gameplay_tags or not gameplay_tags
+    has_ctf = (
+        "ctf" in gameplay_tags
+        or "ctf30x30" in gameplay_tags
+        or not gameplay_tags
+    )
     has_dom = "domination" in gameplay_tags
     has_ass = "assault" in gameplay_tags or "assault2" in gameplay_tags
     if has_ctf:

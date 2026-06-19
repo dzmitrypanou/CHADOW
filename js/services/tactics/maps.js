@@ -19,8 +19,28 @@
     function catalogApiUrl() {
         const base = window.ABS_TACTICS_CATALOG_API || '/api/tactics/maps.php';
         const lang = currentLang();
+        const version = window.ABS_APP_VERSION || '';
         const sep = base.includes('?') ? '&' : '?';
-        return base + sep + 'lang=' + encodeURIComponent(lang);
+        let url = base + sep + 'lang=' + encodeURIComponent(lang);
+        if (version) {
+            url += '&v=' + encodeURIComponent(version);
+        }
+        return url;
+    }
+
+    function randomOnlyMapCodes() {
+        const list = catalogCache?.random_only_maps;
+        return Array.isArray(list) ? list.map((c) => String(c).toLowerCase()) : ['karelia'];
+    }
+
+    function isMapAllowedForMode(mapCode, game, battleMode) {
+        const code = String(mapCode || '').toLowerCase();
+        const mode = String(battleMode || 'random').toLowerCase();
+        if (mode !== 'random' && randomOnlyMapCodes().includes(code)) {
+            return false;
+        }
+        const rows = getMapsFor(game, battleMode);
+        return rows.some((m) => (m.map_code || '').toLowerCase() === code);
     }
 
     function resetCatalogCache() {
@@ -177,6 +197,10 @@
         if (g && mode) {
             const scoped = getMapsFor(g, mode).find((m) => (m.map_code || '').toLowerCase() === code);
             if (scoped) return scoped;
+        }
+
+        if (mode && mode !== 'random' && randomOnlyMapCodes().includes(code)) {
+            return null;
         }
 
         const all = getMapsSync();
@@ -817,6 +841,8 @@
         if (game !== 'wot' && game !== 'lesta') return false;
         if (isCustomRoomSlide(slide)) return false;
         const mode = (slide.battle_mode || 'random').toLowerCase();
+        const code = String(slide.map_code || '').toLowerCase();
+        if (!isMapAllowedForMode(code, game, mode)) return false;
         const data = getMapSpawnData(slide.map_code);
         const points = data?.modes?.[mode]?.points;
         return Array.isArray(points) && points.length > 0;
@@ -1019,6 +1045,7 @@
         previewUrlFromSlide,
         refreshSlidePreviewUrl,
         normalizeMapCode,
+        isMapAllowedForMode,
         normalizeSpawnTeam,
         getMapSpawnData,
         supportsSpawnOverlay,

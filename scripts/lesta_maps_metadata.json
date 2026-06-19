@@ -191,7 +191,7 @@
       "lesta"
     ],
     "modes": [
-      "assault"
+      "random"
     ]
   },
   "erlenberg": {
@@ -340,7 +340,7 @@
   },
   "karelia": {
     "arena": "01_karelia",
-    "display_name_ru": "Орловский выступ",
+    "display_name_ru": "Карелия",
     "display_name_en": "Karelia",
     "side_length": 1000,
     "games": [
@@ -348,8 +348,7 @@
       "wot"
     ],
     "modes": [
-      "random",
-      "encounter"
+      "random"
     ]
   },
   "kharkiv": {
