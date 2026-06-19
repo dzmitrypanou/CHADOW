@@ -603,6 +603,9 @@ function updateFileNameLabel() {
 const SPAWN_MARKER_SCALE_DEFAULT = 1;
 const SPAWN_MARKER_SCALE_MIN = 0.5;
 const SPAWN_MARKER_SCALE_MAX = 2;
+const SPAWN_MARKER_OPACITY_DEFAULT = 0.8;
+const SPAWN_MARKER_OPACITY_MIN = 0.2;
+const SPAWN_MARKER_OPACITY_MAX = 1;
 
 const spawnEditor = {
     asset: null,
@@ -623,13 +626,24 @@ function getSpawnPointMarkerScale(point) {
     return normalizeSpawnMarkerScale(point?.marker_scale ?? 1);
 }
 
-function applySpawnEditorPointScale(index) {
+function normalizeSpawnMarkerOpacity(value) {
+    const opacity = Number(value);
+    if (!Number.isFinite(opacity)) return SPAWN_MARKER_OPACITY_DEFAULT;
+    return Math.min(SPAWN_MARKER_OPACITY_MAX, Math.max(SPAWN_MARKER_OPACITY_MIN, Math.round(opacity * 100) / 100));
+}
+
+function getSpawnPointMarkerOpacity(point) {
+    return normalizeSpawnMarkerOpacity(point?.marker_opacity ?? SPAWN_MARKER_OPACITY_DEFAULT);
+}
+
+function applySpawnEditorPointVisuals(index) {
     const point = spawnEditor.points[index];
     const overlay = document.getElementById('tacticsSpawnEditorOverlay');
     if (!point || !overlay) return;
     const el = overlay.querySelector(`[data-index="${index}"]`);
     if (el) {
         el.style.setProperty('--spawn-marker-scale', String(getSpawnPointMarkerScale(point)));
+        el.style.opacity = String(getSpawnPointMarkerOpacity(point));
     }
 }
 
@@ -639,16 +653,23 @@ function updateSpawnEditorSelectionPanel() {
     const sizeBlock = document.getElementById('tacticsSpawnEditorSizeBlock');
     const slider = document.getElementById('tacticsSpawnEditorSize');
     const output = document.getElementById('tacticsSpawnEditorSizeValue');
+    const opacitySlider = document.getElementById('tacticsSpawnEditorOpacity');
+    const opacityOutput = document.getElementById('tacticsSpawnEditorOpacityValue');
     const hasSelection = point != null;
 
     if (sizeBlock) sizeBlock.hidden = !hasSelection;
     if (hasSelection) {
         const scale = getSpawnPointMarkerScale(point);
+        const opacity = getSpawnPointMarkerOpacity(point);
         if (slider) slider.value = String(Math.round(scale * 100));
         if (output) output.textContent = `${Math.round(scale * 100)}%`;
-    } else if (slider) {
-        slider.value = '100';
+        if (opacitySlider) opacitySlider.value = String(Math.round(opacity * 100));
+        if (opacityOutput) opacityOutput.textContent = `${Math.round(opacity * 100)}%`;
+    } else {
+        if (slider) slider.value = '100';
         if (output) output.textContent = '100%';
+        if (opacitySlider) opacitySlider.value = '80';
+        if (opacityOutput) opacityOutput.textContent = '80%';
     }
 
     updateSpawnEditorPropsPanel();
@@ -663,12 +684,29 @@ function setSelectedSpawnPointScale(scale) {
     } else {
         point.marker_scale = normalized;
     }
-    applySpawnEditorPointScale(spawnEditor.selectedIndex);
+    applySpawnEditorPointVisuals(spawnEditor.selectedIndex);
     renderSpawnEditorList();
 }
 
 function resetSelectedSpawnPointScale() {
     setSelectedSpawnPointScale(SPAWN_MARKER_SCALE_DEFAULT);
+}
+
+function setSelectedSpawnPointOpacity(opacity) {
+    const point = spawnEditor.points[spawnEditor.selectedIndex];
+    if (!point) return;
+    const normalized = normalizeSpawnMarkerOpacity(opacity);
+    if (Math.abs(normalized - SPAWN_MARKER_OPACITY_DEFAULT) < 0.001) {
+        delete point.marker_opacity;
+    } else {
+        point.marker_opacity = normalized;
+    }
+    applySpawnEditorPointVisuals(spawnEditor.selectedIndex);
+    renderSpawnEditorList();
+}
+
+function resetSelectedSpawnPointOpacity() {
+    setSelectedSpawnPointOpacity(SPAWN_MARKER_OPACITY_DEFAULT);
 }
 
 function normalizeSpawnBaseNumber(value) {
@@ -697,6 +735,10 @@ function spawnPointLabel(point, index) {
     if (Math.abs(pointScale - 1) >= 0.001) {
         suffix += ` · ${Math.round(pointScale * 100)}%`;
     }
+    const pointOpacity = getSpawnPointMarkerOpacity(point);
+    if (Math.abs(pointOpacity - SPAWN_MARKER_OPACITY_DEFAULT) >= 0.001) {
+        suffix += ` · α${Math.round(pointOpacity * 100)}%`;
+    }
     return `${index + 1}. ${names[type] || type}${suffix}`;
 }
 
@@ -717,12 +759,13 @@ function appendSpawnEditorBaseMarkerContent(el, point) {
 }
 
 function updateSpawnEditorPropsPanel() {
-    const panel = document.getElementById('tacticsSpawnEditorProps');
+    const baseGroup = document.getElementById('tacticsSpawnEditorProps');
     const input = document.getElementById('tacticsSpawnEditorBaseNumber');
-    if (!panel || !input) return;
+    if (!baseGroup || !input) return;
     const point = spawnEditor.points[spawnEditor.selectedIndex];
     const isBase = point && String(point.point_type) === 'base';
-    panel.hidden = !isBase;
+    baseGroup.classList.toggle('is-disabled', !isBase);
+    input.disabled = !isBase;
     if (!isBase) {
         input.value = '';
         return;
@@ -804,6 +847,7 @@ function createSpawnEditorMarkerEl(point, index) {
     el.style.left = `${pos.left}%`;
     el.style.top = `${pos.top}%`;
     el.style.setProperty('--spawn-marker-scale', String(getSpawnPointMarkerScale(point)));
+    el.style.opacity = String(getSpawnPointMarkerOpacity(point));
     el.dataset.index = String(index);
     if (String(point.point_type) === 'base') {
         appendSpawnEditorBaseMarkerContent(el, point);
@@ -983,6 +1027,27 @@ function deleteSelectedSpawnPoint() {
     renderSpawnEditorPoints();
 }
 
+function isSpawnEditorModalOpen() {
+    const modal = document.getElementById('tacticsSpawnEditorModal');
+    return !!modal?.classList.contains('active');
+}
+
+function isSpawnEditorTypingTarget(target) {
+    if (!target) return false;
+    const tag = String(target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!target.isContentEditable;
+}
+
+function handleSpawnEditorKeydown(event) {
+    if (!isSpawnEditorModalOpen()) return;
+    if (isSpawnEditorTypingTarget(event.target)) return;
+    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+    if (spawnEditor.selectedIndex < 0) return;
+    event.preventDefault();
+    deleteSelectedSpawnPoint();
+}
+
 function resetSpawnEditorPoints() {
     spawnEditor.bounds = spawnEditor.defaults?.bounds || spawnEditor.bounds;
     spawnEditor.points = JSON.parse(JSON.stringify(spawnEditor.defaults?.points || []));
@@ -1035,6 +1100,10 @@ function bindSpawnEditorUi() {
     document.getElementById('tacticsSpawnEditorSize')?.addEventListener('input', (e) => {
         setSelectedSpawnPointScale(Number(e.target.value) / 100);
     });
+    document.getElementById('tacticsSpawnEditorOpacityReset')?.addEventListener('click', resetSelectedSpawnPointOpacity);
+    document.getElementById('tacticsSpawnEditorOpacity')?.addEventListener('input', (e) => {
+        setSelectedSpawnPointOpacity(Number(e.target.value) / 100);
+    });
     document.getElementById('tacticsSpawnEditorBaseNumber')?.addEventListener('input', (e) => {
         setSpawnEditorBaseNumber(e.target.value);
     });
@@ -1048,6 +1117,7 @@ function bindSpawnEditorUi() {
         if (!btn) return;
         selectSpawnPoint(parseInt(btn.dataset.index, 10));
     });
+    document.addEventListener('keydown', handleSpawnEditorKeydown);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

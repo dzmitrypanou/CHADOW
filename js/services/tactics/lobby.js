@@ -300,7 +300,7 @@
                 ws_token: payload.ws_token,
                 nickname: resolvedNickname,
                 client_id: store().getClientId(),
-                is_owner: true,
+                can_delete: true,
             });
             window.location.href = payload.room_href || (window.ABS_TACTICS_LOBBY_BASE + '/' + payload.room.public_id);
         } finally {

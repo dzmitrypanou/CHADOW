@@ -458,6 +458,20 @@ function tactics_normalize_marker_scale($value): float {
     return round($scale, 2);
 }
 
+function tactics_normalize_marker_opacity($value): float {
+    if (!is_numeric($value)) {
+        return 0.8;
+    }
+    $opacity = (float) $value;
+    if ($opacity < 0.2) {
+        $opacity = 0.2;
+    } elseif ($opacity > 1.0) {
+        $opacity = 1.0;
+    }
+
+    return round($opacity, 2);
+}
+
 function tactics_normalize_spawn_points(array $points): array {
     $out = [];
     foreach ($points as $point) {
@@ -497,6 +511,12 @@ function tactics_normalize_spawn_points(array $points): array {
             $scale = tactics_normalize_marker_scale($point['marker_scale']);
             if (abs($scale - 1.0) >= 0.001) {
                 $row['marker_scale'] = $scale;
+            }
+        }
+        if (array_key_exists('marker_opacity', $point)) {
+            $opacity = tactics_normalize_marker_opacity($point['marker_opacity']);
+            if (abs($opacity - 0.8) >= 0.001) {
+                $row['marker_opacity'] = $opacity;
             }
         }
         $out[] = $row;

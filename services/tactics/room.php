@@ -206,7 +206,7 @@ require __DIR__ . '/../../includes/site_header.php';
                         </div>
                     </div>
                     <div class="tactics-editor-topbar__group tactics-editor-topbar__group--right">
-                        <button type="button" class="tactics-editor-topbar__btn tactics-editor-topbar__btn--text tactics-room-delete-btn" id="tacticsDeleteRoomBtn" data-tactics-i18n-title="deleteRoom" title="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>" aria-label="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>" hidden>
+                        <button type="button" class="tactics-editor-topbar__btn tactics-editor-topbar__btn--text tactics-room-delete-btn" id="tacticsDeleteRoomBtn" data-tactics-i18n-title="deleteRoom" title="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>" aria-label="<?php echo $lang === 'en' ? 'Delete room' : 'Удалить комнату'; ?>"<?php echo $isRoomOwner ? '' : ' hidden'; ?>>
                             <i class="fas fa-trash-alt" aria-hidden="true"></i>
                             <span data-tactics-i18n="deleteRoomLabel"><?php echo $lang === 'en' ? 'Delete room' : 'Удаление комнаты'; ?></span>
                         </button>

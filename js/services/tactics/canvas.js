@@ -663,6 +663,11 @@
                 : (mapsApi?.normalizeSpawnMarkerScale
                     ? mapsApi.normalizeSpawnMarkerScale(point?.marker_scale ?? 1)
                     : 1);
+            const markerOpacity = mapsApi?.getSpawnPointMarkerOpacity
+                ? mapsApi.getSpawnPointMarkerOpacity(point)
+                : (mapsApi?.normalizeSpawnMarkerOpacity
+                    ? mapsApi.normalizeSpawnMarkerOpacity(point?.marker_opacity)
+                    : 0.8);
             const baseRadius = Math.max(28, canvasSize * 0.044) * markerScale;
             const spawnRadius = Math.max(16, canvasSize * 0.028) * markerScale;
             const strokeWidth = Math.max(3, Math.round(baseRadius * 0.14));
@@ -679,7 +684,9 @@
                     stroke: '#c8ced8',
                     strokeWidth: ringWidth,
                 });
-                const flagScale = baseRadius * 0.9;
+                const flagScale = mapsApi?.getSpawnFlagMarkerScale
+                    ? mapsApi.getSpawnFlagMarkerScale(baseRadius)
+                    : baseRadius * 0.72;
                 const flagPathD = mapsApi?.spawnFlagFabricPathD
                     ? mapsApi.spawnFlagFabricPathD(flagScale)
                     : '';
@@ -697,6 +704,7 @@
                     top: cy,
                     originX: 'center',
                     originY: 'center',
+                    opacity: markerOpacity,
                 });
                 this.applySpawnMarkerLock(group);
                 return group;
@@ -735,7 +743,9 @@
                         fontFamily: 'Arial, Helvetica, sans-serif',
                     }));
                 } else {
-                    const flagScale = radius * 0.9;
+                    const flagScale = mapsApi?.getSpawnFlagMarkerScale
+                        ? mapsApi.getSpawnFlagMarkerScale(radius)
+                        : radius * 0.72;
                     const flagPathD = mapsApi?.spawnFlagFabricPathD
                         ? mapsApi.spawnFlagFabricPathD(flagScale)
                         : '';
@@ -754,6 +764,7 @@
                     top: cy,
                     originX: 'center',
                     originY: 'center',
+                    opacity: markerOpacity,
                 });
                 this.applySpawnMarkerLock(group);
                 return group;
@@ -768,6 +779,7 @@
                 originY: 'center',
                 stroke: '#ffffff',
                 strokeWidth,
+                opacity: markerOpacity,
             });
 
             this.applySpawnMarkerLock(circle);

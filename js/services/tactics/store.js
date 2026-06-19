@@ -22,6 +22,7 @@
             nick_color: payload.nick_color || '',
             nickname_locked: !!payload.nickname_locked,
             client_id: payload.client_id || getClientId(),
+            can_delete: !!payload.can_delete,
             saved_at: Date.now(),
         }));
     }

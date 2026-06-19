@@ -43,16 +43,7 @@ try {
 
     tactics_touch_room($userDb, $publicId);
 
-    $isOwner = $userId !== null && isset($row['user_id']) && (int) $row['user_id'] === $userId;
-    if (!$isOwner) {
-        $existingToken = tactics_resolve_access_token($input);
-        if ($existingToken !== null && $existingToken !== '') {
-            $tokenPayload = tactics_verify_room_token($userDb, $existingToken, $row);
-            if ($tokenPayload !== null && ($tokenPayload['role'] ?? '') === 'owner') {
-                $isOwner = true;
-            }
-        }
-    }
+    $isOwner = tactics_resolve_is_owner($row, tactics_resolve_access_token($input), $userId, $userDb);
 
     $inputNickname = tactics_sanitize_nickname((string) ($input['nickname'] ?? ''));
     $nicknameChange = !empty($input['nickname_change']);

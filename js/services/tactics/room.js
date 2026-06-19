@@ -130,6 +130,7 @@
             nick_color: nicknameColor,
             nickname_locked: nicknameLockedByUser,
             client_id: clientId,
+            can_delete: canDeleteRoom,
         });
     }
 
@@ -273,6 +274,7 @@
         updateSpawnSwapBtn();
         canvasCtrl?.syncSpawnOverlay(slide);
         slidesCtrl?.refreshSlideSpawnOverlays?.();
+        broadcastSlideView(slide);
         await saveGridSettingNow();
         markDirty();
     }
@@ -285,6 +287,7 @@
         updateSpawnOverlayBtn();
         canvasCtrl?.syncSpawnOverlay(slide);
         slidesCtrl?.refreshSlideSpawnOverlays?.();
+        broadcastSlideView(slide);
         await saveGridSettingNow();
         markDirty();
     }
@@ -353,6 +356,69 @@
         updateSpawnSwapBtn();
         updateSpawnOverlayBtn();
         canvasCtrl?.syncSpawnOverlay(slide);
+    }
+
+    function getSlideViewBroadcastPayload(slide) {
+        if (!slide) return null;
+        ensureSlideView(slide);
+        return {
+            spawn_swapped: getSlideSpawnSwapped(slide),
+            spawn_overlay: getSlideSpawnOverlay(slide),
+            show_grid: getSlideShowGrid(slide),
+        };
+    }
+
+    function broadcastSlideView(slide) {
+        if (!slide?.id || !wsClient) return;
+        const view = getSlideViewBroadcastPayload(slide);
+        if (!view) return;
+        wsClient.sendSlide('view', {
+            slideId: slide.id,
+            view,
+        });
+    }
+
+    function applyRemoteSlideView(msg) {
+        if (!msg?.slideId || !roomState?.room_data?.slides) return;
+        const slide = roomState.room_data.slides.find((s) => String(s.id) === String(msg.slideId));
+        if (!slide || !msg.view || typeof msg.view !== 'object') return;
+
+        ensureSlideView(slide);
+        let changed = false;
+
+        if (typeof msg.view.spawn_swapped === 'boolean') {
+            const next = msg.view.spawn_swapped === true;
+            if (getSlideSpawnSwapped(slide) !== next) {
+                setSlideSpawnSwapped(slide, next);
+                changed = true;
+            }
+        }
+        if (typeof msg.view.spawn_overlay === 'boolean') {
+            const next = msg.view.spawn_overlay !== false;
+            if (getSlideSpawnOverlay(slide) !== next) {
+                setSlideSpawnOverlay(slide, next);
+                changed = true;
+            }
+        }
+        if (typeof msg.view.show_grid === 'boolean') {
+            const next = msg.view.show_grid !== false;
+            if (getSlideShowGrid(slide) !== next) {
+                setSlideShowGrid(slide, next);
+                changed = true;
+            }
+        }
+
+        if (!changed) return;
+
+        if (slidesCtrl) {
+            slidesCtrl.roomData = roomState.room_data;
+        }
+
+        const activeId = slidesCtrl?.getActiveSlideId?.();
+        if (String(activeId) === String(msg.slideId)) {
+            applySlideViewPrefs(slide);
+        }
+        slidesCtrl?.refreshSlideSpawnOverlays?.();
     }
 
     const CUSTOM_MAP_CODES = {
@@ -3320,8 +3386,9 @@
         const room = window.ABS_TACTICS_INITIAL_ROOM;
         if (!room) return null;
 
-        const isOwner = stored?.is_owner === true || window.ABS_TACTICS_IS_OWNER === true;
-        const canDelete = window.ABS_TACTICS_CAN_DELETE === true;
+        const isAccountOwner = window.ABS_TACTICS_IS_OWNER === true;
+        const isSessionOwner = stored?.can_delete === true;
+        const isOwner = isAccountOwner || isSessionOwner;
         const roomData = room.room_data || {};
 
         return {
@@ -3330,7 +3397,7 @@
             ws_token: stored?.ws_token || '',
             ws_url: window.ABS_TACTICS_WS_URL || '',
             can_manage: isOwner,
-            can_delete: canDelete,
+            can_delete: isOwner,
             can_draw: canDrawFromRoomData(roomData, isOwner),
         };
     }
@@ -3414,14 +3481,29 @@
         const newRevision = newData.revision || revision;
         if (newRevision <= revision) return;
 
+        const activeId = slidesCtrl?.getActiveSlideId();
+        const prevSlide = roomState.room_data?.slides?.find((s) => s.id === activeId);
+        const incomingSlide = newData.room_data?.slides?.find((s) => s.id === activeId);
+        if (activeId && prevSlide && incomingSlide) {
+            const prevView = JSON.stringify(prevSlide.view || {});
+            const nextView = JSON.stringify(incomingSlide.view || {});
+            if (prevView !== nextView) {
+                ensureSlideView(prevSlide);
+                prevSlide.view = {
+                    ...prevSlide.view,
+                    ...(incomingSlide.view && typeof incomingSlide.view === 'object' ? incomingSlide.view : {}),
+                };
+                applySlideViewPrefs(prevSlide);
+                slidesCtrl?.refreshSlideSpawnOverlays?.();
+            }
+        }
+
         if (newData.room_data?.settings) {
             applyRemoteGridSetting(newData.room_data.settings.show_grid);
         }
 
         if ((dirty || drawSettingsSaveInFlight) && !force) return;
 
-        const activeId = slidesCtrl?.getActiveSlideId();
-        const prevSlide = roomState.room_data?.slides?.find((s) => s.id === activeId);
         let mergedRoomData = preserveRealtimeCanvasRoomData(
             roomState.room_data,
             newData.room_data,
@@ -3965,7 +4047,7 @@
             }
         }
         canManage = !!payload.can_manage;
-        canDeleteRoom = payload.can_delete !== undefined ? !!payload.can_delete : canManage;
+        canDeleteRoom = !!payload.can_delete;
         if (payload.room) {
             roomState = payload.room;
             revision = roomState.revision || revision;
@@ -4020,7 +4102,7 @@
             syncServerPresentationSnapshot(roomState.room_data?.settings);
         }
         canManage = !!payload.can_manage;
-        canDeleteRoom = payload.can_delete !== undefined ? !!payload.can_delete : canManage;
+        canDeleteRoom = !!payload.can_delete;
         canDraw = payload.can_draw !== undefined ? !!payload.can_draw : computeCanDraw();
         window.ABS_TACTICS_MAP_URLS = buildMapUrls(
             roomState.room_data,
@@ -4142,6 +4224,10 @@
             },
             onOp: async (msg) => {
                 if (msg.type === 'slide') {
+                    if (msg.action === 'view') {
+                        applyRemoteSlideView(msg);
+                        return;
+                    }
                     slidesCtrl.applyRemote(msg.action, msg);
                     if (msg.action === 'switch') {
                         touchPresentationActivity(String(msg.from || ''));

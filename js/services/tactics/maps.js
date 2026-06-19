@@ -717,8 +717,20 @@
         return Math.min(2, Math.max(0.5, scale));
     }
 
+    const SPAWN_MARKER_OPACITY_DEFAULT = 0.8;
+
+    function normalizeSpawnMarkerOpacity(value) {
+        const opacity = Number(value);
+        if (!Number.isFinite(opacity)) return SPAWN_MARKER_OPACITY_DEFAULT;
+        return Math.min(1, Math.max(0.2, Math.round(opacity * 100) / 100));
+    }
+
     function getSpawnPointMarkerScale(point) {
         return normalizeSpawnMarkerScale(point?.marker_scale ?? 1);
+    }
+
+    function getSpawnPointMarkerOpacity(point) {
+        return normalizeSpawnMarkerOpacity(point?.marker_opacity ?? SPAWN_MARKER_OPACITY_DEFAULT);
     }
 
     function spawnMarkerTransform(scale) {
@@ -779,23 +791,6 @@
         return partner || null;
     }
 
-    function mirrorSpawnPoint(point, bounds) {
-        if (!point || !bounds) return point;
-        const minX = Number(bounds.min_x);
-        const minY = Number(bounds.min_y);
-        const maxX = Number(bounds.max_x);
-        const maxY = Number(bounds.max_y);
-        const x = Number(point.x);
-        const y = Number(point.y);
-        if (Number.isNaN(minX) || Number.isNaN(minY) || Number.isNaN(maxX) || Number.isNaN(maxY)) {
-            return point;
-        }
-        if (Number.isNaN(x) || Number.isNaN(y)) return point;
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        return { ...point, x: 2 * cx - x, y: 2 * cy - y };
-    }
-
     function resolveSpawnDisplayPoint(point, allPoints, spawnSwapped) {
         if (!spawnSwapped || !Array.isArray(allPoints) || !point) return point;
         const partner = findSpawnPartner(point, allPoints);
@@ -834,23 +829,23 @@
                 if (partner) {
                     return {
                         point: { ...point, x: partner.x, y: partner.y },
-                        team,
+                        team: effectiveSpawnTeam(point, true),
                     };
                 }
-                if (opts.bounds) {
-                    return {
-                        point: mirrorSpawnPoint(point, opts.bounds),
-                        team,
-                    };
-                }
-                return { point, team };
+                return {
+                    point,
+                    team: effectiveSpawnTeam(point, true),
+                };
             }
-            return { point, team };
+            return {
+                point,
+                team: effectiveSpawnTeam(point, true),
+            };
         }
 
         return {
             point: resolveSpawnDisplayPoint(point, allPoints, true),
-            team,
+            team: effectiveSpawnTeam(point, true),
         };
     }
 
@@ -892,17 +887,35 @@
         return 'tactics-map-point--other';
     }
 
-    const SPAWN_FLAG_PATH_D = 'M7 2.5h2v27H7zM9.5 7L26 7 20 16 26 25 9.5 25z';
+    const SPAWN_FLAG_INNER_SCALE = 0.72;
+
+    const SPAWN_FLAG_PATH_D = 'M7.85 4.9m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0'
+        + 'M7.25 6.1h1.2v21.9H7.25z'
+        + 'M8.75 7.6L24.75 7.6 19.25 11.1 24.75 14.6 8.75 14.6z';
 
     const SPAWN_BASE_FLAG_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
         + `<path fill="#fff" d="${SPAWN_FLAG_PATH_D}"/>`
         + '</svg>';
 
+    function getSpawnFlagMarkerScale(radius) {
+        return radius * SPAWN_FLAG_INNER_SCALE;
+    }
+
     function spawnFlagFabricPathD(scale) {
         const u = scale / 16;
-        const pole = `M ${-9 * u} ${-13.5 * u} h ${2 * u} v ${27 * u} h ${-2 * u} Z`;
-        const flag = `M ${-6.5 * u} ${-9 * u} L ${10 * u} ${-9 * u} L ${4 * u} 0 L ${10 * u} ${9 * u} L ${-6.5 * u} ${9 * u} Z`;
-        return `${pole} ${flag}`;
+        const x = (vx) => (vx - 16) * u;
+        const y = (vy) => (vy - 16) * u;
+        const finial = `M ${x(7.85)} ${y(4.9)}`
+            + ` m ${-u} 0`
+            + ` a ${u} ${u} 0 1 0 ${2 * u} 0`
+            + ` a ${u} ${u} 0 1 0 ${-2 * u} 0`;
+        const pole = `M ${x(7.25)} ${y(6.1)} h ${1.2 * u} v ${21.9 * u} h ${-1.2 * u} Z`;
+        const flag = `M ${x(8.75)} ${y(7.6)}`
+            + ` L ${x(24.75)} ${y(7.6)}`
+            + ` L ${x(19.25)} ${y(11.1)}`
+            + ` L ${x(24.75)} ${y(14.6)}`
+            + ` L ${x(8.75)} ${y(14.6)} Z`;
+        return `${finial} ${pole} ${flag}`;
     }
 
     function spawnBaseFlagStyleUrl() {
@@ -1023,6 +1036,7 @@
             el.style.left = `${pos.left}%`;
             el.style.top = `${pos.top}%`;
             el.style.transform = spawnMarkerTransform(getSpawnPointMarkerScale(point));
+            el.style.opacity = String(getSpawnPointMarkerOpacity(point));
             if (type === 'base') {
                 appendSpawnBaseMarker(el, point);
             } else if (type === 'control_point') {
@@ -1111,6 +1125,9 @@
         getMapSpawnData,
         getSpawnPointMarkerScale,
         normalizeSpawnMarkerScale,
+        getSpawnPointMarkerOpacity,
+        normalizeSpawnMarkerOpacity,
+        SPAWN_MARKER_OPACITY_DEFAULT,
         spawnMarkerTransform,
         supportsSpawnOverlay,
         getSlideSpawnOverlayOpts,
@@ -1123,6 +1140,7 @@
         spawnBaseLabelForTeam,
         spawnBaseFlagStyleUrl,
         spawnFlagFabricPathD,
+        getSpawnFlagMarkerScale,
         appendSpawnBaseFlag,
         appendSpawnBaseMarker,
         spawnBaseDisplayNumber,
