@@ -16,19 +16,11 @@
                     title: 'Рекрутинг',
                     desc: 'Поиск команды, клана, игроков в клан и команду.',
                 },
-                online: {
-                    title: 'Статус серверов',
-                    desc: 'Статус доступности серверов, онлайн и графики.',
-                },
                 tactics: {
                     title: 'Тактический планшет',
                     desc: 'Совместное планирование тактик на картах — открытые и закрытые комнаты.',
                     createLabel: 'Создать планшет',
                     roomsLabel: 'Открытые комнаты',
-                },
-                'clan-reserve': {
-                    title: 'Клановые резервы',
-                    desc: 'Список клановых резервов, ручной запуск и автоматическая активация по расписанию.',
                 },
                 bracket: {
                     title: 'Генератор турнирных сеток',
@@ -36,17 +28,9 @@
                     createLabel: 'Создать сетку',
                     publicLabel: 'Публичные сетки',
                 },
-                'mod-install': {
-                    title: 'Установка модов',
-                    desc: 'Пошаговая установка модов для World of Tanks или Мира танков.',
-                },
                 'aim-trainers': {
                     title: 'Аим-тренажеры',
                     desc: 'Мини-игры для тренировки прицеливания и реакции.',
-                },
-                'online-games': {
-                    title: 'Онлайн игры',
-                    desc: 'Играйте с друзьями в реальном времени — настольные игры и не только.',
                 },
                 'games-launcher': {
                     title: 'Chadow Games Launcher',
@@ -56,7 +40,6 @@
             hrefs: {
                 abs: '/services/abs',
                 recruiting: '/services/recruiting',
-                online: '/services/online',
                 tactics: '/services/tactics',
                 'tactics-create': '/services/tactics',
                 'tactics-rooms': '/services/tactics/rooms',
@@ -64,9 +47,6 @@
                 'bracket-create': '/services/bracket/create',
                 'bracket-public': '/services/bracket',
                 'aim-trainers': '/services/aim',
-                'mod-install': '/services/mods',
-                'online-games': '/services/onlinegames',
-                'clan-reserve': '/services/reserves',
             },
         },
         en: {
@@ -83,19 +63,11 @@
                     title: 'Recruiting',
                     desc: 'Search for teams, clans, and players for clan and team.',
                 },
-                online: {
-                    title: 'Server Status',
-                    desc: 'Server availability status, online counts, and charts.',
-                },
                 tactics: {
                     title: 'Tactical Board',
                     desc: 'Plan tactics together on map overlays — open or password-protected rooms.',
                     createLabel: 'Create board',
                     roomsLabel: 'Open rooms',
-                },
-                'clan-reserve': {
-                    title: 'Clan Reserves',
-                    desc: 'View clan reserves, activate manually, or schedule automatic activation.',
                 },
                 bracket: {
                     title: 'Tournament Bracket Generator',
@@ -103,17 +75,9 @@
                     createLabel: 'Create bracket',
                     publicLabel: 'Public brackets',
                 },
-                'mod-install': {
-                    title: 'Mod Installation',
-                    desc: 'Step-by-step mod installation and setup for World of Tanks and Mir Tankov.',
-                },
                 'aim-trainers': {
                     title: 'Aim Trainer Games',
                     desc: 'Mini-games for aim and reaction training.',
-                },
-                'online-games': {
-                    title: 'Online Games',
-                    desc: 'Play with friends in real time — board games and more.',
                 },
                 'games-launcher': {
                     title: 'Chadow Games Launcher',
@@ -123,7 +87,6 @@
             hrefs: {
                 abs: '/en/services/abs',
                 recruiting: '/en/services/recruiting',
-                online: '/en/services/online',
                 tactics: '/en/services/tactics',
                 'tactics-create': '/en/services/tactics',
                 'tactics-rooms': '/en/services/tactics/rooms',
@@ -131,9 +94,6 @@
                 'bracket-create': '/en/services/bracket/create',
                 'bracket-public': '/en/services/bracket',
                 'aim-trainers': '/en/services/aim',
-                'mod-install': '/en/services/mods',
-                'online-games': '/en/services/onlinegames',
-                'clan-reserve': '/en/services/reserves',
             },
         },
     };

@@ -70,8 +70,6 @@
 
         if (typeof window.absUpdateDocumentTitle === 'function'
             && !document.body.classList.contains('page-recruiting')
-            && !document.body.classList.contains('page-online')
-            && !document.body.classList.contains('page-reserves')
             && !document.getElementById('uploadArea')) {
             window.absUpdateDocumentTitle(lang);
         }
@@ -214,27 +212,6 @@
         }
     }
 
-    async function switchOnlineLanguage(lang) {
-        if (lang !== 'ru' && lang !== 'en') return false;
-        if (window.ABS_LANG === lang) return true;
-
-        if (!window.AbsOnline || typeof window.AbsOnline.switchLanguage !== 'function') {
-            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
-            return true;
-        }
-
-        window.AbsOnline.switchLanguage(lang);
-        window.ABS_LANG = lang;
-        document.documentElement.lang = lang;
-
-        const newPath = buildLangPath(window.location.pathname, lang);
-        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
-
-        updateLangLinks(lang);
-        updateHeaderFooterTexts(lang);
-        return true;
-    }
-
     async function switchRecruitingLanguage(lang) {
         if (lang !== 'ru' && lang !== 'en') return false;
         if (window.ABS_RECRUITING_LANG === lang) return true;
@@ -344,25 +321,6 @@
         return true;
     }
 
-    async function switchWotmodsLanguage(lang) {
-        if (lang !== 'ru' && lang !== 'en') return false;
-        if (window.ABS_WOTMODS_LANG === lang && window.ABS_LANG === lang) return true;
-
-        if (!window.AbsWotmodsI18n || typeof window.AbsWotmodsI18n.switchLanguage !== 'function') {
-            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
-            return true;
-        }
-
-        window.AbsWotmodsI18n.switchLanguage(lang);
-
-        const newPath = buildLangPath(window.location.pathname, lang);
-        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
-
-        updateLangLinks(lang);
-        updateHeaderFooterTexts(lang);
-        return true;
-    }
-
     async function switchAimLanguage(lang) {
         if (lang !== 'ru' && lang !== 'en') return false;
         if (window.ABS_AIM_LANG === lang && window.ABS_LANG === lang) return true;
@@ -392,90 +350,9 @@
         return true;
     }
 
-    async function switchCheckersLanguage(lang) {
-        if (lang !== 'ru' && lang !== 'en') return false;
-        if (window.ABS_CHECKERS_LANG === lang && window.ABS_LANG === lang
-            && !document.body.classList.contains('page-battleship')) return true;
-        if (window.ABS_BATTLESHIP_LANG === lang && window.ABS_LANG === lang
-            && document.body.classList.contains('page-battleship')) return true;
-
-        if (!window.AbsCheckersI18n || typeof window.AbsCheckersI18n.switchLanguage !== 'function') {
-            if (window.AbsBattleshipI18n && typeof window.AbsBattleshipI18n.switchLanguage === 'function') {
-                window.AbsBattleshipI18n.switchLanguage(lang);
-            } else {
-                window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
-                return true;
-            }
-        } else {
-            window.AbsCheckersI18n.switchLanguage(lang);
-        }
-
-        if (window.AbsBattleshipI18n && typeof window.AbsBattleshipI18n.switchLanguage === 'function'
-            && window.AbsCheckersI18n && typeof window.AbsCheckersI18n.switchLanguage === 'function') {
-            window.AbsBattleshipI18n.switchLanguage(lang);
-        }
-
-        if (window.AbsCheckersRoom && typeof window.AbsCheckersRoom.relocalizeView === 'function') {
-            window.AbsCheckersRoom.relocalizeView();
-        }
-        if (window.AbsCheckersLobby && typeof window.AbsCheckersLobby.relocalizeView === 'function') {
-            window.AbsCheckersLobby.relocalizeView();
-        }
-        if (window.AbsBattleshipRoom && typeof window.AbsBattleshipRoom.relocalizeView === 'function') {
-            window.AbsBattleshipRoom.relocalizeView();
-        }
-        if (window.AbsBattleshipLobby && typeof window.AbsBattleshipLobby.relocalizeView === 'function') {
-            window.AbsBattleshipLobby.relocalizeView();
-        }
-        if (window.AbsOnlinegamesHub && typeof window.AbsOnlinegamesHub.relocalizeView === 'function') {
-            window.AbsOnlinegamesHub.relocalizeView();
-        }
-
-        const newPath = buildLangPath(window.location.pathname, lang);
-        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
-
-        updateLangLinks(lang);
-        updateHeaderFooterTexts(lang);
-        return true;
-    }
-
-    async function switchOnlineGamesLanguage(lang) {
-        return switchCheckersLanguage(lang);
-    }
-
-    async function switchReservesLanguage(lang) {
-        if (lang !== 'ru' && lang !== 'en') return false;
-        if (window.ABS_RESERVES_LANG === lang && window.ABS_LANG === lang) return true;
-
-        if (!window.AbsReservesI18n || typeof window.AbsReservesI18n.switchLanguage !== 'function') {
-            window.location.href = buildLangPath(window.location.pathname, lang) + window.location.search + window.location.hash;
-            return true;
-        }
-
-        window.AbsReservesI18n.switchLanguage(lang);
-
-        const newPath = buildLangPath(window.location.pathname, lang);
-        window.history.replaceState({}, '', newPath + window.location.search + window.location.hash);
-
-        updateLangLinks(lang);
-        updateHeaderFooterTexts(lang);
-        return true;
-    }
-
     async function switchLanguageInPlace(lang) {
         if (document.body.classList.contains('page-auth-profile')) {
             await switchProfileLanguage(lang);
-            return;
-        }
-
-        if (document.body.classList.contains('page-checkers')
-            || document.body.classList.contains('page-onlinegames')) {
-            await switchOnlineGamesLanguage(lang);
-            return;
-        }
-
-        if (document.body.classList.contains('page-online')) {
-            await switchOnlineLanguage(lang);
             return;
         }
 
@@ -496,16 +373,6 @@
 
         if (document.body.classList.contains('page-aim')) {
             await switchAimLanguage(lang);
-            return;
-        }
-
-        if (document.body.classList.contains('page-wotmods')) {
-            await switchWotmodsLanguage(lang);
-            return;
-        }
-
-        if (document.body.classList.contains('page-reserves')) {
-            await switchReservesLanguage(lang);
             return;
         }
 

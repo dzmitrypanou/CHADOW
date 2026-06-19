@@ -1,6 +1,0 @@
-<mod>
-  <name>chadow.battle-limit</name>
-  <description>Blocks the fight button after the selected number of battles per session. Set 0 to block completely.</description>
-  <version>{{VERSION}}</version>
-  <author>chadow.ru</author>
-</mod>

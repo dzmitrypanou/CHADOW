@@ -75,25 +75,12 @@ $deployLastmod = abs_sitemap_lastmod_from_version();
 $pages = [
     abs_sitemap_page('/', '/en', abs_sitemap_lastmod_from_file('/index.php')),
     abs_sitemap_page('/services/abs', '/en/services/abs', abs_sitemap_lastmod_from_file('/services/abs/index.php')),
-    abs_sitemap_page('/services/online', '/en/services/online', abs_sitemap_lastmod_from_file('/services/online/index.php')),
     abs_sitemap_page('/services/recruiting', '/en/services/recruiting', abs_sitemap_lastmod_from_file('/services/recruiting/index.php')),
     abs_sitemap_page('/services/bracket', '/en/services/bracket', abs_sitemap_lastmod_from_file('/services/bracket/index.php')),
     abs_sitemap_page('/services/tactics', '/en/services/tactics', abs_sitemap_lastmod_from_file('/services/tactics/index.php')),
     abs_sitemap_page('/services/tactics/rooms', '/en/services/tactics/rooms', abs_sitemap_lastmod_from_file('/services/tactics/rooms.php')),
     abs_sitemap_page('/services/aim', '/en/services/aim', abs_sitemap_lastmod_from_file('/services/aim/index.php')),
     abs_sitemap_page('/services/aim/ratings', '/en/services/aim/ratings', abs_sitemap_lastmod_from_file('/services/aim/ratings.php')),
-    abs_sitemap_page(
-        '/services/onlinegames',
-        '/en/services/onlinegames',
-        abs_sitemap_lastmod_from_files([
-            '/services/onlinegames/index.php',
-            '/services/onlinegames/checkers/index.php',
-            '/services/onlinegames/battleship/index.php',
-        ])
-    ),
-    abs_sitemap_page('/services/onlinegames/checkers', '/en/services/onlinegames/checkers', abs_sitemap_lastmod_from_file('/services/onlinegames/checkers/index.php')),
-    abs_sitemap_page('/services/onlinegames/battleship', '/en/services/onlinegames/battleship', abs_sitemap_lastmod_from_file('/services/onlinegames/battleship/index.php')),
-    abs_sitemap_page('/services/mods', '/en/services/mods', abs_sitemap_lastmod_from_file('/services/mods/index.php')),
 ];
 
 foreach (AIM_TRAINERS as $trainer) {

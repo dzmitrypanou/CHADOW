@@ -31,20 +31,6 @@
         }
     }
 
-    handle /checkers-ws* {
-        reverse_proxy 127.0.0.1:8792 {
-            header_up Host {host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    handle /battleship-ws* {
-        reverse_proxy 127.0.0.1:8793 {
-            header_up Host {host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
     @static_xml {
         path *.xml
         file {path}
@@ -63,19 +49,6 @@
 
         rewrite /services/abs /services/abs/index.php
         rewrite /en/services/abs /services/abs/index.php
-        @online_en path_regexp online_en ^/en/services/online/?$
-        rewrite @online_en /services/online/index.php
-        @online path_regexp online ^/services/online/?$
-        rewrite @online /services/online/index.php
-
-        redir /services/wotmods /services/mods permanent
-        redir /en/services/wotmods /en/services/mods permanent
-        redir /services/wotmods/battle-limit /services/mods permanent
-        redir /en/services/wotmods/battle-limit /en/services/mods permanent
-        @mods_en path_regexp mods_en ^/en/services/mods/?$
-        rewrite @mods_en /services/mods/index.php
-        @mods path_regexp mods ^/services/mods/?$
-        rewrite @mods /services/mods/index.php
 
         rewrite /services/recruiting/post /services/recruiting/post.php
         rewrite /services/recruiting/edit /services/recruiting/edit.php
@@ -83,9 +56,6 @@
         rewrite /en/services/recruiting/edit /services/recruiting/edit.php
         rewrite /services/recruiting /services/recruiting/index.php
         rewrite /en/services/recruiting /services/recruiting/index.php
-
-        rewrite /services/reserves /services/reserves/index.php
-        rewrite /en/services/reserves /services/reserves/index.php
 
         rewrite /services/bracket/create /services/bracket/create.php
         rewrite /en/services/bracket/create /services/bracket/create.php
@@ -112,26 +82,6 @@
         # Aim trainers — fixed paths first, then any trainer slug
         rewrite /services/aim/ratings /services/aim/ratings.php
         rewrite /en/services/aim/ratings /services/aim/ratings.php
-        redir /services/aim/checkers /services/onlinegames/checkers permanent
-        redir /en/services/aim/checkers /en/services/onlinegames/checkers permanent
-        @aim_checkers_old_room path_regexp aco ^/services/aim/checkers/([A-Z0-9]{6})/?$
-        redir @aim_checkers_old_room /services/onlinegames/checkers/{re.aco.1} permanent
-        @aim_checkers_old_room_en path_regexp acoe ^/en/services/aim/checkers/([A-Z0-9]{6})/?$
-        redir @aim_checkers_old_room_en /en/services/onlinegames/checkers/{re.acoe.1} permanent
-        rewrite /services/onlinegames/checkers /services/onlinegames/checkers/index.php
-        rewrite /en/services/onlinegames/checkers /services/onlinegames/checkers/index.php
-        @onlinegames_checkers_room path_regexp ocr ^/services/onlinegames/checkers/([A-Z0-9]{6})/?$
-        rewrite @onlinegames_checkers_room /services/onlinegames/checkers/room.php?public_id={re.ocr.1}
-        @onlinegames_checkers_room_en path_regexp ocre ^/en/services/onlinegames/checkers/([A-Z0-9]{6})/?$
-        rewrite @onlinegames_checkers_room_en /services/onlinegames/checkers/room.php?public_id={re.ocre.1}
-        rewrite /services/onlinegames/battleship /services/onlinegames/battleship/index.php
-        rewrite /en/services/onlinegames/battleship /services/onlinegames/battleship/index.php
-        @onlinegames_battleship_room path_regexp obr ^/services/onlinegames/battleship/([A-Z0-9]{6})/?$
-        rewrite @onlinegames_battleship_room /services/onlinegames/battleship/room.php?public_id={re.obr.1}
-        @onlinegames_battleship_room_en path_regexp obre ^/en/services/onlinegames/battleship/([A-Z0-9]{6})/?$
-        rewrite @onlinegames_battleship_room_en /services/onlinegames/battleship/room.php?public_id={re.obre.1}
-        rewrite /services/onlinegames /services/onlinegames/index.php
-        rewrite /en/services/onlinegames /services/onlinegames/index.php
         @aim_play_trainer {
             path /services/aim/play.php
             query trainer=*

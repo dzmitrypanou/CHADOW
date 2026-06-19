@@ -3,7 +3,6 @@ require_once __DIR__ . '/../includes/user_bootstrap.php';
 require_once __DIR__ . '/../includes/lang.php';
 require_once __DIR__ . '/../includes/wg_openid_client.php';
 require_once __DIR__ . '/../includes/minecraft_oauth_helpers.php';
-require_once __DIR__ . '/../includes/clan_reserve_helpers.php';
 
 $lang = abs_detect_lang();
 $isEn = $lang === 'en';
@@ -44,8 +43,6 @@ $errorRedirect = static function (string $message) use ($mode, $loginUrl, $profi
     }
     if ($mode === 'login') {
         header('Location: ' . $loginUrl . '?' . http_build_query(['wg_error' => $message]));
-    } elseif ($mode === 'reserve_link' || $mode === 'reserve_refresh') {
-        header('Location: ' . $returnUrl . (str_contains($returnUrl, '?') ? '&' : '?') . http_build_query(['wg_error' => $message]));
     } else {
         header('Location: ' . $profileUrl . '?' . http_build_query(['wg_error' => $message]));
     }
@@ -58,12 +55,11 @@ $nickname = isset($_GET['nickname']) ? (string) $_GET['nickname'] : '';
 $accountId = isset($_GET['account_id']) ? (int) $_GET['account_id'] : 0;
 $expiresAt = isset($_GET['expires_at']) ? (int) $_GET['expires_at'] : 0;
 
-if ($mode !== 'login' && $mode !== 'link' && $mode !== 'launcher' && $mode !== 'refresh'
-    && $mode !== 'reserve_link' && $mode !== 'reserve_refresh') {
+if ($mode !== 'login' && $mode !== 'link' && $mode !== 'launcher' && $mode !== 'refresh') {
     $errorRedirect($isEn ? 'Session expired. Try again.' : 'Сессия истекла. Попробуйте снова.');
 }
 
-if (($mode === 'link' || $mode === 'refresh' || $mode === 'reserve_link' || $mode === 'reserve_refresh') && $linkUserId <= 0) {
+if (($mode === 'link' || $mode === 'refresh') && $linkUserId <= 0) {
     $errorRedirect($isEn ? 'Session expired. Try again.' : 'Сессия истекла. Попробуйте снова.');
 }
 
@@ -131,7 +127,7 @@ if ($mode === 'refresh') {
     if (!$profile) {
         $errorRedirect($isEn ? 'Account not found.' : 'Аккаунт не найден.');
     }
-    $linkCtx = clan_reserve_user_link_context($profile);
+    $linkCtx = user_game_link_context($profile);
     if ($linkCtx === null || empty($linkCtx['linked'])) {
         $errorRedirect($isEn ? 'Game account is not linked.' : 'Игровой аккаунт не привязан.');
     }
@@ -144,61 +140,6 @@ if ($mode === 'refresh') {
     $successUrl = $returnUrl;
     $separator = str_contains($successUrl, '?') ? '&' : '?';
     header('Location: ' . $successUrl . $separator . 'wg_linked=1');
-    exit();
-}
-
-if ($mode === 'reserve_refresh' || $mode === 'reserve_link') {
-    $reserveProvider = $linkProvider !== '' ? clan_reserve_normalize_provider($linkProvider) : ($realm === 'ru' ? 'lesta' : 'wg');
-    $reserveRealm = clan_reserve_realm_for_provider($reserveProvider, $realm);
-
-    if ($mode === 'reserve_refresh') {
-        $tokenRow = $linkId > 0
-            ? clan_reserve_fetch_token_by_id($userDb, $linkUserId, $linkId)
-            : clan_reserve_fetch_token_row($userDb, $linkUserId, $reserveProvider, $reserveRealm);
-        if ($tokenRow === null) {
-            $errorRedirect($isEn ? 'Reserve link not found.' : 'Привязка резервов не найдена.');
-        }
-        if ((int) ($tokenRow['account_id'] ?? 0) !== $accountId) {
-            $errorRedirect($isEn
-                ? 'Authorized account does not match the linked reserve account.'
-                : 'Авторизованный аккаунт не совпадает с привязанным для резервов.');
-        }
-    }
-
-    $alreadyLinked = false;
-    if ($mode === 'reserve_link') {
-        $existingRow = clan_reserve_fetch_token_row($userDb, $linkUserId, $reserveProvider, $reserveRealm, $accountId);
-        $alreadyLinked = $existingRow !== null;
-    }
-
-    $tokenExpires = (int) ($verified['expires_at'] ?? $expiresAt);
-    if ($tokenExpires <= 0) {
-        $tokenExpires = time() + 1209600;
-    }
-    $savedLinkId = clan_reserve_save_user_token(
-        $userDb,
-        $linkUserId,
-        $reserveProvider,
-        $reserveRealm,
-        $accountId,
-        (string) ($verified['access_token'] ?? $accessToken),
-        $tokenExpires,
-        $nickname
-    );
-    if ($savedLinkId <= 0) {
-        $errorRedirect($isEn ? 'Could not save API token.' : 'Не удалось сохранить токен API.');
-    }
-
-    $successUrl = $returnUrl;
-    $separator = str_contains($successUrl, '?') ? '&' : '?';
-    if ($alreadyLinked) {
-        header('Location: ' . $successUrl . $separator . http_build_query([
-            'wg_linked' => 'exists',
-            'link_id' => $savedLinkId,
-        ]));
-    } else {
-        header('Location: ' . $successUrl . $separator . 'wg_linked=1&link_id=' . $savedLinkId);
-    }
     exit();
 }
 

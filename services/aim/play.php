@@ -12,10 +12,6 @@ require_once __DIR__ . '/../../includes/user_auth.php';
 require_once __DIR__ . '/../../includes/aim_helpers.php';
 
 $trainer = isset($_GET['trainer']) ? strtolower(trim((string) $_GET['trainer'])) : '';
-if ($trainer === 'checkers') {
-    header('Location: ' . abs_build_lang_href($lang, 'services/onlinegames/checkers'), true, 301);
-    exit;
-}
 if (!aim_trainer_valid($trainer)) {
     http_response_code(404);
     require __DIR__ . '/../../404.php';

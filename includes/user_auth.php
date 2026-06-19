@@ -420,6 +420,37 @@ function user_wg_is_linked(array $profile): bool {
     return user_wg_api_is_linked($profile) || user_lesta_is_linked($profile);
 }
 
+function user_game_link_context(array $profile): ?array {
+    if (user_lesta_is_linked($profile)) {
+        $accountId = (int) ($profile['lesta_account_id'] ?? 0);
+        if ($accountId <= 0 && user_normalize_wg_realm((string) ($profile['wg_realm'] ?? '')) === 'ru') {
+            $accountId = (int) ($profile['wg_account_id'] ?? 0);
+        }
+
+        return [
+            'provider' => 'lesta',
+            'realm' => 'ru',
+            'account_id' => $accountId,
+            'nickname' => trim((string) ($profile['lesta_nickname'] ?? $profile['wg_nickname'] ?? '')),
+            'linked' => $accountId > 0,
+        ];
+    }
+
+    if (user_wg_api_is_linked($profile)) {
+        $realm = user_normalize_wg_realm((string) ($profile['wg_realm'] ?? ''));
+
+        return [
+            'provider' => 'wg',
+            'realm' => $realm,
+            'account_id' => (int) ($profile['wg_account_id'] ?? 0),
+            'nickname' => trim((string) ($profile['wg_nickname'] ?? '')),
+            'linked' => true,
+        ];
+    }
+
+    return null;
+}
+
 function user_wg_provider_label(string $realm, string $lang = 'ru'): string {
     $realm = user_normalize_wg_realm($realm);
     if ($realm === 'ru') {

@@ -9,7 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../../includes/user_bootstrap.php';
 require_once __DIR__ . '/../../includes/lang.php';
-require_once __DIR__ . '/../../includes/clan_reserve_helpers.php';
 
 $lang = abs_detect_lang();
 

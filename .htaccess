@@ -34,12 +34,6 @@ ErrorDocument 404 /404.php
     RewriteRule ^en/services/abs/?$ services/abs/index.php [L,QSA]
     RewriteRule ^services/abs/?$ services/abs/index.php [L,QSA]
 
-    # Сервис онлайна серверов WoT
-    RewriteCond %{THE_REQUEST} \s/+services/online/index\.php(?:[?\s]|$) [NC]
-    RewriteRule ^services/online/index\.php$ /services/online [R=301,L,QSA]
-    RewriteRule ^en/services/online/?$ services/online/index.php [L,QSA]
-    RewriteRule ^services/online/?$ services/online/index.php [L,QSA]
-
     # Авторизация пользователей
     RewriteCond %{THE_REQUEST} \s/+auth/([a-z0-9_\-]+)\.php(?:[?\s]|$) [NC]
     RewriteRule ^auth/([a-z0-9_\-]+)\.php$ /auth/$1 [R=301,L,QSA]
@@ -86,12 +80,6 @@ ErrorDocument 404 /404.php
     RewriteRule ^en/services/tactics/?$ services/tactics/index.php [L,QSA]
     RewriteRule ^services/tactics/?$ services/tactics/index.php [L,QSA]
 
-    # Клановые резервы
-    RewriteCond %{THE_REQUEST} \s/+services/reserves/index\.php(?:[?\s]|$) [NC]
-    RewriteRule ^services/reserves/index\.php$ /services/reserves [R=301,L,QSA]
-    RewriteRule ^en/services/reserves/?$ services/reserves/index.php [L,QSA]
-    RewriteRule ^services/reserves/?$ services/reserves/index.php [L,QSA]
-
     # Аим-тренажеры
     RewriteCond %{THE_REQUEST} \s/+services/aim/index\.php(?:[?\s]|$) [NC]
     RewriteRule ^services/aim/index\.php$ /services/aim [R=301,L,QSA]
@@ -104,35 +92,6 @@ ErrorDocument 404 /404.php
     RewriteRule ^services/aim/ratings\.php$ /services/aim/ratings [R=301,L,QSA]
     RewriteRule ^en/services/aim/ratings/?$ services/aim/ratings.php [L,QSA]
     RewriteRule ^services/aim/ratings/?$ services/aim/ratings.php [L,QSA]
-    RewriteRule ^en/services/aim/checkers/?$ /en/services/onlinegames/checkers [R=301,L]
-    RewriteRule ^services/aim/checkers/?$ /services/onlinegames/checkers [R=301,L]
-    RewriteRule ^en/services/aim/checkers/([A-Z0-9]{6})/?$ /en/services/onlinegames/checkers/$1 [R=301,L]
-    RewriteRule ^services/aim/checkers/([A-Z0-9]{6})/?$ /services/onlinegames/checkers/$1 [R=301,L]
-    RewriteRule ^en/services/onlinegames/checkers/([A-Z0-9]{6})/?$ services/onlinegames/checkers/room.php?public_id=$1 [L,QSA]
-    RewriteRule ^services/onlinegames/checkers/([A-Z0-9]{6})/?$ services/onlinegames/checkers/room.php?public_id=$1 [L,QSA]
-    RewriteRule ^en/services/onlinegames/checkers/?$ services/onlinegames/checkers/index.php [L,QSA]
-    RewriteRule ^services/onlinegames/checkers/?$ services/onlinegames/checkers/index.php [L,QSA]
-    RewriteRule ^en/services/onlinegames/battleship/([A-Z0-9]{6})/?$ services/onlinegames/battleship/room.php?public_id=$1 [L,QSA]
-    RewriteRule ^services/onlinegames/battleship/([A-Z0-9]{6})/?$ services/onlinegames/battleship/room.php?public_id=$1 [L,QSA]
-    RewriteRule ^en/services/onlinegames/battleship/?$ services/onlinegames/battleship/index.php [L,QSA]
-    RewriteRule ^services/onlinegames/battleship/?$ services/onlinegames/battleship/index.php [L,QSA]
-    RewriteRule ^en/services/onlinegames/?$ services/onlinegames/index.php [L,QSA]
-    RewriteRule ^services/onlinegames/?$ services/onlinegames/index.php [L,QSA]
-
-    # Установка модов WoT
-    RewriteCond %{THE_REQUEST} \s/+services/wotmods(?:/index\.php)?(?:[?\s]|$) [NC]
-    RewriteRule ^services/wotmods(?:/index\.php)?/?$ /services/mods [R=301,L,QSA]
-    RewriteCond %{THE_REQUEST} \s/+en/services/wotmods(?:/index\.php)?(?:[?\s]|$) [NC]
-    RewriteRule ^en/services/wotmods(?:/index\.php)?/?$ /en/services/mods [R=301,L,QSA]
-    RewriteCond %{THE_REQUEST} \s/+services/wotmods/battle-limit(?:/index\.php)?(?:[?\s]|$) [NC]
-    RewriteRule ^services/wotmods/battle-limit(?:/index\.php)?/?$ /services/mods [R=301,L,QSA]
-    RewriteCond %{THE_REQUEST} \s/+en/services/wotmods/battle-limit(?:/index\.php)?(?:[?\s]|$) [NC]
-    RewriteRule ^en/services/wotmods/battle-limit(?:/index\.php)?/?$ /en/services/mods [R=301,L,QSA]
-    RewriteCond %{THE_REQUEST} \s/+services/mods/index\.php(?:[?\s]|$) [NC]
-    RewriteRule ^services/mods/index\.php$ /services/mods [R=301,L,QSA]
-    RewriteRule ^en/services/mods/?$ services/mods/index.php [L,QSA]
-    RewriteRule ^services/mods/?$ services/mods/index.php [L,QSA]
-
     RewriteRule ^en/services/aim/([a-z0-9_-]+)/?$ services/aim/play.php?trainer=$1 [L,QSA]
     RewriteRule ^services/aim/([a-z0-9_-]+)/?$ services/aim/play.php?trainer=$1 [L,QSA]
     RewriteRule ^en/services/aim/?$ services/aim/index.php [L,QSA]

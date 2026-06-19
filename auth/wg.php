@@ -44,7 +44,7 @@ $profileUrl = user_auth_path('/auth/profile');
 $defaultReturn = user_auth_path('/auth/profile');
 
 $action = isset($_GET['action']) ? strtolower(trim((string) $_GET['action'])) : 'link';
-$allowedActions = ['login', 'link', 'refresh', 'reserve_link', 'reserve_refresh'];
+$allowedActions = ['login', 'link', 'refresh'];
 if (!in_array($action, $allowedActions, true)) {
     $action = 'link';
 }
@@ -58,9 +58,6 @@ if ($provider === 'lesta') {
 } elseif ($provider === 'wg' && $realm === 'ru') {
     $realm = 'eu';
 }
-
-$isReserveAction = $action === 'reserve_link' || $action === 'reserve_refresh';
-$reservesReturnDefault = user_auth_path('/services/reserves');
 
 if ($action === 'login') {
     if (user_is_logged_in()) {
@@ -98,8 +95,8 @@ if ($action === 'login') {
         exit();
     }
 
-    require_once __DIR__ . '/../includes/clan_reserve_helpers.php';
-    $linkCtx = clan_reserve_user_link_context($profile);
+    require_once __DIR__ . '/../includes/user_auth.php';
+    $linkCtx = user_game_link_context($profile);
     if ($linkCtx === null || empty($linkCtx['linked'])) {
         header('Location: ' . $errorUrl($isEn ? 'Link a game account in profile first.' : 'Сначала привяжите игровой аккаунт в профиле.'));
         exit();
@@ -117,66 +114,6 @@ if ($action === 'login') {
     $_SESSION['wg_oauth_realm'] = $realm;
     $_SESSION['wg_oauth_return'] = $returnUrl;
     $_SESSION['wg_oauth_state'] = bin2hex(random_bytes(16));
-} elseif ($isReserveAction) {
-    user_require_web();
-    user_require_active_web($userDb);
-
-    $userId = user_current_id();
-    $profile = $userId !== null ? user_login_row($userDb, (int) $userId) : null;
-    if (!$profile) {
-        user_logout();
-        header('Location: ' . user_auth_path('/auth/login'));
-        exit();
-    }
-
-    require_once __DIR__ . '/../includes/clan_reserve_helpers.php';
-    require_once __DIR__ . '/../includes/game_api.php';
-
-    $returnUrl = isset($_GET['return'])
-        ? user_validate_return_url((string) $_GET['return'], $reservesReturnDefault)
-        : $reservesReturnDefault;
-
-    $errorUrl = static function (string $message) use ($returnUrl): string {
-        return $returnUrl . (str_contains($returnUrl, '?') ? '&' : '?') . http_build_query(['wg_error' => $message]);
-    };
-
-    $linkProvider = $provider === 'lesta' || $realm === 'ru' ? 'lesta' : 'wg';
-    $linkRealm = $linkProvider === 'lesta' ? 'ru' : WgOpenIdClient::normalizeRealm($realm);
-
-    if (!game_api_is_configured_for_realm($linkRealm, $userDb)) {
-        header('Location: ' . $errorUrl($isEn
-            ? 'API is not configured for this region.'
-            : 'API для этого региона не настроен.'));
-        exit();
-    }
-
-    if ($action === 'reserve_refresh') {
-        $linkId = isset($_GET['link_id']) ? (int) $_GET['link_id'] : 0;
-        if ($linkId <= 0) {
-            header('Location: ' . $errorUrl($isEn
-                ? 'Reserve link id is required.'
-                : 'Не указан id привязки резервов.'));
-            exit();
-        }
-        $tokenRow = clan_reserve_fetch_token_by_id($userDb, (int) $userId, $linkId);
-        if ($tokenRow === null) {
-            header('Location: ' . $errorUrl($isEn
-                ? 'No reserve link found for this account.'
-                : 'Привязка резервов для этого аккаунта не найдена.'));
-            exit();
-        }
-        $_SESSION['wg_oauth_link_id'] = $linkId;
-    } else {
-        unset($_SESSION['wg_oauth_link_id']);
-    }
-
-    $_SESSION['wg_oauth_mode'] = $action;
-    $_SESSION['wg_oauth_user_id'] = (int) $userId;
-    $_SESSION['wg_oauth_realm'] = $linkRealm;
-    $_SESSION['wg_oauth_provider'] = $linkProvider;
-    $_SESSION['wg_oauth_return'] = $returnUrl;
-    $_SESSION['wg_oauth_state'] = bin2hex(random_bytes(16));
-    $realm = $linkRealm;
 } else {
     user_require_web();
     user_require_active_web($userDb);
@@ -224,7 +161,7 @@ if ($action === 'login') {
     $_SESSION['wg_oauth_state'] = bin2hex(random_bytes(16));
 }
 
-$client = new WgOpenIdClient($userDb, $isReserveAction);
+$client = new WgOpenIdClient($userDb);
 $result = $client->fetchLoginLocation($realm);
 
 if (!$result['ok']) {
@@ -239,7 +176,7 @@ if (!$result['ok']) {
     );
     $redirectError = $action === 'login'
         ? ($loginUrl . '?' . http_build_query(['wg_error' => $result['error'] ?? ($isEn ? 'Failed to start sign-in' : 'Не удалось начать вход')]))
-        : (($isReserveAction || $action === 'refresh' ? $returnUrl : $profileUrl) . (str_contains($isReserveAction || $action === 'refresh' ? $returnUrl : $profileUrl, '?') ? '&' : '?') . http_build_query(['wg_error' => $result['error'] ?? ($isEn ? 'Failed to start linking' : 'Не удалось начать привязку')]));
+        : (($action === 'refresh' ? $returnUrl : $profileUrl) . (str_contains($action === 'refresh' ? $returnUrl : $profileUrl, '?') ? '&' : '?') . http_build_query(['wg_error' => $result['error'] ?? ($isEn ? 'Failed to start linking' : 'Не удалось начать привязку')]));
     header('Location: ' . $redirectError);
     exit();
 }

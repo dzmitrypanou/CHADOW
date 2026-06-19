@@ -8,12 +8,11 @@ try {
 }
 
 $metaDescription = $lang === 'en'
-    ? 'Chadow project hub: ABS replay analysis, server status, recruiting, tournament brackets, aim training, and more for World of Tanks.'
-    : 'Портал Chadow: анализ АБС реплеев, статус серверов, рекрутинг, турнирные сетки, тренировка прицела и другие сервисы для World of Tanks.';
+    ? 'Chadow project hub: ABS replay analysis, recruiting, tournament brackets, aim training, and more for World of Tanks.'
+    : 'Портал Chadow: анализ АБС реплеев, рекрутинг, турнирные сетки, тренировка прицела и другие сервисы для World of Tanks.';
 $bodyClass = 'page-landing';
 
 $absServiceHref = $lang === 'en' ? '/en/services/abs' : '/services/abs';
-$onlineServiceHref = $lang === 'en' ? '/en/services/online' : '/services/online';
 $recruitingServiceHref = $lang === 'en' ? '/en/services/recruiting' : '/services/recruiting';
 $bracketServiceHref = $lang === 'en' ? '/en/services/bracket' : '/services/bracket';
 $bracketCreateHref = $lang === 'en' ? '/en/services/bracket/create' : '/services/bracket/create';
@@ -26,8 +25,6 @@ $tacticsRoomsHref = $lang === 'en' ? '/en/services/tactics/rooms' : '/services/t
 $tacticsCreateLabel = $lang === 'en' ? 'Create board' : 'Создать планшет';
 $tacticsRoomsLabel = $lang === 'en' ? 'Open rooms' : 'Открытые комнаты';
 $aimServiceHref = $lang === 'en' ? '/en/services/aim' : '/services/aim';
-$onlineGamesServiceHref = $lang === 'en' ? '/en/services/onlinegames' : '/services/onlinegames';
-$wotmodsServiceHref = $lang === 'en' ? '/en/services/mods' : '/services/mods';
 $inDevLabel = $lang === 'en' ? 'In development' : 'в разработке';
 $openLabel = $lang === 'en' ? 'Open' : 'Открыть';
 require_once __DIR__ . '/includes/game_api.php';
@@ -76,22 +73,13 @@ $launcherCardDesc = $lang === 'en'
     : ($launcherCardDescRu !== '' ? $launcherCardDescRu : $launcherCardDescEn);
 $launcherCardBadgesHtml = minecraft_landing_card_badges_html($launcherLanding, $lang, $launcherCardActive);
 $launcherDownloadLabel = $lang === 'en' ? 'Download' : 'Скачать';
-$lestaApiConfigured = game_api_is_configured_for_realm('ru');
 $lestaBadgeHtml = game_api_ru_publisher_badge_span($lang);
 $realmBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
     . $lestaBadgeHtml
     . '</div>';
-$onlineBadgesHtml = '<div class="project-card-badge-row">'
-    . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . ($lestaApiConfigured ? $lestaBadgeHtml : '')
-    . '</div>';
 $inDevBadgeHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge">' . htmlspecialchars($inDevLabel, ENT_QUOTES, 'UTF-8') . '</span>'
-    . '</div>';
-$wotmodsBadgesHtml = '<div class="project-card-badge-row">'
-    . '<span class="project-card-badge project-card-badge--wg">WG</span>'
-    . $lestaBadgeHtml
     . '</div>';
 $bracketBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--wg">WG</span>'
@@ -105,9 +93,6 @@ $aimBadgesHtml = '<div class="project-card-badge-row">'
     . '<span class="project-card-badge project-card-badge--cs2">CS2</span>'
     . '<span class="project-card-badge project-card-badge--dota2">Dota 2</span>'
     . '</div>';
-$reserveServiceHref = abs_build_lang_href($lang, 'services/reserves');
-$reserveBadgesHtml = game_api_landing_badges_html($lang);
-$reserveServiceActive = game_api_reserves_service_active();
 require __DIR__ . '/includes/site_header.php';
 ?>
 
@@ -195,60 +180,6 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </a>
 
-                <?php if ($reserveServiceActive): ?>
-                <a href="<?php echo htmlspecialchars($reserveServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="clan-reserve">
-                    <i class="fas fa-user-plus project-card-bg-icon" aria-hidden="true"></i>
-                    <div class="project-card-body">
-                        <div class="project-card-head">
-                            <?php echo $reserveBadgesHtml; ?>
-                            <h2 class="project-card-title">
-                                <i class="fas fa-user-plus project-card-icon" aria-hidden="true"></i>
-                                <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Clan Reserves' : 'Клановые резервы'; ?>
-                                </span>
-                            </h2>
-                        </div>
-                        <p class="project-card-desc">
-                            <?php echo $lang === 'en'
-                                ? 'View clan reserves, activate manually, or schedule automatic activation.'
-                                : 'Список клановых резервов, ручной запуск и автоматическая активация по расписанию.'; ?>
-                        </p>
-                    </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
-                    </div>
-                </a>
-                <?php else: ?>
-                <div class="project-card project-card--disabled project-card--span-2" aria-disabled="true" data-landing-id="clan-reserve">
-                    <i class="fas fa-user-plus project-card-bg-icon" aria-hidden="true"></i>
-                    <div class="project-card-body">
-                        <div class="project-card-head">
-                            <?php echo $reserveBadgesHtml; ?>
-                            <h2 class="project-card-title">
-                                <i class="fas fa-user-plus project-card-icon" aria-hidden="true"></i>
-                                <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Clan Reserves' : 'Клановые резервы'; ?>
-                                </span>
-                            </h2>
-                        </div>
-                        <p class="project-card-desc">
-                            <?php echo $lang === 'en'
-                                ? 'Configure WG or LESTA API keys in admin to enable this service.'
-                                : 'Настройте API-ключи WG или LESTA в админке, чтобы включить сервис.'; ?>
-                        </p>
-                    </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action project-card-action--placeholder" aria-hidden="true">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
-                    </div>
-                </div>
-                <?php endif; ?>
-
                 <div class="project-card project-card--active project-card--span-2" data-landing-id="bracket">
                     <i class="fas fa-sitemap project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
@@ -279,32 +210,6 @@ require __DIR__ . '/includes/site_header.php';
                     </div>
                 </div>
 
-                <a href="<?php echo htmlspecialchars($wotmodsServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" id="mod-install" data-landing-id="mod-install">
-                    <i class="fas fa-puzzle-piece project-card-bg-icon" aria-hidden="true"></i>
-                    <div class="project-card-body">
-                        <div class="project-card-head">
-                            <?php echo $wotmodsBadgesHtml; ?>
-                            <h2 class="project-card-title">
-                                <i class="fas fa-puzzle-piece project-card-icon" aria-hidden="true"></i>
-                                <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Mod Installation' : 'Установка модов'; ?>
-                                </span>
-                            </h2>
-                        </div>
-                        <p class="project-card-desc">
-                            <?php echo $lang === 'en'
-                                ? 'Step-by-step mod installation and setup for World of Tanks and Mir Tankov.'
-                                : 'Пошаговая установка модов для World of Tanks или Мира танков.'; ?>
-                        </p>
-                    </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
-                    </div>
-                </a>
-
                 <a href="<?php echo htmlspecialchars($aimServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2" data-landing-id="aim-trainers">
                     <i class="fas fa-crosshairs project-card-bg-icon" aria-hidden="true"></i>
                     <div class="project-card-body">
@@ -321,57 +226,6 @@ require __DIR__ . '/includes/site_header.php';
                             <?php echo $lang === 'en'
                                 ? 'Mini-games for aim and reaction training.'
                                 : 'Мини-игры для тренировки прицеливания и реакции.'; ?>
-                        </p>
-                    </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
-                    </div>
-                </a>
-
-                <a href="<?php echo htmlspecialchars($onlineServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active" data-landing-id="online">
-                    <i class="fas fa-signal project-card-bg-icon" aria-hidden="true"></i>
-                    <div class="project-card-body">
-                        <div class="project-card-head">
-                            <?php echo $onlineBadgesHtml; ?>
-                            <h2 class="project-card-title">
-                                <i class="fas fa-signal project-card-icon" aria-hidden="true"></i>
-                                <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Server Status' : 'Статус серверов'; ?>
-                                </span>
-                            </h2>
-                        </div>
-                        <p class="project-card-desc">
-                            <?php echo $lang === 'en'
-                                ? 'Server availability status, online counts, and charts.'
-                                : 'Статус доступности серверов, онлайн и графики.'; ?>
-                        </p>
-                    </div>
-                    <div class="project-card-footer">
-                        <span class="project-card-action">
-                            <?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>
-                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                        </span>
-                    </div>
-                </a>
-
-                <a href="<?php echo htmlspecialchars($onlineGamesServiceHref, ENT_QUOTES, 'UTF-8'); ?>" class="project-card project-card--active project-card--span-2 project-card--online-games" id="online-games" data-landing-id="online-games">
-                    <i class="fas fa-gamepad project-card-bg-icon" aria-hidden="true"></i>
-                    <div class="project-card-body">
-                        <div class="project-card-head">
-                            <h2 class="project-card-title">
-                                <i class="fas fa-gamepad project-card-icon" aria-hidden="true"></i>
-                                <span class="project-card-title-text">
-                                    <?php echo $lang === 'en' ? 'Online Games' : 'Онлайн игры'; ?>
-                                </span>
-                            </h2>
-                        </div>
-                        <p class="project-card-desc" data-landing-desc="online-games">
-                            <?php echo $lang === 'en'
-                                ? 'Play with friends in real time — board games and more.'
-                                : 'Играйте с друзьями в реальном времени — настольные игры и не только.'; ?>
                         </p>
                     </div>
                     <div class="project-card-footer">

@@ -10,7 +10,6 @@ function chadow_load_cli_env(): void {
     $paths = [
         dirname(__DIR__) . '/config/cli_env.php',
         '/etc/chadow/env',
-        '/etc/chadow/clan-reserves.env',
     ];
 
     foreach ($paths as $path) {
