@@ -6,4 +6,6 @@ Disallow: /install/
 Disallow: /api/
 Allow: /
 
+# AI agents: https://chadow.ru/llms.txt
+
 Sitemap: https://chadow.ru/sitemap.xml

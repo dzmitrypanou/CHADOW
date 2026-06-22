@@ -9,7 +9,7 @@
         const SPAWN_BASE_MS = 720;
         const SPAWN_MIN_MS = 300;
         const SLOW_DUCK_CHANCE = 0.12;
-        const AUDIO_V = '?v=1';
+        const AUDIO_V = '?v=2';
         const BGM_SRC = `/assets/aim/duckhunt-bgm.mp3${AUDIO_V}`;
         const SHOT_SRC = `/assets/aim/duckhunt-shotgun.mp3${AUDIO_V}`;
         const QUACK_SRC = `/assets/aim/duckhunt-quack.mp3${AUDIO_V}`;
@@ -536,6 +536,7 @@
                 streak = 0;
                 bestStreak = 0;
                 ducks = [];
+                pointer = { x: width * 0.5, y: height * 0.5 };
                 running = true;
                 startAt = performance.now();
                 lastUpdate = startAt;

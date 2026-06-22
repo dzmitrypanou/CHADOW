@@ -142,7 +142,7 @@ ErrorDocument 404 /404.php
     <FilesMatch "\.(css|js|svg|ico|webp|png|jpe?g|gif|woff2?|eot)$">
         Header set Cache-Control "public, max-age=2592000, immutable"
     </FilesMatch>
-    <FilesMatch "\.(webmanifest)$">
+    <FilesMatch "\.(webmanifest|txt)$">
         Header set Cache-Control "public, max-age=86400"
     </FilesMatch>
 </IfModule>

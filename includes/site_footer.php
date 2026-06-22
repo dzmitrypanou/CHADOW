@@ -78,10 +78,10 @@ $footerLangEnHref = abs_build_lang_href('en', $sitePublicPath);
             <div class="site-footer-top">
                 <div class="site-footer-toolbar">
                     <div class="site-lang-switch site-lang-switch-footer" aria-label="Language switch">
-                        <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($footerLangRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
+                        <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($footerLangRuHref, ENT_QUOTES, 'UTF-8'); ?>">
                             <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span> RU
                         </a>
-                        <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($footerLangEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
+                        <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($footerLangEnHref, ENT_QUOTES, 'UTF-8'); ?>">
                             <span class="site-lang-flag fi fi-us" aria-hidden="true"></span> US
                         </a>
                     </div>

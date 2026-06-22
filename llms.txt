@@ -1,0 +1,29 @@
+# Chadow
+
+> Chadow is a World of Tanks community portal with ABS replay analysis, recruiting, tournament brackets, tactical planning boards, and aim trainers. The site is available in Russian and English.
+
+Use the links below to discover public pages and services.
+
+## Main
+
+- [Home (Russian)](https://chadow.ru/): Project hub and service overview
+- [Home (English)](https://chadow.ru/en): English version of the project hub
+
+## Services
+
+- [ABS Replay Analysis](https://chadow.ru/services/abs): Upload replays and review team statistics, WGSRT, and battle metrics
+- [ABS Replay Analysis (English)](https://chadow.ru/en/services/abs): English version of the replay analysis service
+- [Recruiting](https://chadow.ru/services/recruiting): Search for teams, clans, and players
+- [Recruiting (English)](https://chadow.ru/en/services/recruiting): English version of the recruiting board
+- [Tournament Brackets](https://chadow.ru/services/bracket): Create and browse tournament brackets
+- [Tournament Brackets (English)](https://chadow.ru/en/services/bracket): English version of the bracket generator
+- [Tactical Board](https://chadow.ru/services/tactics): Collaborative tactics planning on map overlays
+- [Tactical Board (English)](https://chadow.ru/en/services/tactics): English version of the tactical board
+- [Aim Trainers](https://chadow.ru/services/aim): Mini-games for aim and reaction training
+- [Aim Trainers (English)](https://chadow.ru/en/services/aim): English version of the aim trainers
+
+## Optional
+
+- [Sitemap](https://chadow.ru/sitemap.xml): Machine-readable list of indexable URLs
+- [Login](https://chadow.ru/auth/login): User authentication
+- [Login (English)](https://chadow.ru/en/auth/login): English login page

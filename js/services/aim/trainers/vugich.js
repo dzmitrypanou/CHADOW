@@ -12,8 +12,8 @@
         const LANE_COUNT = 4;
         const LANE_MARGIN_TOP = 72;
         const LANE_MARGIN_BOTTOM = 72;
-        const SIGHT_IMAGE_SRC = '/assets/aim/vugich-sight.png';
-        const AUDIO_V = '?v=3';
+        const SIGHT_IMAGE_SRC = '/assets/aim/vugich-sight.png?v=4';
+        const AUDIO_V = '?v=4';
         const BGM_SRC = `/assets/aim/vugich.m4a${AUDIO_V}`;
         const SFX_SHOT_SRC = `/assets/aim/wot_bigboom_in.mp3${AUDIO_V}`;
         const SFX_MISS_SRC = `/assets/aim/ne-probil.mp3${AUDIO_V}`;
@@ -895,12 +895,48 @@
         }
 
         function drawTacticalSight(cx, cy) {
-            if (!sightImageReady || !sightImage) {
+            if (sightImageReady && sightImage) {
+                const w = sightImage.naturalWidth * SIGHT_SCALE;
+                const h = sightImage.naturalHeight * SIGHT_SCALE;
+                ctx.drawImage(sightImage, cx - w * 0.5, cy - h * 0.5, w, h);
                 return;
             }
-            const w = sightImage.naturalWidth * SIGHT_SCALE;
-            const h = sightImage.naturalHeight * SIGHT_SCALE;
-            ctx.drawImage(sightImage, cx - w * 0.5, cy - h * 0.5, w, h);
+            const ring = 38;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, ring + 1, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, ring, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(198, 40, 40, 0.98)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, ring * 0.58, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            const tickStart = ring - 10;
+            const tickLen = 8;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - tickStart);
+            ctx.lineTo(cx, cy - tickStart + tickLen);
+            ctx.moveTo(cx, cy + tickStart);
+            ctx.lineTo(cx, cy + tickStart - tickLen);
+            ctx.moveTo(cx - tickStart, cy);
+            ctx.lineTo(cx - tickStart + tickLen, cy);
+            ctx.moveTo(cx + tickStart, cy);
+            ctx.lineTo(cx + tickStart - tickLen, cy);
+            ctx.stroke();
+            ctx.fillStyle = '#ff5252';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
         function drawDrunkScope() {
@@ -997,6 +1033,8 @@
                 shake = { x: 0, y: 0 };
                 shakeTime = 0;
                 cursorShakeLast = 0;
+                rawPointer = { x: width * 0.5, y: height * 0.5 };
+                pointer = { x: rawPointer.x, y: rawPointer.y };
                 running = true;
                 startAt = performance.now();
                 lastUpdate = startAt;

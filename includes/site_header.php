@@ -239,23 +239,33 @@ $GLOBALS['__chadow_auth_ready'] = true;
     <?php endif; ?>
     <script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
     <link rel="manifest" href="/site.webmanifest">
+    <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM site map">
     <?php
     $faStylesheetHref = '/css/vendor/fontawesome.min.css?v=' . $siteVersion;
+    $faLandingStylesheetHref = '/css/vendor/fontawesome-landing.min.css?v=' . $siteVersion;
+    $mainStylesheetHref = '/css/style.css?v=' . $siteVersion;
+    $isLandingPage = isset($bodyClass) && strpos((string) $bodyClass, 'page-landing') !== false;
+    $logoWebpHref = '/assets/icons/logo-header.webp?v=' . $siteVersion;
     if (empty($tacticsRoomShell)):
     ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <?php
-        chadow_emit_async_stylesheet('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+        chadow_emit_async_stylesheet('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         chadow_emit_async_stylesheet('https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css');
-    ?>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($faStylesheetHref, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php else: ?>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($faStylesheetHref, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php endif; ?>
-    <link rel="stylesheet" href="/css/style.css?v=<?php echo htmlspecialchars($siteVersion); ?>">
+        chadow_emit_async_stylesheet($isLandingPage ? $faLandingStylesheetHref : $faStylesheetHref);
+        if ($isLandingPage) {
+            chadow_emit_preload($logoWebpHref, 'image', 'image/webp');
+            chadow_emit_inline_landing_critical_css();
+            chadow_emit_async_stylesheet($mainStylesheetHref);
+        } else {
+            echo '<link rel="stylesheet" href="' . htmlspecialchars($mainStylesheetHref, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+        }
+    else: ?>
+    <?php
+        chadow_emit_async_stylesheet($faStylesheetHref);
+        echo '<link rel="stylesheet" href="' . htmlspecialchars($mainStylesheetHref, ENT_QUOTES, 'UTF-8') . '">' . "\n";
+    endif; ?>
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="shortcut icon" type="image/png" href="/favicon.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>">
@@ -284,13 +294,20 @@ $GLOBALS['__chadow_auth_ready'] = true;
                         data-href-ru="<?php echo htmlspecialchars($homeRuHref, ENT_QUOTES, 'UTF-8'); ?>"
                         data-href-en="<?php echo htmlspecialchars($homeEnHref, ENT_QUOTES, 'UTF-8'); ?>"
                     >
-                        <img
-                            class="site-logo-img"
-                            src="/assets/icons/logo-header.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>"
-                            width="230"
-                            height="50"
-                            alt="<?php echo htmlspecialchars($siteLogoText, ENT_QUOTES, 'UTF-8'); ?>"
-                        >
+                        <picture>
+                            <source
+                                srcset="<?php echo htmlspecialchars($logoWebpHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                type="image/webp"
+                            >
+                            <img
+                                class="site-logo-img"
+                                src="/assets/icons/logo-header.png?v=<?php echo htmlspecialchars($siteVersion, ENT_QUOTES, 'UTF-8'); ?>"
+                                width="230"
+                                height="50"
+                                alt="<?php echo htmlspecialchars($siteLogoText, ENT_QUOTES, 'UTF-8'); ?>"
+                                fetchpriority="high"
+                            >
+                        </picture>
                     </a>
                 </span>
             </h1>
@@ -337,10 +354,10 @@ $GLOBALS['__chadow_auth_ready'] = true;
                 <?php endif; ?>
 
                 <div class="site-lang-switch" aria-label="Language switch">
-                    <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
+                    <a class="site-lang-link<?php echo $absLang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>">
                         <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span> RU
                     </a>
-                    <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($langEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
+                    <a class="site-lang-link<?php echo $absLang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($langEnHref, ENT_QUOTES, 'UTF-8'); ?>">
                         <span class="site-lang-flag fi fi-us" aria-hidden="true"></span> US
                     </a>
                 </div>

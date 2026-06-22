@@ -219,10 +219,10 @@ require __DIR__ . '/../../includes/site_header.php';
                         </button>
                         <button type="button" class="tactics-editor-topbar__btn" id="tacticsDownloadScreenshotBtn" data-tactics-i18n-title="downloadScreenshot" title="<?php echo $lang === 'en' ? 'Download screenshot' : 'Скачать скрин'; ?>"><i class="fas fa-download" aria-hidden="true"></i></button>
                         <div class="site-lang-switch tactics-editor-lang-switch" id="tacticsEditorLangSwitch" aria-label="<?php echo $lang === 'en' ? 'Language' : 'Язык'; ?>">
-                            <a class="site-lang-link<?php echo $lang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="Russian">
+                            <a class="site-lang-link<?php echo $lang === 'ru' ? ' is-active' : ''; ?>" data-lang="ru" href="<?php echo htmlspecialchars($langRuHref, ENT_QUOTES, 'UTF-8'); ?>">
                                 <span class="site-lang-flag fi fi-ru" aria-hidden="true"></span><span class="site-lang-code">RU</span>
                             </a>
-                            <a class="site-lang-link<?php echo $lang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($langEnHref, ENT_QUOTES, 'UTF-8'); ?>" aria-label="English">
+                            <a class="site-lang-link<?php echo $lang === 'en' ? ' is-active' : ''; ?>" data-lang="en" href="<?php echo htmlspecialchars($langEnHref, ENT_QUOTES, 'UTF-8'); ?>">
                                 <span class="site-lang-flag fi fi-us" aria-hidden="true"></span><span class="site-lang-code">US</span>
                             </a>
                         </div>
