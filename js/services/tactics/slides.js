@@ -731,7 +731,10 @@
 
         getSlideThumbUrl(slide) {
             if (!slide?.id) return maps().placeholderUrl();
-            return this.mapUrls[slide.id] || maps().slideMapUrl(slide, this.publicId, this.mapUrls);
+            if (maps().isCustomRoomSlide(slide) && this.mapUrls[slide.id]) {
+                return this.mapUrls[slide.id];
+            }
+            return maps().slideMapUrl(slide, this.publicId, this.mapUrls);
         }
 
         setSlidePreviewUrl(slide, opts = {}) {

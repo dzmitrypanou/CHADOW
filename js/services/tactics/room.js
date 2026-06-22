@@ -271,6 +271,10 @@
         if (!slide || !supportsSpawnSwap(slide) || !canToggleSlideView() || !roomState) return;
 
         setSlideSpawnSwapped(slide, !getSlideSpawnSwapped(slide));
+        if (!getSlideSpawnOverlay(slide)) {
+            setSlideSpawnOverlay(slide, true);
+            updateSpawnOverlayBtn();
+        }
         updateSpawnSwapBtn();
         canvasCtrl?.syncSpawnOverlay(slide);
         slidesCtrl?.refreshSlideSpawnOverlays?.();
@@ -436,9 +440,12 @@
     }
 
     function mapUrlForSlide(slide) {
-        if (!slide?.id) return maps().slideMapUrl(slide, roomPublicId());
-        const fromCtrl = slidesCtrl?.mapUrls?.[slide.id];
-        return fromCtrl || maps().slideMapUrl(slide, roomPublicId());
+        if (!slide) return maps().placeholderUrl();
+        if (slide.id && isCustomRoomSlide(slide)) {
+            const fromCtrl = slidesCtrl?.mapUrls?.[slide.id];
+            if (fromCtrl) return fromCtrl;
+        }
+        return maps().slideMapUrl(slide, roomPublicId());
     }
 
     function getRoomGame() {

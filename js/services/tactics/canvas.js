@@ -7233,6 +7233,28 @@
             this.fabric.requestRenderAll();
         }
 
+        async reloadMapBackground(slide) {
+            if (!slide || !this.fabric) return;
+            this.activeSlide = slide;
+            const mapsApi = window.AbsTacticsMaps;
+            if (!mapsApi) return;
+            const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
+            const resolvedUrl = mapsApi.slideMapUrl(slide, publicId);
+            const img = await mapsApi.loadMapImage(
+                slide.map_code,
+                slide.game,
+                slide.battle_mode,
+                resolvedUrl,
+                slide,
+                publicId,
+            );
+            if (img) {
+                this.showBackgroundImage(img);
+            } else {
+                this.syncSpawnOverlay(slide);
+            }
+        }
+
         async loadSlide(slide, mapUrl) {
             this.initFabric();
             if (!this.fabric || !slide) return;
@@ -7271,7 +7293,7 @@
                 this.activeSlide = slide;
 
                 const publicId = String(window.ABS_TACTICS_PUBLIC_ID || '');
-                const resolvedUrl = mapUrl || maps().slideMapUrl(slide, publicId);
+                const resolvedUrl = maps().slideMapUrl(slide, publicId) || mapUrl;
                 const cached = maps().getCachedImage(resolvedUrl);
 
                 const imgPromise = maps().loadMapImage(

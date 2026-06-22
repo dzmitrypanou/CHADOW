@@ -351,7 +351,7 @@ function tactics_sanitize_side_length($value): ?int {
     return $n;
 }
 
-function tactics_map_asset_path(string $mapCode, string $game = 'wot', string $battleMode = 'random'): string {
+function tactics_map_asset_path(string $mapCode, string $game = 'wot', string $battleMode = 'random', bool $spawnSwapped = false): string {
     $mapCode = tactics_sanitize_map_code($mapCode);
     $game = tactics_sanitize_game($game);
     $battleMode = tactics_sanitize_battle_mode($battleMode);
@@ -397,8 +397,8 @@ function tactics_map_has_mode_asset(string $mapCode, string $game = 'wot', strin
     return tactics_map_mode_asset_path($mapCode, $game, $battleMode) !== null;
 }
 
-function tactics_map_url(string $mapCode, string $game = 'wot', string $battleMode = 'random'): string {
-    return tactics_map_asset_path($mapCode, $game, $battleMode);
+function tactics_map_url(string $mapCode, string $game = 'wot', string $battleMode = 'random', bool $spawnSwapped = false): string {
+    return tactics_map_asset_path($mapCode, $game, $battleMode, $spawnSwapped);
 }
 
 function tactics_slide_spawn_swapped(array $slide): bool {
@@ -429,8 +429,9 @@ function tactics_slide_map_url(array $slide, ?string $publicId = null): string {
     $mapCode = (string) ($slide['map_code'] ?? 'cliff');
     $game = (string) ($slide['game'] ?? 'wot');
     $battleMode = (string) ($slide['battle_mode'] ?? 'random');
+    $spawnSwapped = tactics_slide_spawn_swapped($slide);
 
-    return tactics_map_url($mapCode, $game, $battleMode);
+    return tactics_map_url($mapCode, $game, $battleMode, $spawnSwapped);
 }
 
 function tactics_build_slide_map_urls(array $roomData, string $publicId): array {

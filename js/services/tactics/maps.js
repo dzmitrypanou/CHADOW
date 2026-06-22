@@ -56,8 +56,14 @@
 
     const imageLoadPromises = new Map();
 
-    function mapUrl(mapCode, game, battleMode) {
+    function mapCodeForUrl(mapCode, battleMode, spawnSwapped) {
+        void spawnSwapped;
         const code = (mapCode || 'cliff').toLowerCase();
+        return code;
+    }
+
+    function mapUrl(mapCode, game, battleMode, spawnSwapped) {
+        const code = mapCodeForUrl(mapCode, battleMode, spawnSwapped);
         const g = (game || 'wot').toLowerCase();
         const mode = (battleMode || 'random').toLowerCase();
         const root = '/assets/tactics/maps';
@@ -65,12 +71,12 @@
             + encodeURIComponent(code) + '.webp';
     }
 
-    function mapUrlCandidates(mapCode, game, battleMode) {
-        const code = (mapCode || 'cliff').toLowerCase();
+    function mapUrlCandidates(mapCode, game, battleMode, spawnSwapped) {
+        const code = mapCodeForUrl(mapCode, battleMode, spawnSwapped);
         const g = (game || 'wot').toLowerCase();
         const mode = (battleMode || 'random').toLowerCase();
         const root = '/assets/tactics/maps';
-        return [
+        const candidates = [
             root + '/' + g + '/' + mode + '/' + code + '.webp',
             root + '/' + g + '/' + mode + '/' + code + '.png',
             root + '/' + g + '/' + mode + '/' + code + '.jpg',
@@ -79,8 +85,9 @@
             root + '/' + code + '.webp',
             root + '/' + code + '.png',
             root + '/' + code + '.jpg',
-            placeholderUrl(),
         ];
+        candidates.push(placeholderUrl());
+        return candidates;
     }
 
     function placeholderUrl() {
@@ -406,6 +413,7 @@
             slide.map_code,
             slide.game,
             slide.battle_mode,
+            slideSpawnSwapped(slide),
         );
     }
 
@@ -422,6 +430,7 @@
             slide.map_code,
             slide.game,
             slide.battle_mode,
+            slideSpawnSwapped(slide),
         );
     }
 
@@ -659,7 +668,7 @@
             return known;
         }
         if (isCustomRoomSlide(source)) return '';
-        return mapUrl(source.map_code, source.game, source.battle_mode);
+        return mapUrl(source.map_code, source.game, source.battle_mode, slideSpawnSwapped(source));
     }
 
     function refreshSlidePreviewUrl(slide, publicId, mapUrls = {}, opts = {}) {
@@ -681,9 +690,11 @@
             }
         }
 
-        const known = knownSlideMapUrl(slide, mapUrls);
-        if (known && known !== placeholderUrl()) {
-            return known;
+        if (opts.resetKnown !== true) {
+            const known = knownSlideMapUrl(slide, mapUrls);
+            if (known && known !== placeholderUrl()) {
+                return known;
+            }
         }
 
         if (isCustomRoomSlide(slide)) {
@@ -865,7 +876,7 @@
     function getSlideSpawnOverlayOpts(slide) {
         const view = slide?.view || {};
         return {
-            spawnSwapped: view.spawn_swapped === true,
+            spawnSwapped: slideSpawnSwapped(slide),
             showOverlay: view.spawn_overlay !== false,
         };
     }
