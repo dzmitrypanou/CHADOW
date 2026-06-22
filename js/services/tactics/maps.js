@@ -822,40 +822,15 @@
         }
 
         const type = String(point.point_type || '').toLowerCase();
-        const mode = String(opts.battleMode || 'random').toLowerCase();
 
+        // Neutral domination flag — same for both teams.
         if (type === 'control_point') {
             return { point, team };
         }
 
-        if (mode === 'assault') {
-            if (type === 'base') {
-                return {
-                    point,
-                    team: effectiveSpawnTeam(point, true),
-                };
-            }
-            if (type === 'spawn') {
-                const partner = findSpawnPartner(point, allPoints);
-                if (partner) {
-                    return {
-                        point: { ...point, x: partner.x, y: partner.y },
-                        team: effectiveSpawnTeam(point, true),
-                    };
-                }
-                return {
-                    point,
-                    team: effectiveSpawnTeam(point, true),
-                };
-            }
-            return {
-                point,
-                team: effectiveSpawnTeam(point, true),
-            };
-        }
-
+        // Side swap: team colors at fixed map coordinates (bases, spawns, caps).
         return {
-            point: resolveSpawnDisplayPoint(point, allPoints, true),
+            point,
             team: effectiveSpawnTeam(point, true),
         };
     }
